@@ -1,9 +1,10 @@
-
+import rolesTable from "./rolesSchema";
 import { sql } from "drizzle-orm";
 import { sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 const usersTable = sqliteTable("users_table", {
     UserID: text("UserID", {length: 36}).primaryKey(),
+    RoleID: text("RoleID", {length: 36}).notNull().references(()=> rolesTable.RoleID),
     imageUser: text("imageUser").notNull(),
     FirstName: text("FirstName").notNull(),
     LastName: text("LastName").notNull(),
