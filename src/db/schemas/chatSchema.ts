@@ -5,7 +5,7 @@ import usersTable from "./usersSchema";
 const chatTable = sqliteTable("chat_table", {
     ChatID: text("ChatID", { length: 36 }).primaryKey(),
     UserID: text("UserID", {length: 36}).notNull().references(()=> usersTable.UserID),
-    name: text("name").notNull(),
+    chatname: text("chatname").notNull(),
     createdAt: text("createdAt").default(sql `(CURRENT_TIMESTAMP)`).notNull(),
     status: text("status").notNull(),
 });
