@@ -4,6 +4,10 @@
         "module": "CommonJS",
         "strict": true,
         "outDir": "dist",
-        "rootDir": "./"
+        "rootDir": "./",
+        "baseUrl": "./",
+        "paths": {
+            "@/*": ["src/*"]
+        }
     }
 }
