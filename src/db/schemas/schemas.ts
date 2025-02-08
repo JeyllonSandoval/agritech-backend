@@ -1,8 +1,7 @@
-import usersTable from "./usersSchema";
-import rolesTable from "./rolesSchema";
-import messageTable from "./messageSchema";
-import filesTable from "./filesScema";
-import countryTable from "./countrySchema";
-import chatTable from "./chatSchema";
+export * from "@/db/schemas/usersSchema";
+export * from "@/db/schemas/messageSchema";
+export * from "@/db/schemas/chatSchema";
+export * from "@/db/schemas/countrySchema";
+export * from "@/db/schemas/filesScema";
+export * from "@/db/schemas/rolesSchema";
 
-export { usersTable, rolesTable, messageTable, filesTable, countryTable, chatTable };
