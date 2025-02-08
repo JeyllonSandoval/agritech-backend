@@ -3,8 +3,8 @@ import { sql } from "drizzle-orm";
 import { sqliteTable, text } from "drizzle-orm/sqlite-core";
 import countryTable from "./countrySchema";
 
-const usersTable = sqliteTable("users_table", {
-    UserID: text("UserID", {length: 36}).primaryKey(),
+const usersTable = sqliteTable("usersTable", {
+    UserID: text("UserID", {length: 36}).primaryKey().default(sql `UUID()`),
     RoleID: text("RoleID", {length: 36}).notNull().references(()=> rolesTable.RoleID),
     imageUser: text("imageUser").notNull(),
     FirstName: text("FirstName").notNull(),
