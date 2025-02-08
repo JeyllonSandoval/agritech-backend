@@ -4,6 +4,6 @@
         "module": "CommonJS",
         "strict": true,
         "outDir": "dist",
-        "rootDir": "src"
+        "rootDir": "./"
     }
 }
