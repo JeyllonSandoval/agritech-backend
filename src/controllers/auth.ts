@@ -1,24 +1,47 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import db from "@/db/db";
 import usersTable from "@/db/schemas/usersSchema";
+import * as bcrypt from "bcrypt";
+import { v4 as uuidv4 } from "uuid";
 
-export const register = async (req: FastifyRequest, reply: FastifyReply) => {
-    const {FirstName, LastName, Email, password, CountryID, RoleID, imageUser} = req.body as any;
+export const registerUser = async (req: FastifyRequest, reply: FastifyReply) => {
+    try {
+        const { RoleID, imageUser, FirstName, LastName, CountryID, Email, password } = req.body as {
+            RoleID: string;
+            imageUser: string;
+            FirstName: string;
+            LastName: string;
+            CountryID: string;
+            Email: string;
+            password: string;
+        };
 
-    if (!FirstName || !LastName || !Email || !password || !CountryID || !RoleID || !imageUser) {
-        return reply.status(400).send({message: "Missing required fields"});
+        if (!RoleID || !imageUser || !FirstName || !LastName || !CountryID || !Email || !password) {
+        return reply.status(400).send({ error: "Todos los campos son obligatorios" });
+        }
+
+        const userID = uuidv4();
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const newUser = await db
+        .insert(usersTable)
+        .values({
+            UserID: userID,
+            RoleID,
+            imageUser,
+            FirstName,
+            LastName,
+            CountryID,
+            Email,
+            password: hashedPassword,
+            status: "active",
+        })
+        .returning();
+
+        return reply.status(201).send(newUser);
+    } catch (error) {
+        console.error(error);
+        return reply.status(500).send({ error: "Error al registrar usuario" });
     }
-
-    const user = await db.insert(usersTable).values({
-         // Assuming you have a function to generate unique IDs
-        FirstName,
-        LastName,
-        Email,
-        password,
-        CountryID,
-        RoleID,
-        imageUser,
-        status: "active"
-    }).returning();
-    return reply.status(201).send(user);
 };
