@@ -2,7 +2,7 @@
   "dependencies": {
     "@libsql/client": "^0.14.0",
     "dotenv": "^16.4.7",
-    "drizzle-orm": "^0.39.1",
+    "drizzle-orm": "^0.39.2",
     "fastify": "^5.2.1"
   },
   "name": "agritech-backend",
