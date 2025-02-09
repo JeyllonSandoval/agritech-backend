@@ -1,12 +1,18 @@
 import Fastify from "fastify";
 import 'dotenv/config';
 import db from "./db/db";
+import "module-alias/register";
+
 
 const fastify = Fastify({ logger: true });
 
 fastify.get("/", async (_request) => {
-    return { message: "¡Hello, Fastify!. This is a new era" };
+    return { message: "¡Hello, Fastify!. This is a new era 2.0" };
 });
+
+// Importing routes
+fastify.register(import("./routers/auth.routes"));
+fastify.register(import("./routers/user.routes"));
 
 const start = async () => {
     try {
