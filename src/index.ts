@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import 'dotenv/config';
 import db from "./db/db";
 import "module-alias/register";
+import createRoles from "./libs/InitialSetup";
 
 
 const fastify = Fastify({ logger: true });
@@ -13,6 +14,9 @@ fastify.get("/", async (_request) => {
 // Importing routes
 fastify.register(import("./routers/auth.routes"));
 fastify.register(import("./routers/user.routes"));
+
+// Funtion Create roles
+createRoles();
 
 const start = async () => {
     try {
