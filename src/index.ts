@@ -12,8 +12,9 @@ fastify.get("/", async (_request) => {
 });
 
 // Importing routes
-fastify.register(import("./routers/auth.routes"));
-fastify.register(import("./routers/user.routes"));
+fastify.register(import("@/routers/auth.routes"));
+fastify.register(import("@/routers/user.routes"));
+fastify.register(import("@/routers/country.routes"));
 
 // Funtion Create roles
 createRoles();
