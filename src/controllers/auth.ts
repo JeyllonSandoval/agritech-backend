@@ -39,9 +39,9 @@ export const registerUser = async (req: FastifyRequest, reply: FastifyReply) => 
         })
         .returning();
 
-        return reply.status(201).send(newUser);
+        return reply.status(201).send({ messege: "The user successfully registered", newUser});
     } catch (error) {
         console.error(error);
-        return reply.status(500).send({ error: "Error al registrar usuario" });
+        return reply.status(500).send({ error: "Mission Failed: Failed to register user" });
     }
 };
