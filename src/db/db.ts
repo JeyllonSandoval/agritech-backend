@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/libsql';
 import { createClient } from '@libsql/client';
 
+
 const { TURSO_DATABASE_URL, TURSO_AUTH_TOKEN } = process.env;
 
 if (!TURSO_DATABASE_URL || !TURSO_AUTH_TOKEN) {
@@ -13,6 +14,6 @@ const client = createClient({
     authToken: TURSO_AUTH_TOKEN
 });
 
-const db = drizzle({ client });
+const db = drizzle({client});
 
 export default db;
