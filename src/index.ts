@@ -17,6 +17,7 @@ fastify.register(import("@/routers/user.routes"));
 fastify.register(import("@/routers/country.routes"));
 fastify.register(import("@/routers/file.routes"));
 fastify.register(import("@/routers/chat.routes"));
+fastify.register(import("@/routers/message.routes"));
 
 // Funtion Create roles
 createRoles();
