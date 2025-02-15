@@ -5,54 +5,71 @@ import * as bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
 import { generateToken } from "@/utils/token";
 import { eq } from "drizzle-orm";
+import { z, ZodError } from "zod";
 
-const isValidPassword = (password: string): boolean => {
-    return /^(?=.*[A-Z])(?=.*\d).{8,}$/.test(password);
-};
+const registerUserSchema = z.object({
+    RoleID: z.string().uuid({ message: "Invalid role ID" }),
+    imageUser: z.string().url({ message: "Invalid image URL" }).optional(),
+    FirstName: z.string().min(2, { message: "First name must be at least 2 characters long" }),
+    LastName: z.string().min(2, { message: "Last name must be at least 2 characters long" }),
+    CountryID: z.string().uuid({ message: "Invalid country ID" }),
+    Email: z.string().email({ message: "Invalid email address" }),
+    password: z.string().min(6, { message: "Password must be at least 6 characters long" }),
+});
 
-export const registerUser = async (req: FastifyRequest, reply: FastifyReply) => {
+const loginUserSchema = z.object({
+    Email: z.string().email({ message: "Invalid email address" }),
+    password: z.string().min(6, { message: "Password is invalid" }),
+});
+
+export const registerUser = async (
+    req: FastifyRequest<{ Body: z.infer<typeof registerUserSchema> }>, 
+    reply: FastifyReply
+) => {
     try {
-        const { RoleID, imageUser, FirstName, LastName, CountryID, Email, password } = req.body as {
-            RoleID: string;
-            imageUser: string;
-            FirstName: string;
-            LastName: string;
-            CountryID: string;
-            Email: string;
-            password: string;
+        // ✅ 1. Limpiar los datos: eliminar espacios antes de la validación
+        const cleanedData = {
+            ...req.body,
+            FirstName: req.body.FirstName.trim(),
+            LastName: req.body.LastName.trim(),
+            Email: req.body.Email.trim(),
+            password: req.body.password.trim()
         };
 
-        if (!RoleID || !imageUser || !FirstName || !LastName || !CountryID || !Email || !password) {
-        return reply.status(400).send({ error: "All fields are required" });
+        // ✅ 2. Validar los datos con Zod
+        const result = registerUserSchema.safeParse(cleanedData);
+        
+        if (!result.success) {
+            return reply.status(400).send({ 
+                error: "Validation error", 
+                details: result.error.format() 
+            });
         }
 
-        if (!isValidPassword(password)) {
-            return reply.status(400).send({ error: "Password must be at least 8 characters long, include an uppercase letter and a number" });
-        }
-
-        const userID = uuidv4();
-
-        const hashedPassword = await bcrypt.hash(password, 8);
+        // ✅ 3. Inserción en la base de datos
+        const UserID = uuidv4();
+        const hashedPassword = await bcrypt.hash(result.data.password, 8);
 
         const [newUser] = await db
             .insert(usersTable)
             .values({
-                UserID: userID,
-                RoleID,
-                imageUser,
-                FirstName,
-                LastName,
-                CountryID,
-                Email,
+                UserID,
+                RoleID: result.data.RoleID,
+                imageUser: result.data.imageUser || '',
+                FirstName: result.data.FirstName,
+                LastName: result.data.LastName,
+                CountryID: result.data.CountryID,
+                Email: result.data.Email,
                 password: hashedPassword,
-                status: "active",
+                status: "active"
             })
             .returning();
 
+        // ✅ Generación de token JWT
         const token = generateToken({
-            UserID: userID,
-            Email,
-            RoleID
+            UserID: UserID,
+            Email: result.data.Email,
+            RoleID: result.data.RoleID
         });
 
         return reply.status(201).send({ 
@@ -60,22 +77,29 @@ export const registerUser = async (req: FastifyRequest, reply: FastifyReply) => 
             user: newUser,
             token 
         });
+
     } catch (error) {
         console.error(error);
-        return reply.status(500).send({ error: "Mission Failed: Failed to register user" });
+        return reply.status(500).send({ 
+            error: "Internal server error", 
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
     }
 };
 
+
 export const loginUser = async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-        const { Email, password } = req.body as {
-            Email: string;
-            password: string;
-        };
+        const result = loginUserSchema.safeParse(req.body);
 
-        if (!Email || !password) {
-            return reply.status(400).send({ error: "Email and password are required" });
+        if (!result.success) {
+            return reply.status(400).send({ 
+                error: "Validation error: Zod error", 
+                details: result.error.errors 
+            });
         }
+
+        const { Email, password } = result.data;
 
         const user = await db
             .select()
