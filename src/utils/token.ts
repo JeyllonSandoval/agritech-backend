@@ -8,7 +8,7 @@ if (!JWT_SECRET) {
     throw new Error('JWT_SECRET must be defined in environment variables');
 }
 
-interface TokenPayload {
+export interface TokenPayload {
     UserID: string;
     Email: string;
     RoleID: string;
