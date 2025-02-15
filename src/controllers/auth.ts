@@ -83,7 +83,7 @@ export const registerUser = async (
                 details: error.format() 
             });
         }
-        
+
         return reply.status(500).send({ 
             error: "Internal server error", 
             details: error instanceof Error ? error.message : "Unknown error"
@@ -92,14 +92,23 @@ export const registerUser = async (
 };
 
 
-export const loginUser = async (req: FastifyRequest, reply: FastifyReply) => {
+export const loginUser = async (
+    req: FastifyRequest<{ Body: z.infer<typeof loginUserSchema> }>,
+    reply: FastifyReply
+) => {
     try {
-        const result = loginUserSchema.safeParse(req.body);
+        const cleanedData = {
+            ...req.body,
+            Email: req.body.Email.trim(),
+            password: req.body.password.trim()
+        };
 
+        const result = loginUserSchema.safeParse(cleanedData);
+        
         if (!result.success) {
             return reply.status(400).send({ 
-                error: "Validation error: Zod error", 
-                details: result.error.errors 
+                error: "Validation error", 
+                details: result.error.format() 
             });
         }
 
@@ -112,13 +121,13 @@ export const loginUser = async (req: FastifyRequest, reply: FastifyReply) => {
             .get();
 
         if (!user) {
-            return reply.status(401).send({ error: "Invalid credentials: User no exist" });
+            return reply.status(401).send({ error: "Invalid email or password" });
         }
 
         const isPasswordValid = await bcrypt.compare(password, user.password);
 
         if (!isPasswordValid) {
-            return reply.status(401).send({ error: "Invalid credentials: password is invalid" });
+            return reply.status(401).send({ error: "Invalid email or password" });
         }
 
         const token = generateToken({
@@ -143,7 +152,18 @@ export const loginUser = async (req: FastifyRequest, reply: FastifyReply) => {
         });
     } catch (error) {
         console.error(error);
-        return reply.status(500).send({ error: "Mission Failed: Failed to login" });
+        
+        if (error instanceof ZodError) {
+            return reply.status(400).send({ 
+                error: "Validation error", 
+                details: error.format() 
+            });
+        }
+
+        return reply.status(500).send({ 
+            error: "Internal server error", 
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
     }
 };
 
