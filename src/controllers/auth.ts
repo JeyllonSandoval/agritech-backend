@@ -27,7 +27,6 @@ export const registerUser = async (
     reply: FastifyReply
 ) => {
     try {
-        // ✅ 1. Limpiar los datos: eliminar espacios antes de la validación
         const cleanedData = {
             ...req.body,
             FirstName: req.body.FirstName.trim(),
@@ -36,7 +35,6 @@ export const registerUser = async (
             password: req.body.password.trim()
         };
 
-        // ✅ 2. Validar los datos con Zod
         const result = registerUserSchema.safeParse(cleanedData);
         
         if (!result.success) {
@@ -46,7 +44,6 @@ export const registerUser = async (
             });
         }
 
-        // ✅ 3. Inserción en la base de datos
         const UserID = uuidv4();
         const hashedPassword = await bcrypt.hash(result.data.password, 8);
 
@@ -65,7 +62,6 @@ export const registerUser = async (
             })
             .returning();
 
-        // ✅ Generación de token JWT
         const token = generateToken({
             UserID: UserID,
             Email: result.data.Email,
@@ -80,6 +76,14 @@ export const registerUser = async (
 
     } catch (error) {
         console.error(error);
+
+        if (error instanceof ZodError) {
+            return reply.status(400).send({ 
+                error: "Validation error", 
+                details: error.format() 
+            });
+        }
+        
         return reply.status(500).send({ 
             error: "Internal server error", 
             details: error instanceof Error ? error.message : "Unknown error"
