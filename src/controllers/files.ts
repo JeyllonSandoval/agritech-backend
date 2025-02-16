@@ -2,17 +2,30 @@ import { FastifyRequest, FastifyReply } from "fastify";
 import db from "@/db/db";
 import filesTable from "@/db/schemas/filesScema";
 import { v4 as uuidv4 } from "uuid";
+import { z, ZodError } from "zod";
 
-const createFiles = async (req: FastifyRequest, reply: FastifyReply) => {
+const createFilesSchema = z.object({
+    UserID: z.string().uuid({ message: "Invalid user ID" }),
+    contentURL: z.string().url({ message: "Invalid content URL" }),
+});
+
+const createFiles = async (
+    req: FastifyRequest<{ Body: z.infer<typeof createFilesSchema> }>, 
+    reply: FastifyReply) => {
     try {
-        const { UserID, contentURL } = req.body as {
-            
-            UserID: string;
-            contentURL: string;
+        const cleanedData = {
+            ...req.body,
+            UserID: req.body.UserID.trim(),
+            contentURL: req.body.contentURL.trim()
         };
 
-        if (!UserID || !contentURL) {
-            return reply.status(400).send({ error: "All fields are required" });
+        const result = createFilesSchema.safeParse(cleanedData);
+
+        if (!result.success) {
+            return reply.status(400).send({
+                error: "Validation error",
+                details: result.error.format()
+            });
         }
 
         const fileID = uuidv4();
@@ -21,8 +34,8 @@ const createFiles = async (req: FastifyRequest, reply: FastifyReply) => {
             .insert(filesTable)
             .values({
                 FileID: fileID,
-                UserID,
-                contentURL,
+                UserID: result.data.UserID,
+                contentURL: result.data.contentURL,
                 status: "active"
             })
             .returning();
@@ -30,7 +43,18 @@ const createFiles = async (req: FastifyRequest, reply: FastifyReply) => {
         return reply.status(201).send({ message: "The file was successfully created", newFile });
     } catch (error) {
         console.error(error);
-        return reply.status(500).send({ error: "Mission Failed: Failed to create file" });
+
+        if (error instanceof ZodError) {
+            return reply.status(400).send({
+                error: "Validation error",
+                details: error.format()
+            });
+        }
+
+        return reply.status(500).send({ 
+            error: "Mission Failed: Failed to create file",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
     }
 };
 

@@ -4,6 +4,13 @@ import { eq } from "drizzle-orm";
 import db from "@/db/db";
 import messageTable from "@/db/schemas/messageSchema";
 import chatTable from "@/db/schemas/chatSchema";
+import { z, ZodError } from "zod";
+
+const createMessageSchema = z.object({
+    ChatID: z.string().uuid({ message: "Invalid chat ID" }),
+    content: z.string().min(1, { message: "Content is required" }),
+    sendertype: z.enum(["user", "ai"], { message: "Invalid sender type" }),
+});
 
 interface MessageBody {
     ChatID: string;
@@ -16,24 +23,27 @@ export const createMessage = async (
     reply: FastifyReply
 ) => {
     try {
-        const { ChatID, content, sendertype } = request.body;
+        const cleanedData = {
+            ...request.body,
+            ChatID: request.body.ChatID.trim(),
+            content: request.body.content.trim(),
+            sendertype: request.body.sendertype.trim()
+        };
+        
+        const result = createMessageSchema.safeParse(cleanedData);
 
-        // Validate chat exists
-        const chatExists = await db.select().from(chatTable).where(eq(chatTable.ChatID, ChatID));
-        if (chatExists.length === 0) {
-            return reply.status(404).send({ message: "Chat not found" });
-        }
-
-        // Validate sender type
-        if (sendertype !== "user" && sendertype !== "ai") {
-            return reply.status(400).send({ message: "Invalid sender type" });
+        if (!result.success) {
+            return reply.status(400).send({
+                error: "Validation error",
+                details: result.error.format()
+            });
         }
 
         const newMessage = await db.insert(messageTable).values({
             MessageID: uuidv4(),
-            ChatID,
-            content,
-            sendertype,
+            ChatID: result.data.ChatID,
+            content: result.data.content,
+            sendertype: result.data.sendertype,
             status: "active"
         }).returning();
 
@@ -41,7 +51,18 @@ export const createMessage = async (
 
     } catch (error) {
         console.error(error);
-        return reply.status(500).send({ message: "Internal server error: error creating message" + error });
+
+        if (error instanceof ZodError) {
+            return reply.status(400).send({
+                error: "Validation error",
+                details: error.format()
+            });
+        }
+
+        return reply.status(500).send({
+            error: "Mission Failed: Failed to create message",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
     }
 };
 

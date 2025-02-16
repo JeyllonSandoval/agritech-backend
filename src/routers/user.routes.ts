@@ -1,8 +1,13 @@
 import { FastifyInstance } from "fastify";
-import getUsers from "@/controllers/user";
+import { getUsers, getUserProfile } from "@/controllers/user";
+import { authenticateToken } from "@/middlewares/authToken";
 
-const userRoutes = async (fastify: FastifyInstance) => {
+export default async function userRoutes(fastify: FastifyInstance) {
     fastify.get("/users", getUsers);
-};
-
-export default userRoutes;
+    
+    // Ruta protegida que requiere autenticación
+    fastify.get("/profile", {
+        preHandler: authenticateToken,
+        handler: getUserProfile
+    });
+} 
