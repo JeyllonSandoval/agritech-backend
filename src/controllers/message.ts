@@ -66,69 +66,6 @@ export const createMessage = async (
     }
 };
 
-const getMessagesSchema = z.object({
-    ChatID: z.string().uuid({ message: "Invalid chat ID" }).optional(),
-});
-
-interface GetMessagesQuery {
-    ChatID?: string;
-}
-
-export const getMessages = async (
-    request: FastifyRequest<{ Querystring: GetMessagesQuery }>,
-    reply: FastifyReply 
-) => {
-    try {
-        // ✅ 1. Limpiar los datos antes de validar
-        const cleanedData = {
-            ChatID: request.query.ChatID?.trim(),
-        };
-
-        // ✅ 2. Validar los datos con Zod
-        const result = getMessagesSchema.safeParse(cleanedData);
-        if (!result.success) {
-            return reply.status(400).send({
-                error: "Validation error",
-                details: result.error.format(),
-            });
-        }
-
-        // ✅ 3. Construir la consulta dinámicamente
-        let messages;
-        if (result.data.ChatID) {
-            // Si se proporciona un ChatID, filtrar solo los mensajes de ese chat
-            messages = await db
-                .select()
-                .from(messageTable)
-                .where(eq(messageTable.ChatID, result.data.ChatID))
-                .orderBy(messageTable.createdAt);
-        } else {
-            // Si no se proporciona ChatID, devolver todos los mensajes
-            messages = await db
-                .select()
-                .from(messageTable)
-                .orderBy(messageTable.createdAt);
-        }
-
-        return reply.status(200).send(messages);
-
-    } catch (error) {
-        console.error(error);
-
-        if (error instanceof z.ZodError) {
-            return reply.status(400).send({
-                error: "Validation error",
-                details: error.format(),
-            });
-        }
-
-        return reply.status(500).send({
-            error: "Mission Failed: Failed to get messages",
-            details: error instanceof Error ? error.message : "Unknown error",
-        });
-    }
-};
-
 const getChatMessagesSchema = z.object({
     ChatID: z.string().uuid({ message: "Invalid chat ID" }),
 });
