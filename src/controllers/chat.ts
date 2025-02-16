@@ -2,16 +2,31 @@ import { FastifyRequest, FastifyReply } from "fastify";
 import db from "@/db/db";
 import chatsTable from "@/db/schemas/chatSchema";
 import { v4 as uuidv4 } from "uuid";
+import { z, ZodError } from "zod";
 
-const createChat = async (req: FastifyRequest, reply: FastifyReply) => {
+const createChatSchema = z.object({
+    UserID: z.string().uuid({ message: "Invalid user ID" }),
+    chatname: z.string().min(2, { message: "Chat name must be at least 2 characters long" }),
+});
+
+const createChat = async (
+    req: FastifyRequest<{ Body: z.infer<typeof createChatSchema> }>,
+    reply: FastifyReply
+) => {
     try {
-        const { UserID, chatname } = req.body as {
-            UserID: string;
-            chatname: string;
+        const cleanedData = {
+            ...req.body,
+            UserID: req.body.UserID.trim(),
+            chatname: req.body.chatname.trim()
         };
 
-        if (!UserID || !chatname) {
-            return reply.status(400).send({ error: "All fields are required" });
+        const result = createChatSchema.safeParse(cleanedData);
+
+        if (!result.success) {
+            return reply.status(400).send({
+                error: "Validation error",
+                details: result.error.format()
+            });
         }
 
         const chatID = uuidv4();
@@ -20,8 +35,8 @@ const createChat = async (req: FastifyRequest, reply: FastifyReply) => {
             .insert(chatsTable)
             .values({
                 ChatID: chatID,
-                UserID,
-                chatname,
+                UserID: result.data.UserID,
+                chatname: result.data.chatname,
                 status: "active"
             })
             .returning();
@@ -29,7 +44,18 @@ const createChat = async (req: FastifyRequest, reply: FastifyReply) => {
         return reply.status(201).send({ message: "The chat was successfully created", newChat });
     } catch (error) {
         console.error(error);
-        return reply.status(500).send({ error: "Mission Failed: Failed to create chat" });
+
+        if (error instanceof ZodError) {
+            return reply.status(400).send({
+                error: "Validation error",
+                details: error.format()
+            });
+        }
+
+        return reply.status(500).send({
+            error: "Mission Failed: Failed to create chat",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
     }
 };
 
