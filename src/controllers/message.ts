@@ -66,32 +66,137 @@ export const createMessage = async (
     }
 };
 
+const getMessagesSchema = z.object({
+    ChatID: z.string().uuid({ message: "Invalid chat ID" }).optional(),
+});
+
+interface GetMessagesQuery {
+    ChatID?: string;
+}
+
 export const getMessages = async (
-    request: FastifyRequest<{ Querystring: { ChatID?: string } }>,
-    reply: FastifyReply
+    request: FastifyRequest<{ Querystring: GetMessagesQuery }>,
+    reply: FastifyReply 
 ) => {
     try {
-        const { ChatID } = request.query;
+        // ✅ 1. Limpiar los datos antes de validar
+        const cleanedData = {
+            ChatID: request.query.ChatID?.trim(),
+        };
 
-        if (ChatID) {
-            const messages = await db
-                .select()
-                .from(messageTable)
-                .where(eq(messageTable.ChatID, ChatID))
-                .orderBy(messageTable.createdAt);
-
-            return reply.status(200).send(messages);
+        // ✅ 2. Validar los datos con Zod
+        const result = getMessagesSchema.safeParse(cleanedData);
+        if (!result.success) {
+            return reply.status(400).send({
+                error: "Validation error",
+                details: result.error.format(),
+            });
         }
 
-        const allMessages = await db
+        // ✅ 3. Construir la consulta dinámicamente
+        let messages;
+        if (result.data.ChatID) {
+            // Si se proporciona un ChatID, filtrar solo los mensajes de ese chat
+            messages = await db
+                .select()
+                .from(messageTable)
+                .where(eq(messageTable.ChatID, result.data.ChatID))
+                .orderBy(messageTable.createdAt);
+        } else {
+            // Si no se proporciona ChatID, devolver todos los mensajes
+            messages = await db
+                .select()
+                .from(messageTable)
+                .orderBy(messageTable.createdAt);
+        }
+
+        return reply.status(200).send(messages);
+
+    } catch (error) {
+        console.error(error);
+
+        if (error instanceof z.ZodError) {
+            return reply.status(400).send({
+                error: "Validation error",
+                details: error.format(),
+            });
+        }
+
+        return reply.status(500).send({
+            error: "Mission Failed: Failed to get messages",
+            details: error instanceof Error ? error.message : "Unknown error",
+        });
+    }
+};
+
+const getChatMessagesSchema = z.object({
+    ChatID: z.string().uuid({ message: "Invalid chat ID" }),
+});
+
+export const getChatMessages = async (
+    request: FastifyRequest<{ Params: { ChatID: string } }>,
+    reply: FastifyReply 
+) => {
+    try {
+        const cleanedData = {
+            ChatID: request.params.ChatID.trim(),
+        };
+
+        const result = getChatMessagesSchema.safeParse(cleanedData);
+        if (!result.success) {
+            return reply.status(400).send({
+                error: "Validation error",
+                details: result.error.format(),
+            });
+        }
+
+        const messages = await db
+            .select()
+            .from(messageTable)
+            .where(eq(messageTable.ChatID, result.data.ChatID))
+            .orderBy(messageTable.createdAt);
+
+        if (messages.length === 0) {
+            return reply.status(404).send({
+                error: "No messages found",
+                message: "No messages have been created in this chat yet"
+            });
+        }
+
+        return reply.status(200).send(messages);
+
+    } catch (error) {
+        console.error(error);
+        if (error instanceof z.ZodError) {
+            return reply.status(400).send({
+                error: "Validation error",
+                details: error.format(),
+            });
+        }
+        return reply.status(500).send({
+            error: "Mission Failed: Failed to get chat messages",
+            details: error instanceof Error ? error.message : "Unknown error",
+        });
+    }
+};
+
+export const getAllMessages = async (
+    _request: FastifyRequest,
+    reply: FastifyReply 
+) => {
+    try {
+        const messages = await db
             .select()
             .from(messageTable)
             .orderBy(messageTable.createdAt);
 
-        return reply.status(200).send(allMessages);
+        return reply.status(200).send(messages);
 
     } catch (error) {
         console.error(error);
-        return reply.status(500).send({ message: "Internal server error: error getting messages" + error });
+        return reply.status(500).send({
+            error: "Mission Failed: Failed to get all messages",
+            details: error instanceof Error ? error.message : "Unknown error",
+        });
     }
 };
