@@ -16,7 +16,6 @@ export const authenticateToken = async (request: FastifyRequest, reply: FastifyR
             return reply.status(401).send({ error: "Invalid token" });
         }
 
-        // Agregar la información del usuario decodificada a la request
         request.user = decoded;
         
     } catch (error) {
