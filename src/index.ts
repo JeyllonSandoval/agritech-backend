@@ -3,9 +3,12 @@ import 'dotenv/config';
 import db from "./db/db";
 import "module-alias/register";
 import createRoles from "./libs/InitialSetup";
-
+import multipart from "@fastify/multipart";
 
 const fastify = Fastify({ logger: true });
+
+// Registrar multipart antes de las rutas
+fastify.register(multipart);
 
 fastify.get("/", async (_request) => {
     return { message: "¡Hello, Fastify!. This is a new era 2.0" };
