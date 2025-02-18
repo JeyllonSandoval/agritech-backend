@@ -8,7 +8,11 @@ import multipart from "@fastify/multipart";
 const fastify = Fastify({ logger: true });
 
 // Registrar multipart antes de las rutas
-fastify.register(multipart);
+fastify.register(multipart, { 
+    limits: {
+        fileSize: 10 * 1024 * 1024
+    }
+});
 
 fastify.get("/", async (_request) => {
     return { message: "¡Hello, Fastify!. This is a new era 2.0" };
