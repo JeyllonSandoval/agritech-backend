@@ -4,6 +4,7 @@ import db from "./db/db";
 import "module-alias/register";
 import createRoles from "./libs/InitialSetup";
 import multipart from "@fastify/multipart";
+import { validateCloudinaryConnection } from "./db/services/cloudinary";
 
 const fastify = Fastify({ logger: true });
 
@@ -31,12 +32,15 @@ createRoles();
 
 const start = async () => {
     try {
+
+        await validateCloudinaryConnection();
+
         await fastify.listen({ port: 5100, host: "0.0.0.0" });
         fastify.log.info(`Server listening on ${fastify.server.address()}`);
         if (db) {
-            fastify.log.info("Database connected");
+            fastify.log.info("Database connected ✅");
         } else {
-            fastify.log.error("Missing Falling, Database not connected");
+            fastify.log.error("Missing Falling, Database not connected ❌");
         }
     } catch (err) {
         fastify.log.error(err);
