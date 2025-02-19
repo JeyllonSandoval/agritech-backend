@@ -5,6 +5,7 @@
     "@libsql/client": "^0.14.0",
     "@sinclair/typebox": "^0.34.22",
     "bcrypt": "^5.1.1",
+    "cloudinary": "^2.5.1",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.39.2",
     "fastify": "^5.2.1",
