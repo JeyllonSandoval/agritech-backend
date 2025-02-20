@@ -3,70 +3,88 @@ import * as pdf from "pdf-parse";
 import { MultipartFile } from "@fastify/multipart";
 
 export const parsePDF = async (
-    req: FastifyRequest<{
-        Body: { file: MultipartFile }
-    }>, 
+    req: FastifyRequest, 
     reply: FastifyReply
 ) => {
     try {
-        const data = await req.file();
-        if (!data) {
-            return reply.status(400).send({ error: "No se ha subido ningún archivo" });
+        console.log('Processing PDF request...');
+        
+        if (!req.isMultipart()) {
+            return reply.status(400).send({ 
+                error: "Request must be multipart/form-data"
+            });
+        }
+
+        const parts = await req.parts();
+        let fileData: any = null;
+
+        for await (const part of parts) {
+            if (part.type === "file" && part.fieldname === "file") {
+                fileData = part;
+                break;
+            }
+        }
+
+        if (!fileData) {
+            return reply.status(400).send({ error: "No file uploaded" });
         }
 
         // Validar el tipo de archivo
-        if (data.mimetype !== 'application/pdf') {
+        if (fileData.mimetype !== 'application/pdf') {
             return reply.status(400).send({ 
-                error: "Formato de archivo inválido. Solo se permiten archivos PDF" 
+                error: "Invalid file format. Only PDF files are allowed" 
             });
         }
 
-        // Validar tamaño del archivo (ejemplo: máximo 10MB)
-        const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB en bytes
-        if (data.file.bytesRead > MAX_FILE_SIZE) {
-            return reply.status(400).send({ 
-                error: "El archivo excede el tamaño máximo permitido de 10MB" 
+        try {
+            const buffer = await fileData.toBuffer();
+            
+            // Verificar que el buffer sea válido
+            if (!buffer || buffer.length === 0) {
+                return reply.status(400).send({ 
+                    error: "The PDF file is empty or corrupted" 
+                });
+            }
+
+            console.log('Buffer size:', buffer.length);
+
+            // Intentar procesar el PDF con manejo de errores específico
+            let pdfData;
+            try {
+                pdfData = await pdf(buffer);
+            } catch (pdfError) {
+                console.error('PDF parsing error:', pdfError);
+                return reply.status(400).send({ 
+                    error: "Invalid PDF format",
+                    details: "The PDF file appears to be corrupted or in an invalid format"
+                });
+            }
+
+            if (!pdfData || !pdfData.text) {
+                return reply.status(400).send({ 
+                    error: "PDF processing error",
+                    details: "Could not extract text from the PDF"
+                });
+            }
+
+            return reply.send({ 
+                message: "PDF processed successfully",
+                text: pdfData.text 
             });
-        }
 
-        const fileBuffer = await data.toBuffer();
-
-        // Validar que el buffer no esté vacío
-        if (!fileBuffer || fileBuffer.length === 0) {
-            return reply.status(400).send({ 
-                error: "El archivo PDF está vacío o corrupto" 
-            });
-        }
-
-        const pdfData = await pdf(fileBuffer);
-
-        // Validar que se pudo extraer texto del PDF
-        if (!pdfData.text || pdfData.text.trim().length === 0) {
-            return reply.status(422).send({ 
-                error: "No se pudo extraer texto del PDF" 
-            });
-        }
-
-        const jsonResponse = {
-            text: pdfData.text,
-            info: pdfData.info,
-            metadata: pdfData.metadata,
-        };
-
-        return reply.status(200).send(jsonResponse);
-    } catch (error) {
-        console.error("Error al procesar el PDF:", error);
-        
-        // Manejo más específico de errores
-        if (error instanceof Error) {
+        } catch (bufferError) {
+            console.error('Buffer processing error:', bufferError);
             return reply.status(500).send({ 
-                error: "Error al procesar el PDF", 
-                details: error.message 
+                error: "Error processing file buffer",
+                details: bufferError instanceof Error ? bufferError.message : "Unknown buffer error"
             });
         }
-        
+
+    } catch (error) {
+        console.error('General error:', error);
         return reply.status(500).send({ 
-            error: "Error interno del servidor al procesar el PDF" 
+            error: "Error processing PDF",
+            details: error instanceof Error ? error.message : "Unknown error"
         });
     }
 };
