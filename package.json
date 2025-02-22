@@ -4,6 +4,7 @@
     "@fastify/multipart": "^9.0.3",
     "@libsql/client": "^0.14.0",
     "@sinclair/typebox": "^0.34.22",
+    "axios": "^1.7.9",
     "bcrypt": "^5.1.1",
     "cloudinary": "^2.5.1",
     "dotenv": "^16.4.7",
