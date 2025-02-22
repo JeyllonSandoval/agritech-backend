@@ -1,84 +1,45 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import * as pdf from "pdf-parse";
-import { MultipartFile } from "@fastify/multipart";
+import axios from "axios";
 
-export const parsePDF = async (
-    req: FastifyRequest, 
-    reply: FastifyReply
-) => {
+interface PDFData {
+    text: string;
+    info?: any;
+    metadata?: any;
+    version?: string;
+}
+
+export const parsePDF = async (req: FastifyRequest, reply: FastifyReply) => {
     try {
         console.log('Processing PDF request...');
-        
-        if (!req.isMultipart()) {
-            return reply.status(400).send({ 
-                error: "Request must be multipart/form-data"
-            });
+
+        const { fileURL } = req.body as { fileURL?: string };
+
+        if (!fileURL) {
+            return reply.status(400).send({ error: "File URL is required" });
+        }
+        if (!isValidURL(fileURL)) {
+            return reply.status(400).send({ error: "Invalid URL format" });
         }
 
-        const parts = await req.parts();
-        let fileData: any = null;
+        console.log("Downloading file from Cloudinary...");
+        const pdfBuffer = await downloadPDF(fileURL);
 
-        for await (const part of parts) {
-            if (part.type === "file" && part.fieldname === "file") {
-                fileData = part;
-                break;
-            }
+        console.log("Validating PDF format...");
+        if (!isPDFFormat(pdfBuffer)) {
+            return reply.status(400).send({ error: "Invalid PDF format" });
         }
 
-        if (!fileData) {
-            return reply.status(400).send({ error: "No file uploaded" });
-        }
+        console.log("Extracting text from PDF...");
+        const pdfData = await extractPDFText(pdfBuffer);
 
-        // Validar el tipo de archivo
-        if (fileData.mimetype !== 'application/pdf') {
-            return reply.status(400).send({ 
-                error: "Invalid file format. Only PDF files are allowed" 
-            });
-        }
+        console.log("Processing extracted text...");
+        const processedText = processPDFText(pdfData.text);
 
-        try {
-            const buffer = await fileData.toBuffer();
-            
-            // Verificar que el buffer sea válido
-            if (!buffer || buffer.length === 0) {
-                return reply.status(400).send({ 
-                    error: "The PDF file is empty or corrupted" 
-                });
-            }
-
-            console.log('Buffer size:', buffer.length);
-
-            // Intentar procesar el PDF con manejo de errores específico
-            let pdfData;
-            try {
-                pdfData = await pdf(buffer);
-            } catch (pdfError) {
-                console.error('PDF parsing error:', pdfError);
-                return reply.status(400).send({ 
-                    error: "Invalid PDF format",
-                    details: "The PDF file appears to be corrupted or in an invalid format"
-                });
-            }
-
-            if (!pdfData || !pdfData.text) {
-                return reply.status(400).send({ 
-                    error: "PDF processing error",
-                    details: "Could not extract text from the PDF"
-                });
-            }
-
-            return reply.send({ 
-                message: "PDF processed successfully",
-                text: pdfData.text 
-            });
-
-        } catch (bufferError) {
-            console.error('Buffer processing error:', bufferError);
-            return reply.status(500).send({ 
-                error: "Error processing file buffer",
-                details: bufferError instanceof Error ? bufferError.message : "Unknown buffer error"
-            });
-        }
+        return reply.status(200).send({ 
+            message: "PDF processed successfully",
+            data: processedText
+        });
 
     } catch (error) {
         console.error('General error:', error);
@@ -88,3 +49,63 @@ export const parsePDF = async (
         });
     }
 };
+
+// 📌 Descargar el PDF de Cloudinary con control de errores
+async function downloadPDF(url: string): Promise<Buffer> {
+    try {
+        const response = await axios.get(url, { responseType: "arraybuffer" });
+
+        if (response.data.length > 10 * 1024 * 1024) { // 10MB limit
+            throw new Error("PDF file size exceeds 10MB limit");
+        }
+
+        return Buffer.from(response.data);
+    } catch (error) {
+        throw new Error(`Failed to download PDF: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+}
+
+// 📌 Extraer el texto del PDF con un timeout seguro
+async function extractPDFText(buffer: Buffer): Promise<PDFData> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+    try {
+        const pdfData = await pdf(buffer);
+        return pdfData;
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+// 📌 Validar si el archivo es un PDF
+function isPDFFormat(buffer: Buffer): boolean {
+    const signature = buffer.slice(0, 5).toString();
+    return signature === '%PDF-';
+}
+
+// 📌 Limpiar y estructurar el texto extraído
+function processPDFText(text: string) {
+    const cleanedText = text.replace(/\s+/g, ' ').trim();
+    const lines = cleanedText.split('. ').filter(line => line.trim() !== '');
+
+    return {
+        rawText: cleanedText,
+        lines: lines,
+        totalLines: lines.length,
+        metadata: {
+            processedAt: new Date().toISOString(),
+            wordCount: cleanedText.split(/\s+/).length
+        }
+    };
+}
+
+// 📌 Validar la estructura de la URL
+function isValidURL(url: string): boolean {
+    try {
+        new URL(url);
+        return url.startsWith('http://') || url.startsWith('https://');
+    } catch {
+        return false;
+    }
+}
