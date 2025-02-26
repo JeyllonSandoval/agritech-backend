@@ -7,7 +7,7 @@ const createRoles = async () => {
         const count = await db.select().from(rolesTable);
 
         if (count.length > 0) {
-            console.log("Roles already exist in the database");
+            console.log("Roles already exist in the database ✅");
             return;
         }
 
@@ -18,9 +18,9 @@ const createRoles = async () => {
 
         await db.insert(rolesTable).values(roles);
 
-        console.log("Created roles successfully");
+        console.log("Created roles successfully ✅");
     } catch (error) {
-        console.error("Missing Falling created roles:", error);
+        console.error("Missing Falling created roles ❌:", error);
     }
 };
 
