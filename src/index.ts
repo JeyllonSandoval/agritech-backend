@@ -31,7 +31,7 @@ const start = async () => {
 
         await validateCloudinaryConnection();
 
-        await fastify.listen({ port: 5100, host: "0.0.0.0" });
+        await fastify.listen({ port: 5000, host: "0.0.0.0" });
         fastify.log.info(`Server listening on ${fastify.server.address()}`);
         if (db) {
             fastify.log.info("Database connected ✅");
