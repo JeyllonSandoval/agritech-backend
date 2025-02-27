@@ -37,11 +37,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.loginUser = exports.registerUser = void 0;
-const db_1 = __importDefault(require("@/db/db"));
-const usersSchema_1 = __importDefault(require("@/db/schemas/usersSchema"));
+const db_1 = __importDefault(require("../db/db"));
+const usersSchema_1 = __importDefault(require("../db/schemas/usersSchema"));
 const bcrypt = __importStar(require("bcrypt"));
 const uuid_1 = require("uuid");
-const token_1 = require("@/utils/token");
+const token_1 = require("../utils/token");
 const drizzle_orm_1 = require("drizzle-orm");
 const zod_1 = require("zod");
 const registerUserSchema = zod_1.z.object({

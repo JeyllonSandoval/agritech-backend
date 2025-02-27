@@ -4,8 +4,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createCountry = exports.getCountries = void 0;
-const db_1 = __importDefault(require("@/db/db"));
-const countrySchema_1 = __importDefault(require("@/db/schemas/countrySchema"));
+const db_1 = __importDefault(require("../db/db"));
+const countrySchema_1 = __importDefault(require("../db/schemas/countrySchema"));
 const uuid_1 = require("uuid");
 const zod_1 = require("zod");
 const getCountries = async (_req, reply) => {
