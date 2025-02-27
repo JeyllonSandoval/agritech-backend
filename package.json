@@ -54,6 +54,6 @@
   "homepage": "https://github.com/JeyllonSandoval/agritech-backend#readme",
   "description": "",
   "_moduleAliases": {
-    "@": "dist"
+    "@": "./dist"
   }
 }
