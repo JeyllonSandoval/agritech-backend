@@ -3,8 +3,8 @@ import { v4 as uuidv4 } from "uuid";
 import { eq } from "drizzle-orm";
 import db from "@/db/db";
 import messageTable from "@/db/schemas/messageSchema";
-import chatTable from "@/db/schemas/chatSchema";
 import { z, ZodError } from "zod";
+import generateAIResponse from "@/controllers/ai_response";
 
 const createMessageSchema = z.object({
     ChatID: z.string().uuid({ message: "Invalid chat ID" }),
@@ -46,6 +46,19 @@ export const createMessage = async (
             sendertype: result.data.sendertype,
             status: "active"
         }).returning();
+
+        // Si el mensaje fue enviado por el usuario, llamamos a la IA
+        if (result.data.sendertype === "user") {
+            const aiRequest = {
+                body: {
+                    jsonText: JSON.stringify(newMessage[0]), // Usamos el mensaje como JSON
+                    ask: result.data.content, // El contenido del mensaje es la pregunta
+                    ChatID: result.data.ChatID,
+                },
+            };
+
+            await generateAIResponse(aiRequest as FastifyRequest, reply);
+        }
 
         return reply.status(201).send({ message: "The message was successfully created", newMessage: newMessage[0] });
 
