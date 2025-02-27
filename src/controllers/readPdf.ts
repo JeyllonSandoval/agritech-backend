@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from "fastify";
-import * as pdf from "pdf-parse";
+import pdfParse from "pdf-parse";
 import axios from "axios";
 
 interface PDFData {
@@ -68,10 +68,10 @@ async function downloadPDF(url: string): Promise<Buffer> {
 // 📌 Extraer el texto del PDF con un timeout seguro
 async function extractPDFText(buffer: Buffer): Promise<PDFData> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+    const timeout = setTimeout(() => controller.abort(), 30000);
 
     try {
-        const pdfData = await pdf(buffer);
+        const pdfData = await pdfParse(buffer);
         return pdfData;
     } finally {
         clearTimeout(timeout);

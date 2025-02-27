@@ -1,0 +1,65 @@
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.createCountry = exports.getCountries = void 0;
+const db_1 = __importDefault(require("@/db/db"));
+const countrySchema_1 = __importDefault(require("@/db/schemas/countrySchema"));
+const uuid_1 = require("uuid");
+const zod_1 = require("zod");
+const getCountries = (_req, reply) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const allCountries = yield db_1.default.select().from(countrySchema_1.default);
+        return reply.status(200).send(allCountries);
+    }
+    catch (error) {
+        console.error(error);
+        return reply.status(500).send({ error: "Missing Failed: could not get all countries" });
+    }
+});
+exports.getCountries = getCountries;
+const createCountrySchema = zod_1.z.object({
+    countryname: zod_1.z.string().min(2, { message: "Country name must be at least 2 characters long" }),
+});
+const createCountry = (req, reply) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const cleanedData = Object.assign(Object.assign({}, req.body), { countryname: req.body.countryname.trim() });
+        const result = createCountrySchema.safeParse(cleanedData);
+        if (!result.success) {
+            return reply.status(400).send({
+                error: "Validation error",
+                details: result.error.format()
+            });
+        }
+        const countryID = (0, uuid_1.v4)();
+        const newCountry = yield db_1.default
+            .insert(countrySchema_1.default)
+            .values({ CountryID: countryID, countryname: result.data.countryname, status: "active" })
+            .returning();
+        return reply.status(201).send({ messege: "The country was successfully registered", newCountry });
+    }
+    catch (error) {
+        console.error(error);
+        if (error instanceof zod_1.ZodError) {
+            return reply.status(400).send({
+                error: "Validation error",
+                details: error.format()
+            });
+        }
+        return reply.status(500).send({
+            error: "Mission Failed: Failed to register country",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+});
+exports.createCountry = createCountry;

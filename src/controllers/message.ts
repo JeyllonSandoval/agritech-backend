@@ -44,7 +44,7 @@ export const createMessage = async (
             });
         }
 
-        let fileContent = null;
+        let fileContent: string | null = null;
         let pdfContent = '';
         const userQuestion = result.data.content;
 
@@ -53,7 +53,7 @@ export const createMessage = async (
                 .select()
                 .from(filesTable)
                 .where(eq(filesTable.FileID, result.data.FileID));
-            fileContent = file[0].contentURL;
+            fileContent = file[0]?.contentURL || null;
             
             if(file.length){
                 const pdfRequest = {
