@@ -1,6 +1,6 @@
 import { FastifyInstance } from "fastify";
-import { createFiles, getFiles } from "../controllers/files";
-import { parsePDF } from "../controllers/readPdf";
+import { createFiles, getFiles } from "@/controllers/files";
+import { parsePDF } from "@/controllers/readPdf";
 
 const fileRoutes = async (fastify: FastifyInstance) => {
     fastify.post("/file", createFiles);

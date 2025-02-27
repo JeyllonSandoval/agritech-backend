@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { sqliteTable, text } from "drizzle-orm/sqlite-core";
-import usersTable from "./usersSchema";
+import usersTable from "@/db/schemas/usersSchema";
 
 const filesTable = sqliteTable("files_table", {
     FileID: text("FileID", { length: 36 }).primaryKey(),

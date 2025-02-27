@@ -1,10 +1,10 @@
 import Fastify from "fastify";
 import 'dotenv/config';
-import db from "./db/db";
+import db from "@/db/db";
 import "module-alias/register";
-import createRoles from "./libs/InitialSetup";
+import createRoles from "@/libs/InitialSetup";
 import multipart from "@fastify/multipart";
-import { validateCloudinaryConnection } from "./db/services/cloudinary";
+import { validateCloudinaryConnection } from "@/db/services/cloudinary";
 
 const fastify = Fastify({ 
     logger: true,

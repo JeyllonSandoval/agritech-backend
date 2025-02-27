@@ -1,7 +1,7 @@
-import rolesTable from "./rolesSchema";
+import rolesTable from "@/db/schemas/rolesSchema";
 import { sql } from "drizzle-orm";
 import { sqliteTable, text } from "drizzle-orm/sqlite-core";
-import countryTable from "./countrySchema";
+import countryTable from "@/db/schemas/countrySchema";
 
 const usersTable = sqliteTable("users_Table", {
     UserID: text("UserID").primaryKey(),

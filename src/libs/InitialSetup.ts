@@ -1,5 +1,5 @@
-import db from "../db/db";
-import rolesSchema from "../db/schemas/rolesSchema";
+import db from "@/db/db";
+import rolesSchema from "@/db/schemas/rolesSchema";
 import { v4 as uuidv4 } from "uuid";
 
 const createRoles = async () => {

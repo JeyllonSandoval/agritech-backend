@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { sqliteTable, text } from "drizzle-orm/sqlite-core";
-import chatTable from "./chatSchema";
-import filesTable from "./filesScema";
+import chatTable from "@/db/schemas/chatSchema";
+import filesTable from "@/db/schemas/filesSchema";
 
 const messageTable = sqliteTable("message_table", {
     MessageID: text("MessageID", { length: 36 }).primaryKey(),
