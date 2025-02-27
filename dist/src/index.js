@@ -47,12 +47,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const fastify_1 = __importDefault(require("fastify"));
 require("dotenv/config");
-const db_1 = __importDefault(require("./db/db"));
+const db_1 = __importDefault(require("@/db/db"));
 require("module-alias/register");
-const InitialSetup_1 = __importDefault(require("./libs/InitialSetup"));
+const InitialSetup_1 = __importDefault(require("@/libs/InitialSetup"));
 const multipart_1 = __importDefault(require("@fastify/multipart"));
-const cloudinary_1 = require("./db/services/cloudinary");
-const fastify = (0, fastify_1.default)({ logger: true });
+const cloudinary_1 = require("@/db/services/cloudinary");
+const fastify = (0, fastify_1.default)({
+    logger: true,
+    disableRequestLogging: true
+});
 // Configuración de multipart
 fastify.register(multipart_1.default);
 fastify.get("/", (_request) => __awaiter(void 0, void 0, void 0, function* () {
@@ -70,7 +73,11 @@ fastify.register(Promise.resolve().then(() => __importStar(require("@/routers/me
 const start = () => __awaiter(void 0, void 0, void 0, function* () {
     try {
         yield (0, cloudinary_1.validateCloudinaryConnection)();
-        yield fastify.listen({ port: 5000, host: "0.0.0.0" });
+        const port = process.env.PORT || 5000;
+        yield fastify.listen({
+            port: parseInt(port.toString()),
+            host: "0.0.0.0"
+        });
         fastify.log.info(`Server listening on ${fastify.server.address()}`);
         if (db_1.default) {
             fastify.log.info("Database connected ✅");
@@ -84,4 +91,10 @@ const start = () => __awaiter(void 0, void 0, void 0, function* () {
         process.exit(1);
     }
 });
-start();
+exports.default = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    yield fastify.ready();
+    fastify.server.emit('request', req, res);
+});
+if (process.env.NODE_ENV !== 'production') {
+    start();
+}
