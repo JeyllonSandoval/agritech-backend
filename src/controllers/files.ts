@@ -3,18 +3,24 @@ import db from "@/db/db";
 import filesTable from "@/db/schemas/filesScema";
 import usersTable from "@/db/schemas/usersSchema";
 import { v4 as uuidv4 } from "uuid";
-import { v2 as cloudinary } from 'cloudinary'
+import { v2 as cloudinary } from 'cloudinary';
 import { UploadApiResponse } from 'cloudinary';
 import { eq } from "drizzle-orm";
-const createFiles = async (
-    req: FastifyRequest, 
-    reply: FastifyReply
-) => {
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB en bytes
+const UPLOAD_TIMEOUT = 10000; // 10 segundos
+
+const createFiles = async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-        const UPLOAD_TIMEOUT = 10000;
-        
-        // 1. Leer los datos del request
-        const parts = await req.parts();
+        // Configurar límites para el parser multipart
+        req.raw.setMaxListeners(0);  // Evitar warnings de memory leak
+        const parts = await req.parts({
+            limits: {
+                fileSize: MAX_FILE_SIZE,  // Limitar tamaño desde el parser
+                files: 1  // Limitar a un solo archivo
+            }
+        });
+
         let userID: string | null = null;
         let file: any = null;
 
@@ -42,7 +48,7 @@ const createFiles = async (
             .from(usersTable)
             .where(eq(usersTable.UserID, userID))
             .limit(1);
-``
+
         if (existingUser.length === 0) {
             return reply.status(404).send({ 
                 error: "User not found",
@@ -59,33 +65,58 @@ const createFiles = async (
             });
         }
 
-        // 5. Subir a Cloudinary con timeout
-        const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => {
-                reject(new Error('Upload timeout - Operation took longer than 10 seconds'));
-            }, UPLOAD_TIMEOUT);
+        // 5. Mejorar el manejo del buffer y validación de tamaño
+        const chunks: Buffer[] = [];
+        let fileSize = 0;
+
+        try {
+            for await (const chunk of file.file) {
+                fileSize += chunk.length;
+                if (fileSize > MAX_FILE_SIZE) {
+                    throw new Error('FILE_TOO_LARGE');
+                }
+                chunks.push(chunk);
+            }
+        } catch (error) {
+            if (error instanceof Error && error.message === 'FILE_TOO_LARGE') {
+                return reply.status(400).send({ 
+                    error: "File too large",
+                    message: `The maximum allowed file size is ${MAX_FILE_SIZE / (1024 * 1024)}MB`
+                });
+            }
+            throw error;
+        }
+
+        const fileBuffer = Buffer.concat(chunks);
+
+        // 6. Mejorar el manejo de la subida a Cloudinary
+        const uploadPromise = new Promise<UploadApiResponse>((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+                { 
+                    resource_type: "auto",
+                    folder: "PDFs_Group_AgriTech",
+                    timeout: UPLOAD_TIMEOUT,
+                    allowed_formats: ['pdf'],
+                    format: 'pdf'
+                }, 
+                (error, result) => {
+                    if (error) return reject(error);
+                    if (!result) return reject(new Error('No upload result received'));
+                    resolve(result);
+                }
+            );
+
+            uploadStream.end(fileBuffer);
         });
 
         const cloudinaryUpload = await Promise.race([
-            new Promise<UploadApiResponse>((resolve, reject) => {
-                const uploadStream = cloudinary.uploader.upload_stream(
-                    { 
-                        resource_type: "auto",
-                        folder: "PDFs_Group_AgriTech",
-                        timeout: UPLOAD_TIMEOUT,
-                        allowed_formats: ['pdf'] // Asegura que solo se acepten PDFs en Cloudinary
-                    }, 
-                    (error, result) => {
-                        if (error) return reject(error);
-                        resolve(result as UploadApiResponse);
-                    }
-                );
-                file.file.pipe(uploadStream);
-            }),
-            timeoutPromise
+            uploadPromise,
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('UPLOAD_TIMEOUT')), UPLOAD_TIMEOUT)
+            )
         ]) as UploadApiResponse;
 
-        // 6. Guardar la URL en la base de datos
+        // 7. Guardar la URL en la base de datos
         const fileID = uuidv4();
         await db
             .insert(filesTable)
@@ -98,7 +129,6 @@ const createFiles = async (
 
         return reply.status(201).send({ 
             message: "PDF file uploaded successfully",
-            
             fileURL: cloudinaryUpload.secure_url,
             fileID: fileID
         });
@@ -106,15 +136,26 @@ const createFiles = async (
     } catch (error) {
         console.error("Error uploading file:", error);
 
-        if (error instanceof Error && error.message.includes('timeout')) {
-            return reply.status(408).send({ 
-                error: "Request Timeout",
-                message: "The upload operation took too long to complete"
-            });
+        if (error instanceof Error) {
+            if (error.message.includes('timeout') || error.message === 'UPLOAD_TIMEOUT') {
+                return reply.status(408).send({ 
+                    error: "Request Timeout",
+                    message: "The upload operation took too long to complete"
+                });
+            }
+
+            // Manejar error específico de Cloudinary
+            if ('http_code' in error) {
+                return reply.status(400).send({ 
+                    error: "Cloudinary Upload Error",
+                    message: error.message
+                });
+            }
         }
 
         return reply.status(500).send({ 
             error: "Error uploading file",
+            message: "An unexpected error occurred while uploading the file",
             details: error instanceof Error ? error.message : "Unknown error"
         });
     }
@@ -123,10 +164,10 @@ const createFiles = async (
 const getFiles = async (_req: FastifyRequest, reply: FastifyReply) => {
     try {
         const files = await db.select().from(filesTable);
-        return reply.status(200).send({ messege: "The files successfully fetched", files});
+        return reply.status(200).send({ message: "Files fetched successfully", files });
     } catch (error) {
         console.error(error);
-        return reply.status(500).send({ error: "Mission Failed: Failed to fetch files" });
+        return reply.status(500).send({ error: "Failed to fetch files" });
     }
 }
 
