@@ -36,11 +36,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+require("module-alias/register");
 const fastify_1 = __importDefault(require("fastify"));
 require("dotenv/config");
-const db_1 = __importDefault(require("./db/db"));
-require("module-alias/register");
-require('module-alias/register');
+const db_1 = __importDefault(require("@/db/db"));
 const InitialSetup_1 = __importDefault(require("@/libs/InitialSetup"));
 const multipart_1 = __importDefault(require("@fastify/multipart"));
 const cloudinary_1 = require("@/db/services/cloudinary");
@@ -54,12 +53,12 @@ fastify.get("/", async (_request) => {
     return { message: "¡Hello, Fastify!. This is a new era 2.0" };
 });
 // Importing routes
-fastify.register(Promise.resolve().then(() => __importStar(require("./routers/auth.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("./routers/user.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("./routers/country.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("./routers/file.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("./routers/chat.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("./routers/message.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("@/routers/auth.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("@/routers/user.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("@/routers/country.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("@/routers/file.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("@/routers/chat.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("@/routers/message.routes"))));
 // Funtion Create roles
 (0, InitialSetup_1.default)();
 const start = async () => {

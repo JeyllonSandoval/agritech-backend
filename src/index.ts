@@ -1,8 +1,7 @@
+import "module-alias/register";
 import Fastify from "fastify";
 import 'dotenv/config';
 import db from "@/db/db";
-import "module-alias/register";
-require('module-alias/register');
 import createRoles from "@/libs/InitialSetup";
 import multipart from "@fastify/multipart";
 import { validateCloudinaryConnection } from "@/db/services/cloudinary";
@@ -20,12 +19,12 @@ fastify.get("/", async (_request) => {
 });
 
 // Importing routes
-fastify.register(import("./routers/auth.routes"));
-fastify.register(import("./routers/user.routes"));
-fastify.register(import("./routers/country.routes"));
-fastify.register(import("./routers/file.routes"));
-fastify.register(import("./routers/chat.routes"));
-fastify.register(import("./routers/message.routes"));
+fastify.register(import("@/routers/auth.routes"));
+fastify.register(import("@/routers/user.routes"));
+fastify.register(import("@/routers/country.routes"));
+fastify.register(import("@/routers/file.routes"));
+fastify.register(import("@/routers/chat.routes"));
+fastify.register(import("@/routers/message.routes"));
 
 // Funtion Create roles
 createRoles();
