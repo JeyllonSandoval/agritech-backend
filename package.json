@@ -54,6 +54,11 @@
   "homepage": "https://github.com/JeyllonSandoval/agritech-backend#readme",
   "description": "",
   "_moduleAliases": {
-    "@": "src"
+    "@": "src",
+    "@/db": "src/db",
+    "@/libs": "src/libs",
+    "@/routers": "src/routers",
+    "@/schemas": "src/schemas",
+    "@/services": "src/services"
   }
 }
