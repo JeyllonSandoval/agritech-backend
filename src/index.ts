@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import 'dotenv/config';
 import db from "@/db/db";
 import "module-alias/register";
+require('module-alias/register');
 import createRoles from "@/libs/InitialSetup";
 import multipart from "@fastify/multipart";
 import { validateCloudinaryConnection } from "@/db/services/cloudinary";

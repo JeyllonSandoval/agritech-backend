@@ -4,14 +4,14 @@
     "module": "CommonJS",
     "moduleResolution": "node",
     "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+    "@/*": ["src/*"]
+    },
     "esModuleInterop": true,
     "skipLibCheck": true,
     "strict": true,
-    "resolveJsonModule": true,
-    "baseUrl": ".",
-    "paths": {
-        "@/*": ["src/*"]
-    }
+    "resolveJsonModule": true
 },
 "include": ["src/**/*.ts"],
 "exclude": ["node_modules"]
