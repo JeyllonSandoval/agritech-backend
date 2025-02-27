@@ -47,11 +47,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const fastify_1 = __importDefault(require("fastify"));
 require("dotenv/config");
-const db_1 = __importDefault(require("@/db/db"));
+const db_1 = __importDefault(require("./db/db"));
 require("module-alias/register");
-const InitialSetup_1 = __importDefault(require("@/libs/InitialSetup"));
+const InitialSetup_1 = __importDefault(require("./libs/InitialSetup"));
 const multipart_1 = __importDefault(require("@fastify/multipart"));
-const cloudinary_1 = require("@/db/services/cloudinary");
+const cloudinary_1 = require("./db/services/cloudinary");
 const fastify = (0, fastify_1.default)({
     logger: true,
     disableRequestLogging: true
@@ -62,12 +62,12 @@ fastify.get("/", (_request) => __awaiter(void 0, void 0, void 0, function* () {
     return { message: "¡Hello, Fastify!. This is a new era 2.0" };
 }));
 // Importing routes
-fastify.register(Promise.resolve().then(() => __importStar(require("@/routers/auth.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("@/routers/user.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("@/routers/country.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("@/routers/file.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("@/routers/chat.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("@/routers/message.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("./routers/auth.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("./routers/user.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("./routers/country.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("./routers/file.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("./routers/chat.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("./routers/message.routes"))));
 // Funtion Create roles
 (0, InitialSetup_1.default)();
 const start = () => __awaiter(void 0, void 0, void 0, function* () {
