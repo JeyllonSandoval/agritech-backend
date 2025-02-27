@@ -34,7 +34,7 @@ const generateAIResponse = async (req: FastifyRequest, res: FastifyReply) => {
                 },
                 {
                     role: "user",
-                    content: `Pregunta: ${ask}`,
+                    content: `Recuerda que no es necesario mencionar que es un json, solo responde la Pregunta: ${ask}`,
                 },
             ],
         });

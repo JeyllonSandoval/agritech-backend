@@ -44,7 +44,7 @@ export const parsePDF = async (req: FastifyRequest, reply: FastifyReply) => {
     } catch (error) {
         console.error('General error:', error);
         return reply.status(500).send({ 
-            error: "Error processing PDF",
+            error: "ReadPDF:Error processing PDF",
             details: error instanceof Error ? error.message : "Unknown error"
         });
     }

@@ -10,7 +10,7 @@ import { parsePDF } from "@/controllers/readPdf";
 
 const createMessageSchema = z.object({
     ChatID: z.string().uuid({ message: "Invalid chat ID" }),
-    FileID: z.string().uuid({ message: "Invalid file ID" }),
+    FileID: z.string().uuid({ message: "Invalid file ID" }).optional(),
     content: z.string().min(1, { message: "Content is required" }),
     sendertype: z.enum(["user", "ai"], { message: "Invalid sender type" }),
 });
@@ -39,12 +39,14 @@ export const createMessage = async (
 
         if (!result.success) {
             return reply.status(400).send({
-                error: "Validation error",
+                error: "Message: Result validation error",
                 details: result.error.format()
             });
         }
 
         let fileContent = null;
+        let pdfContent = '';
+        const userQuestion = result.data.content;
 
         if (result.data.FileID) {
             const file = await db
@@ -58,18 +60,16 @@ export const createMessage = async (
                     body: { fileURL: fileContent }
                 } as FastifyRequest;
                 
-                let pdfText = '';
                 const pdfReply = {
                     status: () => ({
                         send: (data: any) => {
-                            pdfText = data.data.rawText;
+                            pdfContent = data.data.rawText;
                             return data;
                         }
                     })
                 } as unknown as FastifyReply;
                 
                 await parsePDF(pdfRequest, pdfReply);
-                result.data.content = pdfText;
             }
         }
 
@@ -77,20 +77,19 @@ export const createMessage = async (
             MessageID: uuidv4(),
             ChatID: result.data.ChatID,
             FileID: result.data.FileID,
-            content: result.data.content,
+            content: pdfContent + " \n\n *QUESTION FOR USER:*" + userQuestion,
             sendertype: result.data.sendertype,
             status: "active"
         }).returning();
 
-        // Si el mensaje fue enviado por el usuario, llamamos a la IA
         if (result.data.sendertype === "user") {
             const aiRequest = {
                 body: {
                     jsonText: JSON.stringify({
                         message: newMessage[0],
-                        fileContent: fileContent,
+                        fileContent: pdfContent,
                     }),
-                    ask: result.data.content,
+                    ask: userQuestion,
                     ChatID: result.data.ChatID,
                 },
             };
@@ -105,13 +104,13 @@ export const createMessage = async (
 
         if (error instanceof ZodError) {
             return reply.status(400).send({
-                error: "Validation error",
+                error: "Message: Validation error",
                 details: error.format()
             });
         }
 
         return reply.status(500).send({
-            error: "Mission Failed: Failed to create message",
+            error: "Create Message: Failed to create message",
             details: error instanceof Error ? error.message : "Unknown error"
         });
     }
@@ -133,7 +132,7 @@ export const getChatMessages = async (
         const result = getChatMessagesSchema.safeParse(cleanedData);
         if (!result.success) {
             return reply.status(400).send({
-                error: "Validation error",
+                error: "Get Messages: Validation error",
                 details: result.error.format(),
             });
         }
@@ -146,7 +145,7 @@ export const getChatMessages = async (
 
         if (messages.length === 0) {
             return reply.status(404).send({
-                error: "No messages found",
+                error: "Get Messages: No messages found",
                 message: "No messages have been created in this chat yet"
             });
         }
@@ -157,12 +156,12 @@ export const getChatMessages = async (
         console.error(error);
         if (error instanceof z.ZodError) {
             return reply.status(400).send({
-                error: "Validation error",
+                error: "Get Messages: Validation error",
                 details: error.format(),
             });
         }
         return reply.status(500).send({
-            error: "Mission Failed: Failed to get chat messages",
+            error: "Get Chat Messages: Failed to get chat messages",
             details: error instanceof Error ? error.message : "Unknown error",
         });
     }
@@ -183,7 +182,7 @@ export const getAllMessages = async (
     } catch (error) {
         console.error(error);
         return reply.status(500).send({
-            error: "Mission Failed: Failed to get all messages",
+            error: "Get All Messages: Failed to get all messages",
             details: error instanceof Error ? error.message : "Unknown error",
         });
     }
