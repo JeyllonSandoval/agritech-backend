@@ -1,7 +1,7 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import db from "@/db/db";
 import usersTable from "@/db/schemas/usersSchema";
-import * as bcrypt from "bcrypt";
+import * as bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import { generateToken } from "@/utils/token";
 import { eq } from "drizzle-orm";

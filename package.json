@@ -6,6 +6,7 @@
     "@sinclair/typebox": "^0.34.22",
     "axios": "^1.7.9",
     "bcrypt": "^5.1.1",
+    "bcryptjs": "^3.0.2",
     "cloudinary": "^2.5.1",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.39.2",
