@@ -5,15 +5,19 @@ import db from "@/db/db";
 import messageTable from "@/db/schemas/messageSchema";
 import { z, ZodError } from "zod";
 import generateAIResponse from "@/controllers/ai_response";
+import filesTable from "@/db/schemas/filesScema";
+import { parsePDF } from "@/controllers/readPdf";
 
 const createMessageSchema = z.object({
     ChatID: z.string().uuid({ message: "Invalid chat ID" }),
+    FileID: z.string().uuid({ message: "Invalid file ID" }),
     content: z.string().min(1, { message: "Content is required" }),
     sendertype: z.enum(["user", "ai"], { message: "Invalid sender type" }),
 });
 
 interface MessageBody {
     ChatID: string;
+    FileID?: string;
     content: string;
     sendertype: "user" | "ai";
 }
@@ -26,6 +30,7 @@ export const createMessage = async (
         const cleanedData = {
             ...request.body,
             ChatID: request.body.ChatID.trim(),
+            FileID: request.body.FileID?.trim(),
             content: request.body.content.trim(),
             sendertype: request.body.sendertype.trim()
         };
@@ -39,9 +44,39 @@ export const createMessage = async (
             });
         }
 
+        let fileContent = null;
+
+        if (result.data.FileID) {
+            const file = await db
+                .select()
+                .from(filesTable)
+                .where(eq(filesTable.FileID, result.data.FileID));
+            fileContent = file[0].contentURL;
+            
+            if(file.length){
+                const pdfRequest = {
+                    body: { fileURL: fileContent }
+                } as FastifyRequest;
+                
+                let pdfText = '';
+                const pdfReply = {
+                    status: () => ({
+                        send: (data: any) => {
+                            pdfText = data.data.rawText;
+                            return data;
+                        }
+                    })
+                } as unknown as FastifyReply;
+                
+                await parsePDF(pdfRequest, pdfReply);
+                result.data.content = pdfText;
+            }
+        }
+
         const newMessage = await db.insert(messageTable).values({
             MessageID: uuidv4(),
             ChatID: result.data.ChatID,
+            FileID: result.data.FileID,
             content: result.data.content,
             sendertype: result.data.sendertype,
             status: "active"
@@ -51,8 +86,11 @@ export const createMessage = async (
         if (result.data.sendertype === "user") {
             const aiRequest = {
                 body: {
-                    jsonText: JSON.stringify(newMessage[0]), // Usamos el mensaje como JSON
-                    ask: result.data.content, // El contenido del mensaje es la pregunta
+                    jsonText: JSON.stringify({
+                        message: newMessage[0],
+                        fileContent: fileContent,
+                    }),
+                    ask: result.data.content,
                     ChatID: result.data.ChatID,
                 },
             };
