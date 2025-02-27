@@ -38,7 +38,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const fastify_1 = __importDefault(require("fastify"));
 require("dotenv/config");
-const db_1 = __importDefault(require("@/db/db"));
+const db_1 = __importDefault(require("./db/db"));
 require("module-alias/register");
 require('module-alias/register');
 const InitialSetup_1 = __importDefault(require("@/libs/InitialSetup"));
