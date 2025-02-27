@@ -1,6 +1,6 @@
 import { FastifyInstance } from "fastify";
-import { createChat, getChats } from "@/controllers/chat";
-import generateAIResponse from "@/controllers/ai_response";
+import { createChat, getChats } from "../controllers/chat";
+import generateAIResponse from "../controllers/ai_response";
 
 const chatRoutes = async (fastify: FastifyInstance) => {
     fastify.post("/chat", createChat);
