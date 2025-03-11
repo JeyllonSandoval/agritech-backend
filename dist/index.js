@@ -39,7 +39,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 require("module-alias/register");
 const fastify_1 = __importDefault(require("fastify"));
 require("dotenv/config");
-const db_1 = __importDefault(require("../db/db"));
+const db_1 = __importDefault(require("./db/db"));
 const InitialSetup_1 = __importDefault(require("../libs/InitialSetup"));
 const multipart_1 = __importDefault(require("@fastify/multipart"));
 const cloudinary_1 = require("../db/services/cloudinary");
