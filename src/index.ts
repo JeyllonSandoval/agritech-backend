@@ -5,6 +5,7 @@ import db from "@/db/db";
 import createRoles from "@/libs/InitialSetup";
 import multipart from "@fastify/multipart";
 import { validateCloudinaryConnection } from "@/db/services/cloudinary";
+import cors from "@fastify/cors";
 
 const fastify = Fastify({ 
     logger: true,
@@ -13,6 +14,12 @@ const fastify = Fastify({
 
 // Configuración de multipart
 fastify.register(multipart);
+fastify.register(cors, {
+    origin: "http://localhost:3000",
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Authorization", "Content-Type"],
+    credentials: true
+});
 
 fastify.get("/", async (_request) => {
     return { message: "¡Hello, Fastify!. This is a new era 2.0" };

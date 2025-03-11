@@ -4,9 +4,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getFiles = exports.createFiles = void 0;
-const db_1 = __importDefault(require("../db/db"));
-const filesSchema_1 = __importDefault(require("../db/schemas/filesSchema"));
-const usersSchema_1 = __importDefault(require("../db/schemas/usersSchema"));
+const db_1 = __importDefault(require("@/db/db"));
+const filesSchema_1 = __importDefault(require("@/db/schemas/filesSchema"));
+const usersSchema_1 = __importDefault(require("@/db/schemas/usersSchema"));
 const uuid_1 = require("uuid");
 const cloudinary_1 = require("cloudinary");
 const drizzle_orm_1 = require("drizzle-orm");
