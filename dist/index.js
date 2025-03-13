@@ -53,7 +53,7 @@ fastify.register(multipart_1.default);
 fastify.register(cors_1.default, {
     origin: "http://localhost:3000",
     methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Authorization", "Content-Type"],
+    allowedHeaders: ["*"],
     credentials: true
 });
 fastify.get("/", async (_request) => {

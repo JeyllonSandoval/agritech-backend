@@ -116,7 +116,8 @@ const registerUser = async (req, reply) => {
                     const uploadResponse = await new Promise((resolve, reject) => {
                         const uploadStream = cloudinary_1.v2.uploader.upload_stream({
                             folder: "Image_Group_AgriTech",
-                            resource_type: "image"
+                            resource_type: "image",
+                            timeout: UPLOAD_TIMEOUT
                         }, (error, result) => {
                             if (error)
                                 reject(error);
@@ -150,12 +151,19 @@ const registerUser = async (req, reply) => {
                 status: "active"
             })
                 .returning();
+            // Generar token
+            const token = (0, token_1.generateToken)({
+                UserID,
+                Email: validationResult.data.Email,
+                RoleID: publicRoleID
+            });
             return reply.status(201).send({
                 message: "User registered successfully",
                 user: {
                     ...newUser,
                     password: undefined
-                }
+                },
+                token
             });
         }
         catch (innerError) {

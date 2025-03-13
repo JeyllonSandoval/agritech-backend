@@ -92,7 +92,8 @@ export const registerUser = async (req: FastifyRequest, reply: FastifyReply) => 
                         const uploadStream = cloudinary.uploader.upload_stream(
                             {
                                 folder: "Image_Group_AgriTech",
-                                resource_type: "image"
+                                resource_type: "image",
+                                timeout: UPLOAD_TIMEOUT
                             },
                             (error, result) => {
                                 if (error) reject(error);
@@ -130,12 +131,20 @@ export const registerUser = async (req: FastifyRequest, reply: FastifyReply) => 
                 })
                 .returning();
 
+            // Generar token
+            const token = generateToken({
+                UserID,
+                Email: validationResult.data.Email,
+                RoleID: publicRoleID
+            });
+
             return reply.status(201).send({ 
                 message: "User registered successfully",
                 user: {
                     ...newUser,
                     password: undefined
-                }
+                },
+                token
             });
 
         } catch (innerError) {
