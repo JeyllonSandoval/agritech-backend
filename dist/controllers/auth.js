@@ -46,6 +46,7 @@ const drizzle_orm_1 = require("drizzle-orm");
 const zod_1 = require("zod");
 const rolesSchema_1 = __importDefault(require("@/db/schemas/rolesSchema"));
 const cloudinary_1 = require("cloudinary");
+// Validador simplificado
 const registerUserSchema = zod_1.z.object({
     FirstName: zod_1.z.string().min(2, { message: "First name must be at least 2 characters long" }),
     LastName: zod_1.z.string().min(2, { message: "Last name must be at least 2 characters long" }),
@@ -90,7 +91,6 @@ const registerUser = async (req, reply) => {
                     formData[value.fieldname] = value.value;
                 }
                 else if (value.type === "file" && value.fieldname === "image") {
-                    // Recolectar los chunks del archivo
                     const chunks = [];
                     for await (const chunk of value.file) {
                         chunks.push(chunk);
@@ -102,14 +102,15 @@ const registerUser = async (req, reply) => {
                     };
                 }
             }
-            // Validar campos mínimos necesarios
-            if (!formData.Email || !formData.password || !formData.FirstName || !formData.LastName) {
+            // Validar con Zod
+            const validationResult = registerUserSchema.safeParse(formData);
+            if (!validationResult.success) {
                 return reply.status(400).send({
-                    error: "Missing required fields"
+                    error: "Validation error",
+                    details: validationResult.error.format()
                 });
             }
             let imageUrl = 'https://www.pngitem.com/pimgs/m/146-1468479_transparent-user-png-default-user-profile-icon-png-transparent.png';
-            // Subir imagen a Cloudinary si existe
             if (imageBuffer) {
                 try {
                     const uploadResponse = await new Promise((resolve, reject) => {
@@ -130,11 +131,10 @@ const registerUser = async (req, reply) => {
                 }
                 catch (uploadError) {
                     console.error("Error uploading to Cloudinary:", uploadError);
-                    // Continuar con la URL por defecto si falla la subida
                 }
             }
             const UserID = (0, uuid_1.v4)();
-            const hashedPassword = await bcrypt.hash(formData.password, 8);
+            const hashedPassword = await bcrypt.hash(validationResult.data.password, 8);
             const publicRoleID = await fetchPublicRole();
             const [newUser] = await db_1.default
                 .insert(usersSchema_1.default)
@@ -142,10 +142,10 @@ const registerUser = async (req, reply) => {
                 UserID,
                 RoleID: publicRoleID,
                 imageUser: imageUrl,
-                FirstName: formData.FirstName,
-                LastName: formData.LastName,
-                CountryID: formData.CountryID,
-                Email: formData.Email,
+                FirstName: validationResult.data.FirstName,
+                LastName: validationResult.data.LastName,
+                CountryID: validationResult.data.CountryID,
+                Email: validationResult.data.Email,
                 password: hashedPassword,
                 status: "active"
             })

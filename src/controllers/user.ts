@@ -47,6 +47,7 @@ const getUserProfile = async (request: FastifyRequest, reply: FastifyReply) => {
                 RoleID: userData.RoleID,
                 imageUser: userData.imageUser,
                 CountryID: userData.CountryID,
+                createdAt: userData.createdAt,
                 status: userData.status
             }
         });

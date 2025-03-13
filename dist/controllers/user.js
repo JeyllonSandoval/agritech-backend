@@ -41,6 +41,7 @@ const getUserProfile = async (request, reply) => {
                 RoleID: userData.RoleID,
                 imageUser: userData.imageUser,
                 CountryID: userData.CountryID,
+                createdAt: userData.createdAt,
                 status: userData.status
             }
         });

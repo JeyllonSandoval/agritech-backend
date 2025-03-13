@@ -9,6 +9,7 @@ import { z, ZodError } from "zod";
 import rolesTable from "@/db/schemas/rolesSchema";
 import { v2 as cloudinary } from 'cloudinary';
 
+// Validador simplificado
 const registerUserSchema = z.object({
     FirstName: z.string().min(2, { message: "First name must be at least 2 characters long" }),
     LastName: z.string().min(2, { message: "Last name must be at least 2 characters long" }),
@@ -62,7 +63,6 @@ export const registerUser = async (req: FastifyRequest, reply: FastifyReply) => 
                     formData[value.fieldname] = value.value;
                 } 
                 else if (value.type === "file" && value.fieldname === "image") {
-                    // Recolectar los chunks del archivo
                     const chunks = [];
                     for await (const chunk of value.file) {
                         chunks.push(chunk);
@@ -75,16 +75,17 @@ export const registerUser = async (req: FastifyRequest, reply: FastifyReply) => 
                 }
             }
 
-            // Validar campos mínimos necesarios
-            if (!formData.Email || !formData.password || !formData.FirstName || !formData.LastName) {
+            // Validar con Zod
+            const validationResult = registerUserSchema.safeParse(formData);
+            if (!validationResult.success) {
                 return reply.status(400).send({ 
-                    error: "Missing required fields" 
+                    error: "Validation error", 
+                    details: validationResult.error.format() 
                 });
             }
 
             let imageUrl = 'https://www.pngitem.com/pimgs/m/146-1468479_transparent-user-png-default-user-profile-icon-png-transparent.png';
 
-            // Subir imagen a Cloudinary si existe
             if (imageBuffer) {
                 try {
                     const uploadResponse = await new Promise((resolve, reject) => {
@@ -107,12 +108,11 @@ export const registerUser = async (req: FastifyRequest, reply: FastifyReply) => 
                     }
                 } catch (uploadError) {
                     console.error("Error uploading to Cloudinary:", uploadError);
-                    // Continuar con la URL por defecto si falla la subida
                 }
             }
 
             const UserID = uuidv4();
-            const hashedPassword = await bcrypt.hash(formData.password, 8);
+            const hashedPassword = await bcrypt.hash(validationResult.data.password, 8);
             const publicRoleID = await fetchPublicRole();
 
             const [newUser] = await db
@@ -121,10 +121,10 @@ export const registerUser = async (req: FastifyRequest, reply: FastifyReply) => 
                     UserID,
                     RoleID: publicRoleID,
                     imageUser: imageUrl,
-                    FirstName: formData.FirstName,
-                    LastName: formData.LastName,
-                    CountryID: formData.CountryID,
-                    Email: formData.Email,
+                    FirstName: validationResult.data.FirstName,
+                    LastName: validationResult.data.LastName,
+                    CountryID: validationResult.data.CountryID,
+                    Email: validationResult.data.Email,
                     password: hashedPassword,
                     status: "active"
                 })
