@@ -4,8 +4,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getChats = exports.createChat = void 0;
-const db_1 = __importDefault(require("../db/db"));
-const chatSchema_1 = __importDefault(require("../db/schemas/chatSchema"));
+const db_1 = __importDefault(require("@/db/db"));
+const chatSchema_1 = __importDefault(require("@/db/schemas/chatSchema"));
 const uuid_1 = require("uuid");
 const zod_1 = require("zod");
 const createChatSchema = zod_1.z.object({

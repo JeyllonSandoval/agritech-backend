@@ -6,15 +6,15 @@ import { v4 as uuidv4 } from "uuid";
 import { generateToken } from "@/utils/token";
 import { eq } from "drizzle-orm";
 import { z, ZodError } from "zod";
+import rolesTable from "@/db/schemas/rolesSchema";
+import { v2 as cloudinary } from 'cloudinary';
 
 const registerUserSchema = z.object({
-    RoleID: z.string().uuid({ message: "Invalid role ID" }),
-    imageUser: z.string().url({ message: "Invalid image URL" }).optional(),
     FirstName: z.string().min(2, { message: "First name must be at least 2 characters long" }),
     LastName: z.string().min(2, { message: "Last name must be at least 2 characters long" }),
     CountryID: z.string().uuid({ message: "Invalid country ID" }),
     Email: z.string().email({ message: "Invalid email address" }),
-    password: z.string().min(6, { message: "Password must be at least 6 characters long" }),
+    password: z.string().min(6, { message: "Password must be at least 6 characters long" })
 });
 
 const loginUserSchema = z.object({
@@ -22,68 +22,129 @@ const loginUserSchema = z.object({
     password: z.string().min(6, { message: "Password is invalid" }),
 });
 
-export const registerUser = async (
-    req: FastifyRequest<{ Body: z.infer<typeof registerUserSchema> }>, 
-    reply: FastifyReply
-) => {
-    try {
-        const cleanedData = {
-            ...req.body,
-            FirstName: req.body.FirstName.trim(),
-            LastName: req.body.LastName.trim(),
-            Email: req.body.Email.trim(),
-            password: req.body.password.trim()
-        };
+const fetchPublicRole = async () => {
+    const publicRole = await db
+        .select()
+        .from(rolesTable)
+        .where(eq(rolesTable.rolename, 'public'))
+        .get();
 
-        const result = registerUserSchema.safeParse(cleanedData);
-        
-        if (!result.success) {
+    if (!publicRole) {
+        throw new Error("Public role not found");
+    }
+    console.log(`RoleID: ${publicRole.RoleID}`);
+    return publicRole.RoleID;
+};
+
+const UPLOAD_TIMEOUT = 10000; // 10 segundos
+
+export const registerUser = async (req: FastifyRequest, reply: FastifyReply) => {
+    try {
+        if (!req.isMultipart()) {
             return reply.status(400).send({ 
-                error: "Validation error", 
-                details: result.error.format() 
+                error: "Bad Request", 
+                message: "Request must be multipart/form-data" 
             });
         }
 
-        const UserID = uuidv4();
-        const hashedPassword = await bcrypt.hash(result.data.password, 8);
+        let formData: any = {};
+        let imageBuffer: Buffer | null = null;
+        let imageInfo: any = null;
 
-        const [newUser] = await db
-            .insert(usersTable)
-            .values({
-                UserID,
-                RoleID: result.data.RoleID,
-                imageUser: result.data.imageUser || '',
-                FirstName: result.data.FirstName,
-                LastName: result.data.LastName,
-                CountryID: result.data.CountryID,
-                Email: result.data.Email,
-                password: hashedPassword,
-                status: "active"
-            })
-            .returning();
+        try {
+            const parts = await req.parts();
+            
+            let part;
+            while ((part = await parts.next()).done === false) {
+                const { value } = part;
+                
+                if (value.type === "field") {
+                    formData[value.fieldname] = value.value;
+                } 
+                else if (value.type === "file" && value.fieldname === "image") {
+                    // Recolectar los chunks del archivo
+                    const chunks = [];
+                    for await (const chunk of value.file) {
+                        chunks.push(chunk);
+                    }
+                    imageBuffer = Buffer.concat(chunks);
+                    imageInfo = {
+                        filename: value.filename,
+                        mimetype: value.mimetype
+                    };
+                }
+            }
 
-        const token = generateToken({
-            UserID: UserID,
-            Email: result.data.Email,
-            RoleID: result.data.RoleID
-        });
+            // Validar campos mínimos necesarios
+            if (!formData.Email || !formData.password || !formData.FirstName || !formData.LastName) {
+                return reply.status(400).send({ 
+                    error: "Missing required fields" 
+                });
+            }
 
-        return reply.status(201).send({ 
-            message: "User successfully registered", 
-            user: newUser,
-            token 
-        });
+            let imageUrl = 'https://www.pngitem.com/pimgs/m/146-1468479_transparent-user-png-default-user-profile-icon-png-transparent.png';
+
+            // Subir imagen a Cloudinary si existe
+            if (imageBuffer) {
+                try {
+                    const uploadResponse = await new Promise((resolve, reject) => {
+                        const uploadStream = cloudinary.uploader.upload_stream(
+                            {
+                                folder: "Image_Group_AgriTech",
+                                resource_type: "image"
+                            },
+                            (error, result) => {
+                                if (error) reject(error);
+                                else resolve(result);
+                            }
+                        );
+
+                        uploadStream.end(imageBuffer);
+                    });
+
+                    if (uploadResponse && typeof uploadResponse === 'object' && 'secure_url' in uploadResponse) {
+                        imageUrl = uploadResponse.secure_url as string;
+                    }
+                } catch (uploadError) {
+                    console.error("Error uploading to Cloudinary:", uploadError);
+                    // Continuar con la URL por defecto si falla la subida
+                }
+            }
+
+            const UserID = uuidv4();
+            const hashedPassword = await bcrypt.hash(formData.password, 8);
+            const publicRoleID = await fetchPublicRole();
+
+            const [newUser] = await db
+                .insert(usersTable)
+                .values({
+                    UserID,
+                    RoleID: publicRoleID,
+                    imageUser: imageUrl,
+                    FirstName: formData.FirstName,
+                    LastName: formData.LastName,
+                    CountryID: formData.CountryID,
+                    Email: formData.Email,
+                    password: hashedPassword,
+                    status: "active"
+                })
+                .returning();
+
+            return reply.status(201).send({ 
+                message: "User registered successfully",
+                user: {
+                    ...newUser,
+                    password: undefined
+                }
+            });
+
+        } catch (innerError) {
+            console.error("Error in processing:", innerError);
+            throw innerError;
+        }
 
     } catch (error) {
-        console.error(error);
-
-        if (error instanceof ZodError) {
-            return reply.status(400).send({ 
-                error: "Validation error", 
-                details: error.format() 
-            });
-        }
-
+        console.error("Error in registration:", error);
         return reply.status(500).send({ 
             error: "Internal server error", 
             details: error instanceof Error ? error.message : "Unknown error"
