@@ -37,14 +37,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.loginUser = exports.registerUser = void 0;
-const db_1 = __importDefault(require("../db/db"));
-const usersSchema_1 = __importDefault(require("../db/schemas/usersSchema"));
+const db_1 = __importDefault(require("@/db/db"));
+const usersSchema_1 = __importDefault(require("@/db/schemas/usersSchema"));
 const bcrypt = __importStar(require("bcryptjs"));
 const uuid_1 = require("uuid");
-const token_1 = require("../utils/token");
+const token_1 = require("@/utils/token");
 const drizzle_orm_1 = require("drizzle-orm");
 const zod_1 = require("zod");
-const rolesSchema_1 = __importDefault(require("../db/schemas/rolesSchema"));
+const rolesSchema_1 = __importDefault(require("@/db/schemas/rolesSchema"));
 const cloudinary_1 = require("cloudinary");
 // Validador simplificado
 const registerUserSchema = zod_1.z.object({
@@ -102,8 +102,16 @@ const registerUser = async (req, reply) => {
                     };
                 }
             }
+            // Limpiar datos antes de validar
+            const cleanedData = {
+                ...formData,
+                FirstName: formData.FirstName?.trim(),
+                LastName: formData.LastName?.trim(),
+                Email: formData.Email?.trim(),
+                password: formData.password?.trim()
+            };
             // Validar con Zod
-            const validationResult = registerUserSchema.safeParse(formData);
+            const validationResult = registerUserSchema.safeParse(cleanedData);
             if (!validationResult.success) {
                 return reply.status(400).send({
                     error: "Validation error",
@@ -120,9 +128,8 @@ const registerUser = async (req, reply) => {
                             timeout: UPLOAD_TIMEOUT
                         }, (error, result) => {
                             if (error)
-                                reject(error);
-                            else
-                                resolve(result);
+                                return reject(error);
+                            resolve(result);
                         });
                         uploadStream.end(imageBuffer);
                     });
@@ -158,16 +165,18 @@ const registerUser = async (req, reply) => {
                 RoleID: publicRoleID
             });
             return reply.status(201).send({
-                message: "User registered successfully",
-                user: {
-                    ...newUser,
-                    password: undefined
-                },
+                message: "User successfully registered",
                 token
             });
         }
         catch (innerError) {
             console.error("Error in processing:", innerError);
+            if (innerError instanceof zod_1.ZodError) {
+                return reply.status(400).send({
+                    error: "Validation error",
+                    details: innerError.format()
+                });
+            }
             throw innerError;
         }
     }
@@ -214,16 +223,6 @@ const loginUser = async (req, reply) => {
         });
         return reply.status(200).send({
             message: "Login successful",
-            user: {
-                UserID: user.UserID,
-                Email: user.Email,
-                FirstName: user.FirstName,
-                LastName: user.LastName,
-                RoleID: user.RoleID,
-                imageUser: user.imageUser,
-                CountryID: user.CountryID,
-                status: user.status
-            },
             token
         });
     }

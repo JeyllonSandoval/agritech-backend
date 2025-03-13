@@ -75,8 +75,17 @@ export const registerUser = async (req: FastifyRequest, reply: FastifyReply) => 
                 }
             }
 
+            // Limpiar datos antes de validar
+            const cleanedData = {
+                ...formData,
+                FirstName: formData.FirstName?.trim(),
+                LastName: formData.LastName?.trim(),
+                Email: formData.Email?.trim(),
+                password: formData.password?.trim()
+            };
+
             // Validar con Zod
-            const validationResult = registerUserSchema.safeParse(formData);
+            const validationResult = registerUserSchema.safeParse(cleanedData);
             if (!validationResult.success) {
                 return reply.status(400).send({ 
                     error: "Validation error", 
@@ -96,8 +105,8 @@ export const registerUser = async (req: FastifyRequest, reply: FastifyReply) => 
                                 timeout: UPLOAD_TIMEOUT
                             },
                             (error, result) => {
-                                if (error) reject(error);
-                                else resolve(result);
+                                if (error) return reject(error);
+                                resolve(result);
                             }
                         );
 
@@ -139,16 +148,18 @@ export const registerUser = async (req: FastifyRequest, reply: FastifyReply) => 
             });
 
             return reply.status(201).send({ 
-                message: "User registered successfully",
-                user: {
-                    ...newUser,
-                    password: undefined
-                },
-                token
+                message: "User successfully registered", 
+                token 
             });
 
         } catch (innerError) {
             console.error("Error in processing:", innerError);
+            if (innerError instanceof ZodError) {
+                return reply.status(400).send({ 
+                    error: "Validation error", 
+                    details: innerError.format() 
+                });
+            }
             throw innerError;
         }
 
@@ -208,16 +219,6 @@ export const loginUser = async (
 
         return reply.status(200).send({
             message: "Login successful",
-            user: {
-                UserID: user.UserID,
-                Email: user.Email,
-                FirstName: user.FirstName,
-                LastName: user.LastName,
-                RoleID: user.RoleID,
-                imageUser: user.imageUser,
-                CountryID: user.CountryID,
-                status: user.status
-            },
             token
         });
     } catch (error) {
