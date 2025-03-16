@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import { v2 as cloudinary } from 'cloudinary';
 import { UploadApiResponse } from 'cloudinary';
 import { eq } from "drizzle-orm";
+import { z } from "zod";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB en bytes
 const UPLOAD_TIMEOUT = 10000; // 10 segundos
@@ -171,4 +172,46 @@ const getFiles = async (_req: FastifyRequest, reply: FastifyReply) => {
     }
 }
 
-export { createFiles, getFiles };
+const getFileUser = async (
+    req: FastifyRequest<{ Params: { UserID: string } }>, 
+    reply: FastifyReply
+) => {
+    try {
+        const { UserID } = req.params;
+
+        // Validar el UserID
+        const validation = z.string().uuid().safeParse(UserID);
+        if (!validation.success) {
+            return reply.status(400).send({ 
+                error: "Invalid UserID format",
+                details: "UserID must be a valid UUID"
+            });
+        }
+
+        const userFiles = await db
+            .select()
+            .from(filesTable)
+            .where(eq(filesTable.UserID, UserID))
+            .orderBy(filesTable.createdAt);
+
+        if (!userFiles.length) {
+            return reply.status(404).send({ 
+                message: "No files found for this user" 
+            });
+        }
+
+        return reply.status(200).send({ 
+            message: "Files fetched successfully", 
+            files: userFiles 
+        });
+    }
+    catch (error) {
+        console.error(error);
+        return reply.status(500).send({ 
+            error: "Failed to fetch user files", 
+            details: error instanceof Error ? error.message : "Unknown error" 
+        });
+    }
+};  
+
+export { createFiles, getFiles, getFileUser };

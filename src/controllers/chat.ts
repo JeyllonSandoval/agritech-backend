@@ -3,6 +3,11 @@ import db from "@/db/db";
 import chatsTable from "@/db/schemas/chatSchema";
 import { v4 as uuidv4 } from "uuid";
 import { z, ZodError } from "zod";
+import { eq } from "drizzle-orm";
+
+const getChatUserSchema = z.object({
+    UserID: z.string().uuid({ message: "Invalid user ID" }),
+});
 
 const createChatSchema = z.object({
     UserID: z.string().uuid({ message: "Invalid user ID" }),
@@ -69,4 +74,46 @@ const getChats = async (_req: FastifyRequest, reply: FastifyReply) => {
     }
 };
 
-export { createChat, getChats };
+const getChatUser = async (
+    req: FastifyRequest<{ Params: { UserID: string } }>, 
+    reply: FastifyReply
+) => {
+    try {
+        const { UserID } = req.params;
+
+        // Validar el UserID
+        const validation = z.string().uuid().safeParse(UserID);
+        if (!validation.success) {
+            return reply.status(400).send({ 
+                error: "Invalid UserID format",
+                details: "UserID must be a valid UUID"
+            });
+        }
+
+        const userChats = await db
+            .select()
+            .from(chatsTable)
+            .where(eq(chatsTable.UserID, UserID))
+            .orderBy(chatsTable.createdAt);
+
+        if (!userChats.length) {
+            return reply.status(404).send({ 
+                message: "No chats found for this user" 
+            });
+        }
+
+        return reply.status(200).send({ 
+            message: "Chats fetched successfully", 
+            chats: userChats 
+        });
+    }
+    catch (error) {
+        console.error(error);
+        return reply.status(500).send({ 
+            error: "Failed to fetch user chats", 
+            details: error instanceof Error ? error.message : "Unknown error" 
+        });
+    }
+};
+
+export { createChat, getChats, getChatUser };

@@ -3,13 +3,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getFiles = exports.createFiles = void 0;
-const db_1 = __importDefault(require("../db/db"));
-const filesSchema_1 = __importDefault(require("../db/schemas/filesSchema"));
-const usersSchema_1 = __importDefault(require("../db/schemas/usersSchema"));
+exports.getFileUser = exports.getFiles = exports.createFiles = void 0;
+const db_1 = __importDefault(require("@/db/db"));
+const filesSchema_1 = __importDefault(require("@/db/schemas/filesSchema"));
+const usersSchema_1 = __importDefault(require("@/db/schemas/usersSchema"));
 const uuid_1 = require("uuid");
 const cloudinary_1 = require("cloudinary");
 const drizzle_orm_1 = require("drizzle-orm");
+const zod_1 = require("zod");
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB en bytes
 const UPLOAD_TIMEOUT = 10000; // 10 segundos
 const createFiles = async (req, reply) => {
@@ -155,3 +156,38 @@ const getFiles = async (_req, reply) => {
     }
 };
 exports.getFiles = getFiles;
+const getFileUser = async (req, reply) => {
+    try {
+        const { UserID } = req.params;
+        // Validar el UserID
+        const validation = zod_1.z.string().uuid().safeParse(UserID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid UserID format",
+                details: "UserID must be a valid UUID"
+            });
+        }
+        const userFiles = await db_1.default
+            .select()
+            .from(filesSchema_1.default)
+            .where((0, drizzle_orm_1.eq)(filesSchema_1.default.UserID, UserID))
+            .orderBy(filesSchema_1.default.createdAt);
+        if (!userFiles.length) {
+            return reply.status(404).send({
+                message: "No files found for this user"
+            });
+        }
+        return reply.status(200).send({
+            message: "Files fetched successfully",
+            files: userFiles
+        });
+    }
+    catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Failed to fetch user files",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+exports.getFileUser = getFileUser;
