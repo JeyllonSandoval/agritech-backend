@@ -13,12 +13,11 @@ const UPLOAD_TIMEOUT = 10000; // 10 segundos
 
 const createFiles = async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-        // Configurar límites para el parser multipart
         req.raw.setMaxListeners(0);  // Evitar warnings de memory leak
         const parts = await req.parts({
             limits: {
-                fileSize: MAX_FILE_SIZE,  // Limitar tamaño desde el parser
-                files: 1  // Limitar a un solo archivo
+                fileSize: MAX_FILE_SIZE,
+                files: 1
             }
         });
 
@@ -35,7 +34,7 @@ const createFiles = async (req: FastifyRequest, reply: FastifyReply) => {
             }
         }
 
-        // 2. Validar que se recibieron los datos necesarios
+        // Validar que se recibieron los datos necesarios
         if (!userID || !file) {
             return reply.status(400).send({ 
                 error: "Missing data",
@@ -43,7 +42,16 @@ const createFiles = async (req: FastifyRequest, reply: FastifyReply) => {
             });
         }
 
-        // 3. Verificar que el usuario existe en la base de datos
+        // Validación del UserID usando Zod
+        const validation = z.string().uuid().safeParse(userID);
+        if (!validation.success) {
+            return reply.status(400).send({ 
+                error: "Invalid UserID format",
+                message: "UserID must be a valid UUID"
+            });
+        }
+
+        // Verificar que el usuario existe en la base de datos
         const existingUser = await db
             .select()
             .from(usersTable)
@@ -57,16 +65,15 @@ const createFiles = async (req: FastifyRequest, reply: FastifyReply) => {
             });
         }
 
-        // 4. Validar que el archivo es un PDF
-        const fileType = file.mimetype;
-        if (fileType !== 'application/pdf') {
+        // Validar que el archivo es un PDF
+        if (file.mimetype !== 'application/pdf') {
             return reply.status(400).send({ 
                 error: "Invalid file type",
                 message: "Only PDF files are allowed" 
             });
         }
 
-        // 5. Mejorar el manejo del buffer y validación de tamaño
+        // Manejar el buffer del archivo y controlar el tamaño
         const chunks: Buffer[] = [];
         let fileSize = 0;
 
@@ -90,7 +97,7 @@ const createFiles = async (req: FastifyRequest, reply: FastifyReply) => {
 
         const fileBuffer = Buffer.concat(chunks);
 
-        // 6. Mejorar el manejo de la subida a Cloudinary
+        // Subida a Cloudinary
         const uploadPromise = new Promise<UploadApiResponse>((resolve, reject) => {
             const uploadStream = cloudinary.uploader.upload_stream(
                 { 
@@ -106,7 +113,6 @@ const createFiles = async (req: FastifyRequest, reply: FastifyReply) => {
                     resolve(result);
                 }
             );
-
             uploadStream.end(fileBuffer);
         });
 
@@ -117,13 +123,14 @@ const createFiles = async (req: FastifyRequest, reply: FastifyReply) => {
             )
         ]) as UploadApiResponse;
 
-        // 7. Guardar la URL en la base de datos
+        // Guardar la URL en la base de datos
         const fileID = uuidv4();
         await db
             .insert(filesTable)
             .values({
                 FileID: fileID,
                 UserID: userID,
+                FileName: file.filename || "Untitled",
                 contentURL: cloudinaryUpload.secure_url,
                 status: "active"
             });
@@ -145,7 +152,6 @@ const createFiles = async (req: FastifyRequest, reply: FastifyReply) => {
                 });
             }
 
-            // Manejar error específico de Cloudinary
             if ('http_code' in error) {
                 return reply.status(400).send({ 
                     error: "Cloudinary Upload Error",
