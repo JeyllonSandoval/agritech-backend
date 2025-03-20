@@ -9,6 +9,7 @@ const usersSchema_1 = __importDefault(require("@/db/schemas/usersSchema"));
 const filesTable = (0, sqlite_core_1.sqliteTable)("files_table", {
     FileID: (0, sqlite_core_1.text)("FileID", { length: 36 }).primaryKey(),
     UserID: (0, sqlite_core_1.text)("UserID", { length: 36 }).notNull().references(() => usersSchema_1.default.UserID),
+    FileName: (0, sqlite_core_1.text)("FileName").notNull(),
     contentURL: (0, sqlite_core_1.text)("contentURL").notNull(),
     createdAt: (0, sqlite_core_1.text)("createdAt").default((0, drizzle_orm_1.sql) `(CURRENT_TIMESTAMP)`).notNull(),
     status: (0, sqlite_core_1.text)("status").notNull(),

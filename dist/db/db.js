@@ -11,5 +11,5 @@ const client = (0, client_1.createClient)({
     url: TURSO_DATABASE_URL,
     authToken: TURSO_AUTH_TOKEN
 });
-const db = (0, libsql_1.drizzle)({ client });
+const db = (0, libsql_1.drizzle)(client);
 exports.default = db;
