@@ -3,12 +3,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getChatUser = exports.getChats = exports.createChat = void 0;
+exports.getMessagesForChat = exports.getChatHistory = exports.getChatUser = exports.getChats = exports.createChat = void 0;
 const db_1 = __importDefault(require("@/db/db"));
 const chatSchema_1 = __importDefault(require("@/db/schemas/chatSchema"));
 const uuid_1 = require("uuid");
 const zod_1 = require("zod");
 const drizzle_orm_1 = require("drizzle-orm");
+const messageSchema_1 = __importDefault(require("@/db/schemas/messageSchema"));
 const getChatUserSchema = zod_1.z.object({
     UserID: zod_1.z.string().uuid({ message: "Invalid user ID" }),
 });
@@ -103,3 +104,42 @@ const getChatUser = async (req, reply) => {
     }
 };
 exports.getChatUser = getChatUser;
+const getChatHistory = async (req, reply) => {
+    try {
+        const { ChatID } = req.params;
+        const validation = zod_1.z.string().uuid().safeParse(ChatID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid ChatID format",
+                details: "ChatID must be a valid UUID"
+            });
+        }
+        const messages = await db_1.default
+            .select()
+            .from(messageSchema_1.default)
+            .where((0, drizzle_orm_1.eq)(messageSchema_1.default.ChatID, ChatID))
+            .orderBy(messageSchema_1.default.createdAt);
+        return reply.status(200).send({
+            message: "Messages fetched successfully",
+            messages
+        });
+    }
+    catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Failed to fetch chat messages",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+exports.getChatHistory = getChatHistory;
+// New function to get chat messages directly
+const getMessagesForChat = async (ChatID) => {
+    const messages = await db_1.default
+        .select()
+        .from(messageSchema_1.default)
+        .where((0, drizzle_orm_1.eq)(messageSchema_1.default.ChatID, ChatID))
+        .orderBy(messageSchema_1.default.createdAt);
+    return messages;
+};
+exports.getMessagesForChat = getMessagesForChat;

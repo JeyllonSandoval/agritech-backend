@@ -4,6 +4,7 @@ import chatsTable from "@/db/schemas/chatSchema";
 import { v4 as uuidv4 } from "uuid";
 import { z, ZodError } from "zod";
 import { eq } from "drizzle-orm";
+import messagesTable from "@/db/schemas/messageSchema";
 
 const getChatUserSchema = z.object({
     UserID: z.string().uuid({ message: "Invalid user ID" }),
@@ -116,4 +117,49 @@ const getChatUser = async (
     }
 };
 
-export { createChat, getChats, getChatUser };
+const getChatHistory = async (
+    req: FastifyRequest<{ Params: { ChatID: string } }>,
+    reply: FastifyReply
+) => {
+    try {
+        const { ChatID } = req.params;
+
+        const validation = z.string().uuid().safeParse(ChatID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid ChatID format",
+                details: "ChatID must be a valid UUID"
+            });
+        }
+
+        const messages = await db
+            .select()
+            .from(messagesTable)
+            .where(eq(messagesTable.ChatID, ChatID))
+            .orderBy(messagesTable.createdAt);
+
+        return reply.status(200).send({
+            message: "Messages fetched successfully",
+            messages
+        });
+    } catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Failed to fetch chat messages",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+
+// New function to get chat messages directly
+const getMessagesForChat = async (ChatID: string) => {
+    const messages = await db
+        .select()
+        .from(messagesTable)
+        .where(eq(messagesTable.ChatID, ChatID))
+        .orderBy(messagesTable.createdAt);
+    
+    return messages;
+};
+
+export { createChat, getChats, getChatUser, getChatHistory, getMessagesForChat };

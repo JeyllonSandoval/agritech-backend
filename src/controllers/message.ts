@@ -77,7 +77,7 @@ export const createMessage = async (
             MessageID: uuidv4(),
             ChatID: result.data.ChatID,
             FileID: result.data.FileID,
-            content: pdfContent + " \n\n *QUESTION FOR USER:*" + userQuestion,
+            content: pdfContent + userQuestion,
             sendertype: result.data.sendertype,
             status: "active"
         }).returning();
@@ -85,12 +85,9 @@ export const createMessage = async (
         if (result.data.sendertype === "user") {
             const aiRequest = {
                 body: {
-                    jsonText: JSON.stringify({
-                        message: newMessage[0],
-                        fileContent: pdfContent,
-                    }),
                     ask: userQuestion,
                     ChatID: result.data.ChatID,
+                    FileID: result.data.FileID
                 },
             };
 
