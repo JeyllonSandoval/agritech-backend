@@ -77,7 +77,7 @@ export const createMessage = async (
             MessageID: uuidv4(),
             ChatID: result.data.ChatID,
             FileID: result.data.FileID,
-            content: pdfContent + userQuestion,
+            content: result.data.sendertype === "user" ? `ASK USER: ${userQuestion}` : userQuestion,
             sendertype: result.data.sendertype,
             status: "active"
         }).returning();
