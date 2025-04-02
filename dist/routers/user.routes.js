@@ -10,4 +10,8 @@ async function userRoutes(fastify) {
         preHandler: authToken_1.authenticateToken,
         handler: user_1.getUserProfile
     });
+    fastify.put("/profile/:UserID", {
+        preHandler: authToken_1.authenticateToken,
+        handler: user_1.updateUser
+    });
 }

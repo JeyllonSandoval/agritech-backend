@@ -184,3 +184,53 @@ export const getAllMessages = async (
         });
     }
 };
+
+export const updateMessage = async (
+    request: FastifyRequest<{ Params: { MessageID: string } }>,
+    reply: FastifyReply
+) => {
+    try {
+        const { MessageID } = request.params;
+        const { content } = request.body as { content: string };
+
+        const validation = z.string().uuid().safeParse(MessageID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid MessageID format",
+                details: "MessageID must be a valid UUID"
+            });
+        }
+
+        // Validar el contenido del mensaje
+        if (!content || content.trim().length < 1) {
+            return reply.status(400).send({
+                error: "Invalid message content",
+                details: "Message content cannot be empty"
+            });
+        }
+
+        const updatedMessage = await db
+            .update(messageTable)
+            .set({ content: content.trim() })
+            .where(eq(messageTable.MessageID, MessageID))
+            .returning();
+
+        if (!updatedMessage.length) {
+            return reply.status(404).send({
+                error: "Message not found",
+                details: "The specified message does not exist"
+            });
+        }
+
+        return reply.status(200).send({
+            message: "Message updated successfully",
+            updatedMessage
+        });
+    } catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Update Message: Failed to update message",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};

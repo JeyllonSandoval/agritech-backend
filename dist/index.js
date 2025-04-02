@@ -66,7 +66,6 @@ fastify.register(Promise.resolve().then(() => __importStar(require("@/routers/co
 fastify.register(Promise.resolve().then(() => __importStar(require("@/routers/file.routes"))));
 fastify.register(Promise.resolve().then(() => __importStar(require("@/routers/chat.routes"))));
 fastify.register(Promise.resolve().then(() => __importStar(require("@/routers/message.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("@/routers/test.routes"))));
 // Funtion Create roles
 (0, InitialSetup_1.default)();
 const start = async () => {

@@ -10,5 +10,6 @@ const chatRoutes = async (fastify) => {
     fastify.get("/chats", chat_1.getChats);
     fastify.post("/chat/ai-response", ai_response_1.default);
     fastify.get("/chat/user/:UserID", chat_1.getChatUser);
+    fastify.put("/chat/:ChatID", chat_1.updateChat);
 };
 exports.default = chatRoutes;

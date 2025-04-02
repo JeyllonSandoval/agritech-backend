@@ -162,4 +162,54 @@ const getMessagesForChat = async (ChatID: string) => {
     return messages;
 };
 
-export { createChat, getChats, getChatUser, getChatHistory, getMessagesForChat };
+const updateChat = async (
+    req: FastifyRequest<{ Params: { ChatID: string } }>,
+    reply: FastifyReply
+) => {
+    try {
+        const { ChatID } = req.params;
+        const { chatname } = req.body as { chatname: string };
+
+        const validation = z.string().uuid().safeParse(ChatID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid ChatID format",
+                details: "ChatID must be a valid UUID"
+            });
+        }
+
+        // Validar el nombre del chat
+        if (!chatname || chatname.trim().length < 2) {
+            return reply.status(400).send({
+                error: "Invalid chat name",
+                details: "Chat name must be at least 2 characters long"
+            });
+        }
+
+        const updatedChat = await db
+            .update(chatsTable)
+            .set({ chatname: chatname.trim() })
+            .where(eq(chatsTable.ChatID, ChatID))
+            .returning();
+
+        if (!updatedChat.length) {
+            return reply.status(404).send({
+                error: "Chat not found",
+                details: "The specified chat does not exist"
+            });
+        }
+
+        return reply.status(200).send({
+            message: "Chat updated successfully",
+            updatedChat
+        });
+    } catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Failed to update chat",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+
+export { createChat, getChats, getChatUser, getChatHistory, getMessagesForChat, updateChat };

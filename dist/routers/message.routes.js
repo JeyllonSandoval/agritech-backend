@@ -5,5 +5,6 @@ const messageRoutes = async (fastify) => {
     fastify.post("/message", message_1.createMessage);
     fastify.get("/messages", message_1.getAllMessages);
     fastify.get("/messages/:ChatID", message_1.getChatMessages);
+    fastify.put("/message/:MessageID", message_1.updateMessage);
 };
 exports.default = messageRoutes;

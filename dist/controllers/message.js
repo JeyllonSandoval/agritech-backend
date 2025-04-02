@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllMessages = exports.getChatMessages = exports.createMessage = void 0;
+exports.updateMessage = exports.getAllMessages = exports.getChatMessages = exports.createMessage = void 0;
 const uuid_1 = require("uuid");
 const drizzle_orm_1 = require("drizzle-orm");
 const db_1 = __importDefault(require("@/db/db"));
@@ -153,3 +153,46 @@ const getAllMessages = async (_request, reply) => {
     }
 };
 exports.getAllMessages = getAllMessages;
+const updateMessage = async (request, reply) => {
+    try {
+        const { MessageID } = request.params;
+        const { content } = request.body;
+        const validation = zod_1.z.string().uuid().safeParse(MessageID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid MessageID format",
+                details: "MessageID must be a valid UUID"
+            });
+        }
+        // Validar el contenido del mensaje
+        if (!content || content.trim().length < 1) {
+            return reply.status(400).send({
+                error: "Invalid message content",
+                details: "Message content cannot be empty"
+            });
+        }
+        const updatedMessage = await db_1.default
+            .update(messageSchema_1.default)
+            .set({ content: content.trim() })
+            .where((0, drizzle_orm_1.eq)(messageSchema_1.default.MessageID, MessageID))
+            .returning();
+        if (!updatedMessage.length) {
+            return reply.status(404).send({
+                error: "Message not found",
+                details: "The specified message does not exist"
+            });
+        }
+        return reply.status(200).send({
+            message: "Message updated successfully",
+            updatedMessage
+        });
+    }
+    catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Update Message: Failed to update message",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+exports.updateMessage = updateMessage;

@@ -32,7 +32,6 @@ fastify.register(import("@/routers/country.routes"));
 fastify.register(import("@/routers/file.routes"));
 fastify.register(import("@/routers/chat.routes"));
 fastify.register(import("@/routers/message.routes"));
-fastify.register(import("@/routers/test.routes"));
 
 // Funtion Create roles
 createRoles();
