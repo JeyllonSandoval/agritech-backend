@@ -212,4 +212,44 @@ const updateChat = async (
     }
 };
 
-export { createChat, getChats, getChatUser, getChatHistory, getMessagesForChat, updateChat };
+const deleteChat = async (
+    req: FastifyRequest<{ Params: { ChatID: string } }>,
+    reply: FastifyReply
+) => {
+    try {
+        const { ChatID } = req.params;
+
+        const validation = z.string().uuid().safeParse(ChatID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid ChatID format",
+                details: "ChatID must be a valid UUID"
+            });
+        }
+
+        const deletedChat = await db
+            .delete(chatsTable)
+            .where(eq(chatsTable.ChatID, ChatID))
+            .returning();
+
+        if (!deletedChat.length) {
+            return reply.status(404).send({
+                error: "Chat not found",
+                details: "The specified chat does not exist"
+            });
+        }
+
+        return reply.status(200).send({
+            message: "Chat deleted successfully",
+            deletedChat
+        });
+    } catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Failed to delete chat",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+
+export { createChat, getChats, getChatUser, getChatHistory, getMessagesForChat, updateChat, deleteChat };

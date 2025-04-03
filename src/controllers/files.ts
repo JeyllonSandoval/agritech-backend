@@ -220,4 +220,44 @@ const getFileUser = async (
     }
 };  
 
-export { createFiles, getFiles, getFileUser };
+const deleteFile = async (
+    req: FastifyRequest<{ Params: { FileID: string } }>,
+    reply: FastifyReply
+) => {
+    try {
+        const { FileID } = req.params;
+
+        const validation = z.string().uuid().safeParse(FileID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid FileID format",
+                details: "FileID must be a valid UUID"
+            });
+        }
+
+        const deletedFile = await db
+            .delete(filesTable)
+            .where(eq(filesTable.FileID, FileID))
+            .returning();
+
+        if (!deletedFile.length) {
+            return reply.status(404).send({
+                error: "File not found",
+                details: "The specified file does not exist"
+            });
+        }
+
+        return reply.status(200).send({
+            message: "File deleted successfully",
+            deletedFile
+        });
+    } catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Failed to delete file",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+
+export { createFiles, getFiles, getFileUser, deleteFile };
