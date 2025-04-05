@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getFileUser = exports.getFiles = exports.createFiles = void 0;
+exports.deleteFile = exports.getFileUser = exports.getFiles = exports.createFiles = void 0;
 const db_1 = __importDefault(require("@/db/db"));
 const filesSchema_1 = __importDefault(require("@/db/schemas/filesSchema"));
 const usersSchema_1 = __importDefault(require("@/db/schemas/usersSchema"));
@@ -197,3 +197,37 @@ const getFileUser = async (req, reply) => {
     }
 };
 exports.getFileUser = getFileUser;
+const deleteFile = async (req, reply) => {
+    try {
+        const { FileID } = req.params;
+        const validation = zod_1.z.string().uuid().safeParse(FileID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid FileID format",
+                details: "FileID must be a valid UUID"
+            });
+        }
+        const deletedFile = await db_1.default
+            .delete(filesSchema_1.default)
+            .where((0, drizzle_orm_1.eq)(filesSchema_1.default.FileID, FileID))
+            .returning();
+        if (!deletedFile.length) {
+            return reply.status(404).send({
+                error: "File not found",
+                details: "The specified file does not exist"
+            });
+        }
+        return reply.status(200).send({
+            message: "File deleted successfully",
+            deletedFile
+        });
+    }
+    catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Failed to delete file",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+exports.deleteFile = deleteFile;

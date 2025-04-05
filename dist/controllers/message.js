@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateMessage = exports.getAllMessages = exports.getChatMessages = exports.createMessage = void 0;
+exports.deleteMessage = exports.updateMessage = exports.getAllMessages = exports.getChatMessages = exports.createMessage = void 0;
 const uuid_1 = require("uuid");
 const drizzle_orm_1 = require("drizzle-orm");
 const db_1 = __importDefault(require("@/db/db"));
@@ -196,3 +196,37 @@ const updateMessage = async (request, reply) => {
     }
 };
 exports.updateMessage = updateMessage;
+const deleteMessage = async (request, reply) => {
+    try {
+        const { MessageID } = request.params;
+        const validation = zod_1.z.string().uuid().safeParse(MessageID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid MessageID format",
+                details: "MessageID must be a valid UUID"
+            });
+        }
+        const deletedMessage = await db_1.default
+            .delete(messageSchema_1.default)
+            .where((0, drizzle_orm_1.eq)(messageSchema_1.default.MessageID, MessageID))
+            .returning();
+        if (!deletedMessage.length) {
+            return reply.status(404).send({
+                error: "Message not found",
+                details: "The specified message does not exist"
+            });
+        }
+        return reply.status(200).send({
+            message: "Message deleted successfully",
+            deletedMessage
+        });
+    }
+    catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Delete Message: Failed to delete message",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+exports.deleteMessage = deleteMessage;

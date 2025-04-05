@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateChat = exports.getMessagesForChat = exports.getChatHistory = exports.getChatUser = exports.getChats = exports.createChat = void 0;
+exports.deleteChat = exports.updateChat = exports.getMessagesForChat = exports.getChatHistory = exports.getChatUser = exports.getChats = exports.createChat = void 0;
 const db_1 = __importDefault(require("@/db/db"));
 const chatSchema_1 = __importDefault(require("@/db/schemas/chatSchema"));
 const uuid_1 = require("uuid");
@@ -186,3 +186,37 @@ const updateChat = async (req, reply) => {
     }
 };
 exports.updateChat = updateChat;
+const deleteChat = async (req, reply) => {
+    try {
+        const { ChatID } = req.params;
+        const validation = zod_1.z.string().uuid().safeParse(ChatID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid ChatID format",
+                details: "ChatID must be a valid UUID"
+            });
+        }
+        const deletedChat = await db_1.default
+            .delete(chatSchema_1.default)
+            .where((0, drizzle_orm_1.eq)(chatSchema_1.default.ChatID, ChatID))
+            .returning();
+        if (!deletedChat.length) {
+            return reply.status(404).send({
+                error: "Chat not found",
+                details: "The specified chat does not exist"
+            });
+        }
+        return reply.status(200).send({
+            message: "Chat deleted successfully",
+            deletedChat
+        });
+    }
+    catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Failed to delete chat",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+exports.deleteChat = deleteChat;
