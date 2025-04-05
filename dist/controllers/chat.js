@@ -196,6 +196,11 @@ const deleteChat = async (req, reply) => {
                 details: "ChatID must be a valid UUID"
             });
         }
+        // Primero eliminamos los mensajes asociados al chat
+        await db_1.default
+            .delete(messageSchema_1.default)
+            .where((0, drizzle_orm_1.eq)(messageSchema_1.default.ChatID, ChatID));
+        // Luego eliminamos el chat
         const deletedChat = await db_1.default
             .delete(chatSchema_1.default)
             .where((0, drizzle_orm_1.eq)(chatSchema_1.default.ChatID, ChatID))
@@ -207,7 +212,7 @@ const deleteChat = async (req, reply) => {
             });
         }
         return reply.status(200).send({
-            message: "Chat deleted successfully",
+            message: "Chat and associated messages deleted successfully",
             deletedChat
         });
     }

@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from "fastify";
 import db from "@/db/db";
 import filesTable from "@/db/schemas/filesSchema";
 import usersTable from "@/db/schemas/usersSchema";
+import messageTable from "@/db/schemas/messageSchema";
 import { v4 as uuidv4 } from "uuid";
 import { v2 as cloudinary } from 'cloudinary';
 import { UploadApiResponse } from 'cloudinary';
@@ -235,6 +236,12 @@ const deleteFile = async (
             });
         }
 
+        // Primero eliminamos los mensajes asociados al archivo
+        await db
+            .delete(messageTable)
+            .where(eq(messageTable.FileID, FileID));
+
+        // Luego eliminamos el archivo
         const deletedFile = await db
             .delete(filesTable)
             .where(eq(filesTable.FileID, FileID))
@@ -248,7 +255,7 @@ const deleteFile = async (
         }
 
         return reply.status(200).send({
-            message: "File deleted successfully",
+            message: "File and associated messages deleted successfully",
             deletedFile
         });
     } catch (error) {
@@ -260,4 +267,53 @@ const deleteFile = async (
     }
 };
 
-export { createFiles, getFiles, getFileUser, deleteFile };
+const updateFile = async (
+    req: FastifyRequest<{ Params: { FileID: string } }>,
+    reply: FastifyReply
+) => {
+    try {
+        const { FileID } = req.params;
+        const { FileName } = req.body as { FileName: string };
+
+        const validation = z.string().uuid().safeParse(FileID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid FileID format",
+                details: "FileID must be a valid UUID"
+            });
+        }
+
+        if (!FileName || FileName.trim().length < 1) {
+            return reply.status(400).send({
+                error: "Invalid file name",
+                details: "File name cannot be empty"
+            });
+        }
+
+        const updatedFile = await db
+            .update(filesTable)
+            .set({ FileName: FileName.trim() })
+            .where(eq(filesTable.FileID, FileID))
+            .returning();
+
+        if (!updatedFile.length) {
+            return reply.status(404).send({
+                error: "File not found",
+                details: "The specified file does not exist"
+            });
+        }
+
+        return reply.status(200).send({
+            message: "File updated successfully",
+            updatedFile
+        });
+    } catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Failed to update file",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+
+export { createFiles, getFiles, getFileUser, deleteFile, updateFile };

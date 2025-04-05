@@ -227,6 +227,12 @@ const deleteChat = async (
             });
         }
 
+        // Primero eliminamos los mensajes asociados al chat
+        await db
+            .delete(messagesTable)
+            .where(eq(messagesTable.ChatID, ChatID));
+
+        // Luego eliminamos el chat
         const deletedChat = await db
             .delete(chatsTable)
             .where(eq(chatsTable.ChatID, ChatID))
@@ -240,7 +246,7 @@ const deleteChat = async (
         }
 
         return reply.status(200).send({
-            message: "Chat deleted successfully",
+            message: "Chat and associated messages deleted successfully",
             deletedChat
         });
     } catch (error) {

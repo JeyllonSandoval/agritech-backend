@@ -3,10 +3,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteFile = exports.getFileUser = exports.getFiles = exports.createFiles = void 0;
+exports.updateFile = exports.deleteFile = exports.getFileUser = exports.getFiles = exports.createFiles = void 0;
 const db_1 = __importDefault(require("@/db/db"));
 const filesSchema_1 = __importDefault(require("@/db/schemas/filesSchema"));
 const usersSchema_1 = __importDefault(require("@/db/schemas/usersSchema"));
+const messageSchema_1 = __importDefault(require("@/db/schemas/messageSchema"));
 const uuid_1 = require("uuid");
 const cloudinary_1 = require("cloudinary");
 const drizzle_orm_1 = require("drizzle-orm");
@@ -207,6 +208,11 @@ const deleteFile = async (req, reply) => {
                 details: "FileID must be a valid UUID"
             });
         }
+        // Primero eliminamos los mensajes asociados al archivo
+        await db_1.default
+            .delete(messageSchema_1.default)
+            .where((0, drizzle_orm_1.eq)(messageSchema_1.default.FileID, FileID));
+        // Luego eliminamos el archivo
         const deletedFile = await db_1.default
             .delete(filesSchema_1.default)
             .where((0, drizzle_orm_1.eq)(filesSchema_1.default.FileID, FileID))
@@ -218,7 +224,7 @@ const deleteFile = async (req, reply) => {
             });
         }
         return reply.status(200).send({
-            message: "File deleted successfully",
+            message: "File and associated messages deleted successfully",
             deletedFile
         });
     }
@@ -231,3 +237,45 @@ const deleteFile = async (req, reply) => {
     }
 };
 exports.deleteFile = deleteFile;
+const updateFile = async (req, reply) => {
+    try {
+        const { FileID } = req.params;
+        const { FileName } = req.body;
+        const validation = zod_1.z.string().uuid().safeParse(FileID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid FileID format",
+                details: "FileID must be a valid UUID"
+            });
+        }
+        if (!FileName || FileName.trim().length < 1) {
+            return reply.status(400).send({
+                error: "Invalid file name",
+                details: "File name cannot be empty"
+            });
+        }
+        const updatedFile = await db_1.default
+            .update(filesSchema_1.default)
+            .set({ FileName: FileName.trim() })
+            .where((0, drizzle_orm_1.eq)(filesSchema_1.default.FileID, FileID))
+            .returning();
+        if (!updatedFile.length) {
+            return reply.status(404).send({
+                error: "File not found",
+                details: "The specified file does not exist"
+            });
+        }
+        return reply.status(200).send({
+            message: "File updated successfully",
+            updatedFile
+        });
+    }
+    catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Failed to update file",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+exports.updateFile = updateFile;

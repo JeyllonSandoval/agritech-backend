@@ -8,5 +8,6 @@ const fileRoutes = async (fastify) => {
     fastify.post("/read-pdf", readPdf_1.parsePDF);
     fastify.get("/files/user/:UserID", files_1.getFileUser);
     fastify.delete("/file/:FileID", files_1.deleteFile);
+    fastify.put("/file/:FileID", files_1.updateFile);
 };
 exports.default = fileRoutes;
