@@ -16,6 +16,15 @@ const authenticateToken = async (request, reply) => {
         request.user = decoded;
     }
     catch (error) {
+        if (error instanceof Error) {
+            if (error.message.includes('expired')) {
+                return reply.status(401).send({
+                    error: "Token expired",
+                    code: "TOKEN_EXPIRED",
+                    message: "Your session has expired. Please log in again."
+                });
+            }
+        }
         return reply.status(401).send({ error: "Invalid token" });
     }
 };

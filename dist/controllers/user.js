@@ -43,6 +43,7 @@ const drizzle_orm_1 = require("drizzle-orm");
 const zod_1 = require("zod");
 const bcrypt = __importStar(require("bcryptjs"));
 const cloudinary_1 = require("cloudinary");
+const token_1 = require("@/utils/token");
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB en bytes
 const UPLOAD_TIMEOUT = 10000; // 10 segundos
 const getUsers = async (_req, reply) => {
@@ -251,9 +252,16 @@ const updateUser = async (request, reply) => {
                 .set(updateData)
                 .where((0, drizzle_orm_1.eq)(usersSchema_1.default.UserID, user.UserID))
                 .returning();
+            // Generar nuevo token con los datos actualizados
+            const newToken = (0, token_1.generateToken)({
+                UserID: updatedUser[0].UserID,
+                Email: updatedUser[0].Email,
+                RoleID: updatedUser[0].RoleID
+            });
             return reply.status(200).send({
                 message: "User updated successfully",
-                updatedUser
+                updatedUser,
+                token: newToken
             });
         }
         catch (innerError) {

@@ -7,6 +7,7 @@ import { z } from "zod";
 import * as bcrypt from "bcryptjs";
 import { v2 as cloudinary } from 'cloudinary';
 import { UploadApiResponse } from 'cloudinary';
+import { generateToken } from "@/utils/token";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB en bytes
 const UPLOAD_TIMEOUT = 10000; // 10 segundos
@@ -249,9 +250,17 @@ const updateUser = async (request: FastifyRequest<{ Params: { UserID: string } }
                 .where(eq(usersTable.UserID, user.UserID))
                 .returning();
 
+            // Generar nuevo token con los datos actualizados
+            const newToken = generateToken({
+                UserID: updatedUser[0].UserID,
+                Email: updatedUser[0].Email,
+                RoleID: updatedUser[0].RoleID
+            });
+
             return reply.status(200).send({
                 message: "User updated successfully",
-                updatedUser
+                updatedUser,
+                token: newToken
             });
         } catch (innerError) {
             console.error("Error in processing:", innerError);
