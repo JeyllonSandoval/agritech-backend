@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 import { z, ZodError } from "zod";
 import rolesTable from "@/db/schemas/rolesSchema";
 import { v2 as cloudinary } from 'cloudinary';
+import nodemailer from 'nodemailer';
 
 // Validador simplificado
 const registerUserSchema = z.object({
@@ -38,6 +39,50 @@ const fetchPublicRole = async () => {
 };
 
 const UPLOAD_TIMEOUT = 10000; // 10 segundos
+
+// Configuración del transporter de nodemailer
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD
+    }
+});
+
+// Función para enviar correo de verificación
+const sendVerificationEmail = async (email: string, token: string) => {
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
+    
+    await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: 'Verifica tu correo electrónico',
+        html: `
+            <h1>Bienvenido a AgriTech</h1>
+            <p>Por favor, verifica tu correo electrónico haciendo clic en el siguiente enlace:</p>
+            <a href="${verificationUrl}">Verificar correo electrónico</a>
+            <p>Si no solicitaste esta verificación, puedes ignorar este correo.</p>
+        `
+    });
+};
+
+// Función para enviar correo de restablecimiento de contraseña
+const sendPasswordResetEmail = async (email: string, token: string) => {
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+    
+    await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: 'Restablecer contraseña',
+        html: `
+            <h1>Restablecer contraseña</h1>
+            <p>Has solicitado restablecer tu contraseña. Haz clic en el siguiente enlace para continuar:</p>
+            <a href="${resetUrl}">Restablecer contraseña</a>
+            <p>Este enlace expirará en 1 hora.</p>
+            <p>Si no solicitaste este cambio, puedes ignorar este correo.</p>
+        `
+    });
+};
 
 export const registerUser = async (req: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -125,6 +170,8 @@ export const registerUser = async (req: FastifyRequest, reply: FastifyReply) => 
             const hashedPassword = await bcrypt.hash(validationResult.data.password, 8);
             const publicRoleID = await fetchPublicRole();
 
+            const emailVerificationToken = uuidv4();
+            
             const [newUser] = await db
                 .insert(usersTable)
                 .values({
@@ -136,11 +183,15 @@ export const registerUser = async (req: FastifyRequest, reply: FastifyReply) => 
                     CountryID: validationResult.data.CountryID,
                     Email: validationResult.data.Email,
                     password: hashedPassword,
-                    status: "active"
+                    status: "active",
+                    emailVerified: "false",
+                    emailVerificationToken
                 })
                 .returning();
 
-            // Generar token
+            // Enviar correo de verificación
+            await sendVerificationEmail(validationResult.data.Email, emailVerificationToken);
+
             const token = generateToken({
                 UserID,
                 Email: validationResult.data.Email,
@@ -148,7 +199,7 @@ export const registerUser = async (req: FastifyRequest, reply: FastifyReply) => 
             });
 
             return reply.status(201).send({ 
-                message: "User successfully registered", 
+                message: "User successfully registered. Please check your email to verify your account.", 
                 token 
             });
 
@@ -235,6 +286,122 @@ export const loginUser = async (
             error: "Internal server error", 
             details: error instanceof Error ? error.message : "Unknown error"
         });
+    }
+};
+
+// Función para verificar el correo electrónico
+export const verifyEmail = async (
+    req: FastifyRequest<{ Params: { token: string } }>,
+    reply: FastifyReply
+) => {
+    try {
+        const { token } = req.params;
+
+        const user = await db
+            .select()
+            .from(usersTable)
+            .where(eq(usersTable.emailVerificationToken, token))
+            .get();
+
+        if (!user) {
+            return reply.status(400).send({ error: "Invalid verification token" });
+        }
+
+        await db
+            .update(usersTable)
+            .set({
+                emailVerified: "true",
+                emailVerificationToken: null
+            })
+            .where(eq(usersTable.UserID, user.UserID));
+
+        return reply.status(200).send({ message: "Email verified successfully" });
+    } catch (error) {
+        console.error(error);
+        return reply.status(500).send({ error: "Failed to verify email" });
+    }
+};
+
+// Función para solicitar restablecimiento de contraseña
+export const requestPasswordReset = async (
+    req: FastifyRequest<{ Body: { Email: string } }>,
+    reply: FastifyReply
+) => {
+    try {
+        const { Email } = req.body;
+
+        const user = await db
+            .select()
+            .from(usersTable)
+            .where(eq(usersTable.Email, Email))
+            .get();
+
+        if (!user) {
+            return reply.status(404).send({ error: "User not found" });
+        }
+
+        const passwordResetToken = uuidv4();
+        const passwordResetExpires = new Date(Date.now() + 3600000).toISOString(); // 1 hora
+
+        await db
+            .update(usersTable)
+            .set({
+                passwordResetToken,
+                passwordResetExpires
+            })
+            .where(eq(usersTable.UserID, user.UserID));
+
+        await sendPasswordResetEmail(Email, passwordResetToken);
+
+        return reply.status(200).send({ message: "Password reset email sent" });
+    } catch (error) {
+        console.error(error);
+        return reply.status(500).send({ error: "Failed to send password reset email" });
+    }
+};
+
+// Función para restablecer la contraseña
+export const resetPassword = async (
+    req: FastifyRequest<{ 
+        Body: { 
+            token: string;
+            newPassword: string;
+        } 
+    }>,
+    reply: FastifyReply
+) => {
+    try {
+        const { token, newPassword } = req.body;
+
+        const user = await db
+            .select()
+            .from(usersTable)
+            .where(eq(usersTable.passwordResetToken, token))
+            .get();
+
+        if (!user) {
+            return reply.status(400).send({ error: "Invalid reset token" });
+        }
+
+        if (new Date(user.passwordResetExpires!) < new Date()) {
+            return reply.status(400).send({ error: "Reset token has expired" });
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 8);
+
+        await db
+            .update(usersTable)
+            .set({
+                password: hashedPassword,
+                passwordResetToken: null,
+                passwordResetExpires: null
+            })
+            .where(eq(usersTable.UserID, user.UserID));
+
+        return reply.status(200).send({ message: "Password reset successfully" });
+    } catch (error) {
+        console.error(error);
+        return reply.status(500).send({ error: "Failed to reset password" });
     }
 };
 

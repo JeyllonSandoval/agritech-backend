@@ -18,5 +18,9 @@ const usersTable = (0, sqlite_core_1.sqliteTable)("users_Table", {
     password: (0, sqlite_core_1.text)("password").notNull(),
     createdAt: (0, sqlite_core_1.text)("createdAt").default((0, drizzle_orm_1.sql) `(CURRENT_TIMESTAMP)`).notNull(),
     status: (0, sqlite_core_1.text)("status").notNull(),
+    emailVerified: (0, sqlite_core_1.text)("emailVerified").default("false").notNull(),
+    emailVerificationToken: (0, sqlite_core_1.text)("emailVerificationToken"),
+    passwordResetToken: (0, sqlite_core_1.text)("passwordResetToken"),
+    passwordResetExpires: (0, sqlite_core_1.text)("passwordResetExpires"),
 });
 exports.default = usersTable;
