@@ -54,6 +54,10 @@ CREATE TABLE `users_Table` (
 	`password` text NOT NULL,
 	`createdAt` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
 	`status` text NOT NULL,
+	`emailVerified` text DEFAULT 'false' NOT NULL,
+	`emailVerificationToken` text,
+	`passwordResetToken` text,
+	`passwordResetExpires` text,
 	FOREIGN KEY (`RoleID`) REFERENCES `roles_table`(`RoleID`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`CountryID`) REFERENCES `country_table`(`CountryID`) ON UPDATE no action ON DELETE no action
 );

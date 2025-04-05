@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "d5d20cd1-6769-47ac-82f2-4cad2c188e1d",
+  "id": "c6cced8a-443e-42ba-be7d-622061df77d4",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "chat_table": {
@@ -61,8 +61,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
+      "uniqueConstraints": {}
     },
     "country_table": {
       "name": "country_table",
@@ -100,8 +99,7 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
+      "uniqueConstraints": {}
     },
     "files_table": {
       "name": "files_table",
@@ -167,8 +165,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
+      "uniqueConstraints": {}
     },
     "message_table": {
       "name": "message_table",
@@ -254,8 +251,7 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
+      "uniqueConstraints": {}
     },
     "roles_table": {
       "name": "roles_table",
@@ -293,8 +289,7 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
+      "uniqueConstraints": {}
     },
     "users_Table": {
       "name": "users_Table",
@@ -369,6 +364,35 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "emailVerified": {
+          "name": "emailVerified",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'false'"
+        },
+        "emailVerificationToken": {
+          "name": "emailVerificationToken",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "passwordResetToken": {
+          "name": "passwordResetToken",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "passwordResetExpires": {
+          "name": "passwordResetExpires",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {
@@ -409,18 +433,13 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
+      "uniqueConstraints": {}
     }
   },
-  "views": {},
   "enums": {},
   "_meta": {
     "schemas": {},
     "tables": {},
     "columns": {}
-  },
-  "internal": {
-    "indexes": {}
   }
 }
