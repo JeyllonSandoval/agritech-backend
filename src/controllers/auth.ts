@@ -34,7 +34,6 @@ const fetchPublicRole = async () => {
     if (!publicRole) {
         throw new Error("Public role not found");
     }
-    console.log(`RoleID: ${publicRole.RoleID}`);
     return publicRole.RoleID;
 };
 
@@ -51,19 +50,48 @@ const transporter = nodemailer.createTransport({
 
 // Función para enviar correo de verificación
 const sendVerificationEmail = async (email: string, token: string) => {
+    console.log('Enviando correo de verificación a:', email);
+    console.log('Token generado:', token);
+    
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
+    console.log('URL de verificación:', verificationUrl);
     
     await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: email,
         subject: 'Verifica tu correo electrónico',
         html: `
-            <h1>Bienvenido a AgriTech</h1>
-            <p>Por favor, verifica tu correo electrónico haciendo clic en el siguiente enlace:</p>
-            <a href="${verificationUrl}">Verificar correo electrónico</a>
-            <p>Si no solicitaste esta verificación, puedes ignorar este correo.</p>
+            <div style="background-color: #1a1a1a; color: #ffffff; font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <h1 style="color: #4CAF50; margin-bottom: 20px;">Bienvenido a AgriTech</h1>
+                    <p style="font-size: 16px; line-height: 1.5; margin-bottom: 25px;">
+                        Por favor, verifica tu correo electrónico haciendo clic en el siguiente enlace:
+                    </p>
+                    <div style="margin: 30px 0;">
+                        <a href="${verificationUrl}" 
+                           style="background-color: #4CAF50; 
+                                  color: white; 
+                                  padding: 15px 30px; 
+                                  text-decoration: none; 
+                                  border-radius: 5px; 
+                                  font-weight: bold;
+                                  display: inline-block;">
+                            Verificar correo electrónico
+                        </a>
+                    </div>
+                    <p style="font-size: 14px; color: #cccccc;">
+                        Si no solicitaste esta verificación, puedes ignorar este correo.
+                    </p>
+                </div>
+                <div style="border-top: 1px solid #333; padding-top: 20px; margin-top: 20px; text-align: center;">
+                    <p style="font-size: 12px; color: #999;">
+                        Este es un correo automático, por favor no responda a este mensaje.
+                    </p>
+                </div>
+            </div>
         `
     });
+    console.log('Correo de verificación enviado');
 };
 
 // Función para enviar correo de restablecimiento de contraseña
@@ -75,11 +103,37 @@ const sendPasswordResetEmail = async (email: string, token: string) => {
         to: email,
         subject: 'Restablecer contraseña',
         html: `
-            <h1>Restablecer contraseña</h1>
-            <p>Has solicitado restablecer tu contraseña. Haz clic en el siguiente enlace para continuar:</p>
-            <a href="${resetUrl}">Restablecer contraseña</a>
-            <p>Este enlace expirará en 1 hora.</p>
-            <p>Si no solicitaste este cambio, puedes ignorar este correo.</p>
+            <div style="background-color: #1a1a1a; color: #ffffff; font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <h1 style="color: #4CAF50; margin-bottom: 20px;">Restablecer contraseña</h1>
+                    <p style="font-size: 16px; line-height: 1.5; margin-bottom: 25px;">
+                        Has solicitado restablecer tu contraseña. Haz clic en el siguiente enlace para continuar:
+                    </p>
+                    <div style="margin: 30px 0;">
+                        <a href="${resetUrl}" 
+                           style="background-color: #4CAF50; 
+                                  color: white; 
+                                  padding: 15px 30px; 
+                                  text-decoration: none; 
+                                  border-radius: 5px; 
+                                  font-weight: bold;
+                                  display: inline-block;">
+                            Restablecer contraseña
+                        </a>
+                    </div>
+                    <p style="font-size: 14px; color: #cccccc;">
+                        Este enlace expirará en 1 hora.
+                    </p>
+                    <p style="font-size: 14px; color: #cccccc;">
+                        Si no solicitaste este cambio, puedes ignorar este correo.
+                    </p>
+                </div>
+                <div style="border-top: 1px solid #333; padding-top: 20px; margin-top: 20px; text-align: center;">
+                    <p style="font-size: 12px; color: #999;">
+                        Este es un correo automático, por favor no responda a este mensaje.
+                    </p>
+                </div>
+            </div>
         `
     });
 };
@@ -273,7 +327,6 @@ export const loginUser = async (
             token
         });
     } catch (error) {
-        console.error(error);
         
         if (error instanceof ZodError) {
             return reply.status(400).send({ 
@@ -303,6 +356,7 @@ export const verifyEmail = async (
             .where(eq(usersTable.emailVerificationToken, token))
             .get();
 
+
         if (!user) {
             return reply.status(400).send({ error: "Invalid verification token" });
         }
@@ -317,14 +371,13 @@ export const verifyEmail = async (
 
         return reply.status(200).send({ message: "Email verified successfully" });
     } catch (error) {
-        console.error(error);
         return reply.status(500).send({ error: "Failed to verify email" });
     }
 };
 
 // Función para solicitar restablecimiento de contraseña
 export const requestPasswordReset = async (
-    req: FastifyRequest<{ Body: { Email: string } }>,
+    req: FastifyRequest<{ Body: { Email: string } }>,   
     reply: FastifyReply
 ) => {
     try {
@@ -355,23 +408,17 @@ export const requestPasswordReset = async (
 
         return reply.status(200).send({ message: "Password reset email sent" });
     } catch (error) {
-        console.error(error);
         return reply.status(500).send({ error: "Failed to send password reset email" });
     }
 };
 
 // Función para restablecer la contraseña
 export const resetPassword = async (
-    req: FastifyRequest<{ 
-        Body: { 
-            token: string;
-            newPassword: string;
-        } 
-    }>,
+    req: FastifyRequest<{ Body: { token: string, password: string } }>,
     reply: FastifyReply
 ) => {
     try {
-        const { token, newPassword } = req.body;
+        const { token, password } = req.body;
 
         const user = await db
             .select()
@@ -380,15 +427,19 @@ export const resetPassword = async (
             .get();
 
         if (!user) {
-            return reply.status(400).send({ error: "Invalid reset token" });
+            return reply.status(400).send({ error: "Invalid or expired reset token" });
         }
 
-        if (new Date(user.passwordResetExpires!) < new Date()) {
+        // Verificar si el token ha expirado
+        const resetExpires = new Date(user.passwordResetExpires || '');
+        if (resetExpires < new Date()) {
             return reply.status(400).send({ error: "Reset token has expired" });
         }
 
-        const hashedPassword = await bcrypt.hash(newPassword, 8);
+        // Hashear la nueva contraseña
+        const hashedPassword = await bcrypt.hash(password, 8);
 
+        // Actualizar la contraseña y limpiar los campos de reset
         await db
             .update(usersTable)
             .set({
@@ -398,9 +449,8 @@ export const resetPassword = async (
             })
             .where(eq(usersTable.UserID, user.UserID));
 
-        return reply.status(200).send({ message: "Password reset successfully" });
+        return reply.status(200).send({ message: "Password has been reset successfully" });
     } catch (error) {
-        console.error(error);
         return reply.status(500).send({ error: "Failed to reset password" });
     }
 };

@@ -68,7 +68,6 @@ const fetchPublicRole = async () => {
     if (!publicRole) {
         throw new Error("Public role not found");
     }
-    console.log(`RoleID: ${publicRole.RoleID}`);
     return publicRole.RoleID;
 };
 const UPLOAD_TIMEOUT = 10000; // 10 segundos
@@ -82,18 +81,46 @@ const transporter = nodemailer_1.default.createTransport({
 });
 // Función para enviar correo de verificación
 const sendVerificationEmail = async (email, token) => {
+    console.log('Enviando correo de verificación a:', email);
+    console.log('Token generado:', token);
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
+    console.log('URL de verificación:', verificationUrl);
     await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: email,
         subject: 'Verifica tu correo electrónico',
         html: `
-            <h1>Bienvenido a AgriTech</h1>
-            <p>Por favor, verifica tu correo electrónico haciendo clic en el siguiente enlace:</p>
-            <a href="${verificationUrl}">Verificar correo electrónico</a>
-            <p>Si no solicitaste esta verificación, puedes ignorar este correo.</p>
+            <div style="background-color: #1a1a1a; color: #ffffff; font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <h1 style="color: #4CAF50; margin-bottom: 20px;">Bienvenido a AgriTech</h1>
+                    <p style="font-size: 16px; line-height: 1.5; margin-bottom: 25px;">
+                        Por favor, verifica tu correo electrónico haciendo clic en el siguiente enlace:
+                    </p>
+                    <div style="margin: 30px 0;">
+                        <a href="${verificationUrl}" 
+                           style="background-color: #4CAF50; 
+                                  color: white; 
+                                  padding: 15px 30px; 
+                                  text-decoration: none; 
+                                  border-radius: 5px; 
+                                  font-weight: bold;
+                                  display: inline-block;">
+                            Verificar correo electrónico
+                        </a>
+                    </div>
+                    <p style="font-size: 14px; color: #cccccc;">
+                        Si no solicitaste esta verificación, puedes ignorar este correo.
+                    </p>
+                </div>
+                <div style="border-top: 1px solid #333; padding-top: 20px; margin-top: 20px; text-align: center;">
+                    <p style="font-size: 12px; color: #999;">
+                        Este es un correo automático, por favor no responda a este mensaje.
+                    </p>
+                </div>
+            </div>
         `
     });
+    console.log('Correo de verificación enviado');
 };
 // Función para enviar correo de restablecimiento de contraseña
 const sendPasswordResetEmail = async (email, token) => {
@@ -103,11 +130,37 @@ const sendPasswordResetEmail = async (email, token) => {
         to: email,
         subject: 'Restablecer contraseña',
         html: `
-            <h1>Restablecer contraseña</h1>
-            <p>Has solicitado restablecer tu contraseña. Haz clic en el siguiente enlace para continuar:</p>
-            <a href="${resetUrl}">Restablecer contraseña</a>
-            <p>Este enlace expirará en 1 hora.</p>
-            <p>Si no solicitaste este cambio, puedes ignorar este correo.</p>
+            <div style="background-color: #1a1a1a; color: #ffffff; font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <h1 style="color: #4CAF50; margin-bottom: 20px;">Restablecer contraseña</h1>
+                    <p style="font-size: 16px; line-height: 1.5; margin-bottom: 25px;">
+                        Has solicitado restablecer tu contraseña. Haz clic en el siguiente enlace para continuar:
+                    </p>
+                    <div style="margin: 30px 0;">
+                        <a href="${resetUrl}" 
+                           style="background-color: #4CAF50; 
+                                  color: white; 
+                                  padding: 15px 30px; 
+                                  text-decoration: none; 
+                                  border-radius: 5px; 
+                                  font-weight: bold;
+                                  display: inline-block;">
+                            Restablecer contraseña
+                        </a>
+                    </div>
+                    <p style="font-size: 14px; color: #cccccc;">
+                        Este enlace expirará en 1 hora.
+                    </p>
+                    <p style="font-size: 14px; color: #cccccc;">
+                        Si no solicitaste este cambio, puedes ignorar este correo.
+                    </p>
+                </div>
+                <div style="border-top: 1px solid #333; padding-top: 20px; margin-top: 20px; text-align: center;">
+                    <p style="font-size: 12px; color: #999;">
+                        Este es un correo automático, por favor no responda a este mensaje.
+                    </p>
+                </div>
+            </div>
         `
     });
 };
@@ -271,7 +324,6 @@ const loginUser = async (req, reply) => {
         });
     }
     catch (error) {
-        console.error(error);
         if (error instanceof zod_1.ZodError) {
             return reply.status(400).send({
                 error: "Validation error",
@@ -307,7 +359,6 @@ const verifyEmail = async (req, reply) => {
         return reply.status(200).send({ message: "Email verified successfully" });
     }
     catch (error) {
-        console.error(error);
         return reply.status(500).send({ error: "Failed to verify email" });
     }
 };
@@ -337,7 +388,6 @@ const requestPasswordReset = async (req, reply) => {
         return reply.status(200).send({ message: "Password reset email sent" });
     }
     catch (error) {
-        console.error(error);
         return reply.status(500).send({ error: "Failed to send password reset email" });
     }
 };
@@ -345,19 +395,23 @@ exports.requestPasswordReset = requestPasswordReset;
 // Función para restablecer la contraseña
 const resetPassword = async (req, reply) => {
     try {
-        const { token, newPassword } = req.body;
+        const { token, password } = req.body;
         const user = await db_1.default
             .select()
             .from(usersSchema_1.default)
             .where((0, drizzle_orm_1.eq)(usersSchema_1.default.passwordResetToken, token))
             .get();
         if (!user) {
-            return reply.status(400).send({ error: "Invalid reset token" });
+            return reply.status(400).send({ error: "Invalid or expired reset token" });
         }
-        if (new Date(user.passwordResetExpires) < new Date()) {
+        // Verificar si el token ha expirado
+        const resetExpires = new Date(user.passwordResetExpires || '');
+        if (resetExpires < new Date()) {
             return reply.status(400).send({ error: "Reset token has expired" });
         }
-        const hashedPassword = await bcrypt.hash(newPassword, 8);
+        // Hashear la nueva contraseña
+        const hashedPassword = await bcrypt.hash(password, 8);
+        // Actualizar la contraseña y limpiar los campos de reset
         await db_1.default
             .update(usersSchema_1.default)
             .set({
@@ -366,10 +420,9 @@ const resetPassword = async (req, reply) => {
             passwordResetExpires: null
         })
             .where((0, drizzle_orm_1.eq)(usersSchema_1.default.UserID, user.UserID));
-        return reply.status(200).send({ message: "Password reset successfully" });
+        return reply.status(200).send({ message: "Password has been reset successfully" });
     }
     catch (error) {
-        console.error(error);
         return reply.status(500).send({ error: "Failed to reset password" });
     }
 };
