@@ -12,6 +12,7 @@ const generateToken = (user) => {
             UserID: user.UserID,
             Email: user.Email,
             RoleID: user.RoleID,
+            emailVerified: user.emailVerified
         }, JWT_SECRET, {
             expiresIn: '24h',
         });
@@ -29,6 +30,7 @@ const verifyToken = (token) => {
             UserID: decoded.UserID,
             Email: decoded.Email,
             RoleID: decoded.RoleID,
+            emailVerified: decoded.emailVerified
         };
     }
     catch (error) {

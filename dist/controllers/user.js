@@ -81,7 +81,8 @@ const getUserProfile = async (request, reply) => {
                 imageUser: userData.imageUser,
                 CountryID: userData.CountryID,
                 createdAt: userData.createdAt,
-                status: userData.status
+                status: userData.status,
+                emailVerified: userData.emailVerified
             }
         });
     }
@@ -256,7 +257,8 @@ const updateUser = async (request, reply) => {
             const newToken = (0, token_1.generateToken)({
                 UserID: updatedUser[0].UserID,
                 Email: updatedUser[0].Email,
-                RoleID: updatedUser[0].RoleID
+                RoleID: updatedUser[0].RoleID,
+                emailVerified: updatedUser[0].emailVerified
             });
             return reply.status(200).send({
                 message: "User updated successfully",

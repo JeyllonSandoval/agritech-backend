@@ -9,6 +9,7 @@ import { z, ZodError } from "zod";
 import rolesTable from "@/db/schemas/rolesSchema";
 import { v2 as cloudinary } from 'cloudinary';
 import nodemailer from 'nodemailer';
+import jwt from 'jsonwebtoken';
 
 // Validador simplificado
 const registerUserSchema = z.object({
@@ -59,13 +60,13 @@ const sendVerificationEmail = async (email: string, token: string) => {
     await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: email,
-        subject: 'Verifica tu correo electrónico',
+        subject: 'Verify your email',
         html: `
-            <div style="background-color: #1a1a1a; color: #ffffff; font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #1a1a1a; color: #ffffff; font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border-radius: 10px;">
                 <div style="text-align: center; margin-bottom: 30px;">
-                    <h1 style="color: #4CAF50; margin-bottom: 20px;">Bienvenido a AgriTech</h1>
+                    <h1 style="color: #4CAF50; margin-bottom: 20px;">Welcome to AgriTech</h1>
                     <p style="font-size: 16px; line-height: 1.5; margin-bottom: 25px;">
-                        Por favor, verifica tu correo electrónico haciendo clic en el siguiente enlace:
+                        Please verify your email by clicking the following link:
                     </p>
                     <div style="margin: 30px 0;">
                         <a href="${verificationUrl}" 
@@ -76,16 +77,16 @@ const sendVerificationEmail = async (email: string, token: string) => {
                                   border-radius: 5px; 
                                   font-weight: bold;
                                   display: inline-block;">
-                            Verificar correo electrónico
+                            Verify email
                         </a>
                     </div>
                     <p style="font-size: 14px; color: #cccccc;">
-                        Si no solicitaste esta verificación, puedes ignorar este correo.
+                        If you did not request this verification, you can ignore this email.
                     </p>
                 </div>
                 <div style="border-top: 1px solid #333; padding-top: 20px; margin-top: 20px; text-align: center;">
                     <p style="font-size: 12px; color: #999;">
-                        Este es un correo automático, por favor no responda a este mensaje.
+                        This is an automated email, please do not respond to this message.
                     </p>
                 </div>
             </div>
@@ -101,13 +102,13 @@ const sendPasswordResetEmail = async (email: string, token: string) => {
     await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: email,
-        subject: 'Restablecer contraseña',
+        subject: 'Reset password',
         html: `
-            <div style="background-color: #1a1a1a; color: #ffffff; font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #1a1a1a; color: #ffffff; font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border-radius: 10px;">
                 <div style="text-align: center; margin-bottom: 30px;">
-                    <h1 style="color: #4CAF50; margin-bottom: 20px;">Restablecer contraseña</h1>
+                    <h1 style="color: #4CAF50; margin-bottom: 20px;">Reset password</h1>
                     <p style="font-size: 16px; line-height: 1.5; margin-bottom: 25px;">
-                        Has solicitado restablecer tu contraseña. Haz clic en el siguiente enlace para continuar:
+                        You have requested to reset your password. Click the following link to continue:
                     </p>
                     <div style="margin: 30px 0;">
                         <a href="${resetUrl}" 
@@ -118,19 +119,19 @@ const sendPasswordResetEmail = async (email: string, token: string) => {
                                   border-radius: 5px; 
                                   font-weight: bold;
                                   display: inline-block;">
-                            Restablecer contraseña
+                            Reset password
                         </a>
                     </div>
                     <p style="font-size: 14px; color: #cccccc;">
-                        Este enlace expirará en 1 hora.
+                        This link will expire in 1 hour.
                     </p>
                     <p style="font-size: 14px; color: #cccccc;">
-                        Si no solicitaste este cambio, puedes ignorar este correo.
+                        If you did not request this reset, you can ignore this email.
                     </p>
                 </div>
                 <div style="border-top: 1px solid #333; padding-top: 20px; margin-top: 20px; text-align: center;">
                     <p style="font-size: 12px; color: #999;">
-                        Este es un correo automático, por favor no responda a este mensaje.
+                        This is an automated email, please do not respond to this message.
                     </p>
                 </div>
             </div>
@@ -192,7 +193,7 @@ export const registerUser = async (req: FastifyRequest, reply: FastifyReply) => 
                 });
             }
 
-            let imageUrl = 'https://www.pngitem.com/pimgs/m/146-1468479_transparent-user-png-default-user-profile-icon-png-transparent.png';
+            let imageUrl = '';
 
             if (imageBuffer) {
                 try {
@@ -249,7 +250,8 @@ export const registerUser = async (req: FastifyRequest, reply: FastifyReply) => 
             const token = generateToken({
                 UserID,
                 Email: validationResult.data.Email,
-                RoleID: publicRoleID
+                RoleID: publicRoleID,
+                emailVerified: "false"
             });
 
             return reply.status(201).send({ 
@@ -319,7 +321,8 @@ export const loginUser = async (
         const token = generateToken({
             UserID: user.UserID,
             Email: user.Email,
-            RoleID: user.RoleID
+            RoleID: user.RoleID,
+            emailVerified: user.emailVerified
         });
 
         return reply.status(200).send({
@@ -349,6 +352,7 @@ export const verifyEmail = async (
 ) => {
     try {
         const { token } = req.params;
+        console.log('Token recibido:', token);
 
         const user = await db
             .select()
@@ -356,11 +360,13 @@ export const verifyEmail = async (
             .where(eq(usersTable.emailVerificationToken, token))
             .get();
 
+        console.log('Usuario encontrado:', user);
 
         if (!user) {
             return reply.status(400).send({ error: "Invalid verification token" });
         }
 
+        // Actualizar el estado de verificación en la base de datos
         await db
             .update(usersTable)
             .set({
@@ -369,8 +375,38 @@ export const verifyEmail = async (
             })
             .where(eq(usersTable.UserID, user.UserID));
 
-        return reply.status(200).send({ message: "Email verified successfully" });
+        // Obtener el usuario actualizado para asegurar que tenemos los datos más recientes
+        const updatedUser = await db
+            .select()
+            .from(usersTable)
+            .where(eq(usersTable.UserID, user.UserID))
+            .get();
+
+        if (!updatedUser) {
+            return reply.status(500).send({ error: "Failed to get updated user data" });
+        }
+
+        // Generar nuevo token con los datos actualizados
+        const newToken = generateToken({
+            UserID: updatedUser.UserID,
+            Email: updatedUser.Email,
+            RoleID: updatedUser.RoleID,
+            emailVerified: updatedUser.emailVerified
+        });
+
+        console.log('Token generado con datos actualizados:', {
+            UserID: updatedUser.UserID,
+            Email: updatedUser.Email,
+            RoleID: updatedUser.RoleID,
+            emailVerified: updatedUser.emailVerified
+        });
+
+        return reply.status(200).send({ 
+            message: "Email verified successfully",
+            token: newToken
+        });
     } catch (error) {
+        console.error('Error en verifyEmail:', error);
         return reply.status(500).send({ error: "Failed to verify email" });
     }
 };
@@ -449,9 +485,68 @@ export const resetPassword = async (
             })
             .where(eq(usersTable.UserID, user.UserID));
 
-        return reply.status(200).send({ message: "Password has been reset successfully" });
+        // Generar nuevo token con el estado actualizado
+        const newToken = generateToken({
+            UserID: user.UserID,
+            Email: user.Email,
+            RoleID: user.RoleID,
+            emailVerified: user.emailVerified
+        });
+
+        return reply.status(200).send({ 
+            message: "Password has been reset successfully",
+            token: newToken
+        });
     } catch (error) {
+        console.error('Error en resetPassword:', error);
         return reply.status(500).send({ error: "Failed to reset password" });
+    }
+};
+
+// Función para reenviar correo de verificación
+export const resendVerificationEmail = async (
+    req: FastifyRequest<{ Body: { Email: string } }>,
+    reply: FastifyReply
+) => {
+    try {
+        const { Email } = req.body;
+
+        // Buscar el usuario por email
+        const user = await db
+            .select()
+            .from(usersTable)
+            .where(eq(usersTable.Email, Email))
+            .get();
+
+        if (!user) {
+            return reply.status(404).send({ error: "User not found" });
+        }
+
+        // Verificar si el email ya está verificado
+        if (user.emailVerified === "true") {
+            return reply.status(400).send({ error: "Email is already verified" });
+        }
+
+        // Generar nuevo token de verificación
+        const emailVerificationToken = uuidv4();
+
+        // Actualizar el token en la base de datos
+        await db
+            .update(usersTable)
+            .set({
+                emailVerificationToken
+            })
+            .where(eq(usersTable.UserID, user.UserID));
+
+        // Enviar el correo de verificación
+        await sendVerificationEmail(Email, emailVerificationToken);
+
+        return reply.status(200).send({ 
+            message: "Verification email has been resent. Please check your inbox." 
+        });
+    } catch (error) {
+        console.error('Error en resendVerificationEmail:', error);
+        return reply.status(500).send({ error: "Failed to resend verification email" });
     }
 };
 

@@ -7,5 +7,6 @@ const authRoutes = async (fastify) => {
     fastify.get("/verify-email/:token", auth_1.verifyEmail);
     fastify.post("/request-password-reset", auth_1.requestPasswordReset);
     fastify.post("/reset-password", auth_1.resetPassword);
+    fastify.post("/resend-verification", auth_1.resendVerificationEmail);
 };
 exports.default = authRoutes;
