@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 import { z, ZodError } from "zod";
 import rolesTable from "@/db/schemas/rolesSchema";
 import { v2 as cloudinary } from 'cloudinary';
-import { sendVerificationEmail } from "@/utils/email";
+import { sendVerificationEmail, sendPasswordResetEmail } from "@/utils/email";
 
 // Validador simplificado
 const registerUserSchema = z.object({
@@ -311,6 +311,12 @@ export const verifyEmail = async (
     }
 };
 
+// Validador para la nueva contraseña
+const resetPasswordSchema = z.object({
+    token: z.string().min(1, { message: "Token is required" }),
+    password: z.string().min(6, { message: "Password must be at least 6 characters long" })
+});
+
 // Función para solicitar restablecimiento de contraseña
 export const requestPasswordReset = async (
     req: FastifyRequest<{ Body: { Email: string } }>,   
@@ -319,14 +325,38 @@ export const requestPasswordReset = async (
     try {
         const { Email } = req.body;
 
+        if (!Email || !Email.trim()) {
+            return reply.status(400).send({ 
+                success: false,
+                error: "Validation error",
+                message: "Email is required"
+            });
+        }
+
         const user = await db
             .select()
             .from(usersTable)
-            .where(eq(usersTable.Email, Email))
+            .where(eq(usersTable.Email, Email.trim()))
             .get();
 
         if (!user) {
-            return reply.status(404).send({ error: "User not found" });
+            return reply.status(404).send({ 
+                success: false,
+                error: "Not found",
+                message: "No account found with this email address"
+            });
+        }
+
+        // Verificar si ya existe un token válido
+        if (user.passwordResetToken && user.passwordResetExpires) {
+            const resetExpires = new Date(user.passwordResetExpires);
+            if (resetExpires > new Date()) {
+                return reply.status(400).send({ 
+                    success: false,
+                    error: "Too many requests",
+                    message: "A password reset email was already sent. Please wait before requesting another one."
+                });
+            }
         }
 
         const passwordResetToken = uuidv4();
@@ -340,11 +370,19 @@ export const requestPasswordReset = async (
             })
             .where(eq(usersTable.UserID, user.UserID));
 
-        await sendVerificationEmail(Email, passwordResetToken);
+        await sendPasswordResetEmail(Email, passwordResetToken);
 
-        return reply.status(200).send({ message: "Password reset email sent" });
+        return reply.status(200).send({ 
+            success: true,
+            message: "Password reset instructions have been sent to your email"
+        });
     } catch (error) {
-        return reply.status(500).send({ error: "Failed to send password reset email" });
+        console.error('Error en requestPasswordReset:', error);
+        return reply.status(500).send({ 
+            success: false,
+            error: "Server error",
+            message: "Failed to process password reset request. Please try again later."
+        });
     }
 };
 
@@ -354,7 +392,18 @@ export const resetPassword = async (
     reply: FastifyReply
 ) => {
     try {
-        const { token, password } = req.body;
+        const validation = resetPasswordSchema.safeParse(req.body);
+        
+        if (!validation.success) {
+            return reply.status(400).send({ 
+                success: false,
+                error: "Validation error",
+                message: "Invalid input data",
+                details: validation.error.format()
+            });
+        }
+
+        const { token, password } = validation.data;
 
         const user = await db
             .select()
@@ -363,43 +412,71 @@ export const resetPassword = async (
             .get();
 
         if (!user) {
-            return reply.status(400).send({ error: "Invalid or expired reset token" });
+            return reply.status(400).send({ 
+                success: false,
+                error: "Invalid token",
+                message: "Invalid or expired reset token. Please request a new password reset."
+            });
         }
 
         // Verificar si el token ha expirado
         const resetExpires = new Date(user.passwordResetExpires || '');
         if (resetExpires < new Date()) {
-            return reply.status(400).send({ error: "Reset token has expired" });
+            return reply.status(400).send({ 
+                success: false,
+                error: "Token expired",
+                message: "This password reset link has expired. Please request a new one."
+            });
+        }
+
+        // Verificar que la nueva contraseña sea diferente de la actual
+        const isSamePassword = await bcrypt.compare(password, user.password);
+        if (isSamePassword) {
+            return reply.status(400).send({ 
+                success: false,
+                error: "Invalid password",
+                message: "New password must be different from your current password"
+            });
         }
 
         // Hashear la nueva contraseña
         const hashedPassword = await bcrypt.hash(password, 8);
 
         // Actualizar la contraseña y limpiar los campos de reset
-        await db
+        const [updatedUser] = await db
             .update(usersTable)
             .set({
                 password: hashedPassword,
                 passwordResetToken: null,
                 passwordResetExpires: null
             })
-            .where(eq(usersTable.UserID, user.UserID));
+            .where(eq(usersTable.UserID, user.UserID))
+            .returning();
+
+        if (!updatedUser) {
+            throw new Error("Failed to update password");
+        }
 
         // Generar nuevo token con el estado actualizado
         const newToken = generateToken({
-            UserID: user.UserID,
-            Email: user.Email,
-            RoleID: user.RoleID,
-            emailVerified: user.emailVerified
+            UserID: updatedUser.UserID,
+            Email: updatedUser.Email,
+            RoleID: updatedUser.RoleID,
+            emailVerified: updatedUser.emailVerified
         });
 
         return reply.status(200).send({ 
-            message: "Password has been reset successfully",
+            success: true,
+            message: "Your password has been successfully reset",
             token: newToken
         });
     } catch (error) {
         console.error('Error en resetPassword:', error);
-        return reply.status(500).send({ error: "Failed to reset password" });
+        return reply.status(500).send({ 
+            success: false,
+            error: "Server error",
+            message: "Failed to reset password. Please try again later."
+        });
     }
 };
 
