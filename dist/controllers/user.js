@@ -44,6 +44,8 @@ const zod_1 = require("zod");
 const bcrypt = __importStar(require("bcryptjs"));
 const cloudinary_1 = require("cloudinary");
 const token_1 = require("@/utils/token");
+const uuid_1 = require("uuid");
+const email_1 = require("@/utils/email");
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB en bytes
 const UPLOAD_TIMEOUT = 10000; // 10 segundos
 const getUsers = async (_req, reply) => {
@@ -236,12 +238,32 @@ const updateUser = async (request, reply) => {
             const updateData = {
                 ...(cleanedData.FirstName && { FirstName: cleanedData.FirstName }),
                 ...(cleanedData.LastName && { LastName: cleanedData.LastName }),
-                ...(cleanedData.Email && { Email: cleanedData.Email }),
-                ...(cleanedData.password && { password: await bcrypt.hash(cleanedData.password, 8) }),
                 ...(cleanedData.CountryID && { CountryID: cleanedData.CountryID }),
+                ...(cleanedData.password && { password: await bcrypt.hash(cleanedData.password, 8) }),
                 ...(cleanedData.status && { status: cleanedData.status }),
                 ...(imageUrl && { imageUser: imageUrl })
             };
+            // Si el email está siendo actualizado
+            if (cleanedData.Email && cleanedData.Email !== user.Email) {
+                // Verificar si el nuevo email ya existe
+                const existingUser = await db_1.default
+                    .select()
+                    .from(usersSchema_1.default)
+                    .where((0, drizzle_orm_1.eq)(usersSchema_1.default.Email, cleanedData.Email))
+                    .get();
+                if (existingUser) {
+                    return reply.status(400).send({
+                        error: "Email already exists",
+                        details: "This email is already registered"
+                    });
+                }
+                const emailVerificationToken = (0, uuid_1.v4)();
+                updateData.Email = cleanedData.Email;
+                updateData.emailVerified = "false";
+                updateData.emailVerificationToken = emailVerificationToken;
+                // Enviar correo de verificación al nuevo email
+                await (0, email_1.sendVerificationEmail)(cleanedData.Email, emailVerificationToken);
+            }
             if (Object.keys(updateData).length === 0) {
                 return reply.status(400).send({
                     error: "No data provided",
@@ -260,8 +282,11 @@ const updateUser = async (request, reply) => {
                 RoleID: updatedUser[0].RoleID,
                 emailVerified: updatedUser[0].emailVerified
             });
+            const message = cleanedData.Email && cleanedData.Email !== user.Email
+                ? "User updated successfully. Please check your email to verify your new email address."
+                : "User updated successfully";
             return reply.status(200).send({
-                message: "User updated successfully",
+                message,
                 updatedUser,
                 token: newToken
             });

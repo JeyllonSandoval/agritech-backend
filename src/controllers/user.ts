@@ -8,6 +8,8 @@ import * as bcrypt from "bcryptjs";
 import { v2 as cloudinary } from 'cloudinary';
 import { UploadApiResponse } from 'cloudinary';
 import { generateToken } from "@/utils/token";
+import { v4 as uuidv4 } from 'uuid';
+import { sendVerificationEmail } from "@/utils/email";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB en bytes
 const UPLOAD_TIMEOUT = 10000; // 10 segundos
@@ -228,15 +230,39 @@ const updateUser = async (request: FastifyRequest<{ Params: { UserID: string } }
                 }
             }
 
-            const updateData = {
+            const updateData: any = {
                 ...(cleanedData.FirstName && { FirstName: cleanedData.FirstName }),
                 ...(cleanedData.LastName && { LastName: cleanedData.LastName }),
-                ...(cleanedData.Email && { Email: cleanedData.Email }),
-                ...(cleanedData.password && { password: await bcrypt.hash(cleanedData.password, 8) }),
                 ...(cleanedData.CountryID && { CountryID: cleanedData.CountryID }),
+                ...(cleanedData.password && { password: await bcrypt.hash(cleanedData.password, 8) }),
                 ...(cleanedData.status && { status: cleanedData.status }),
                 ...(imageUrl && { imageUser: imageUrl })
             };
+
+            // Si el email está siendo actualizado
+            if (cleanedData.Email && cleanedData.Email !== user.Email) {
+                // Verificar si el nuevo email ya existe
+                const existingUser = await db
+                    .select()
+                    .from(usersTable)
+                    .where(eq(usersTable.Email, cleanedData.Email))
+                    .get();
+
+                if (existingUser) {
+                    return reply.status(400).send({
+                        error: "Email already exists",
+                        details: "This email is already registered"
+                    });
+                }
+
+                const emailVerificationToken = uuidv4();
+                updateData.Email = cleanedData.Email;
+                updateData.emailVerified = "false";
+                updateData.emailVerificationToken = emailVerificationToken;
+
+                // Enviar correo de verificación al nuevo email
+                await sendVerificationEmail(cleanedData.Email, emailVerificationToken);
+            }
 
             if (Object.keys(updateData).length === 0) {
                 return reply.status(400).send({
@@ -259,8 +285,12 @@ const updateUser = async (request: FastifyRequest<{ Params: { UserID: string } }
                 emailVerified: updatedUser[0].emailVerified
             });
 
+            const message = cleanedData.Email && cleanedData.Email !== user.Email
+                ? "User updated successfully. Please check your email to verify your new email address."
+                : "User updated successfully";
+
             return reply.status(200).send({
-                message: "User updated successfully",
+                message,
                 updatedUser,
                 token: newToken
             });

@@ -8,8 +8,7 @@ import { eq } from "drizzle-orm";
 import { z, ZodError } from "zod";
 import rolesTable from "@/db/schemas/rolesSchema";
 import { v2 as cloudinary } from 'cloudinary';
-import nodemailer from 'nodemailer';
-import jwt from 'jsonwebtoken';
+import { sendVerificationEmail } from "@/utils/email";
 
 // Validador simplificado
 const registerUserSchema = z.object({
@@ -39,105 +38,6 @@ const fetchPublicRole = async () => {
 };
 
 const UPLOAD_TIMEOUT = 10000; // 10 segundos
-
-// Configuración del transporter de nodemailer
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD
-    }
-});
-
-// Función para enviar correo de verificación
-const sendVerificationEmail = async (email: string, token: string) => {
-    console.log('Enviando correo de verificación a:', email);
-    console.log('Token generado:', token);
-    
-    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
-    console.log('URL de verificación:', verificationUrl);
-    
-    await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: email,
-        subject: 'Verify your email',
-        html: `
-            <div style="background-color: #1a1a1a; color: #ffffff; font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border-radius: 10px;">
-                <div style="text-align: center; margin-bottom: 30px;">
-                    <h1 style="color: #4CAF50; margin-bottom: 20px;">Welcome to AgriTech</h1>
-                    <p style="font-size: 16px; line-height: 1.5; margin-bottom: 25px;">
-                        Please verify your email by clicking the following link:
-                    </p>
-                    <div style="margin: 30px 0;">
-                        <a href="${verificationUrl}" 
-                           style="background-color: #4CAF50; 
-                                  color: white; 
-                                  padding: 15px 30px; 
-                                  text-decoration: none; 
-                                  border-radius: 5px; 
-                                  font-weight: bold;
-                                  display: inline-block;">
-                            Verify email
-                        </a>
-                    </div>
-                    <p style="font-size: 14px; color: #cccccc;">
-                        If you did not request this verification, you can ignore this email.
-                    </p>
-                </div>
-                <div style="border-top: 1px solid #333; padding-top: 20px; margin-top: 20px; text-align: center;">
-                    <p style="font-size: 12px; color: #999;">
-                        This is an automated email, please do not respond to this message.
-                    </p>
-                </div>
-            </div>
-        `
-    });
-    console.log('Correo de verificación enviado');
-};
-
-// Función para enviar correo de restablecimiento de contraseña
-const sendPasswordResetEmail = async (email: string, token: string) => {
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-    
-    await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: email,
-        subject: 'Reset password',
-        html: `
-            <div style="background-color: #1a1a1a; color: #ffffff; font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border-radius: 10px;">
-                <div style="text-align: center; margin-bottom: 30px;">
-                    <h1 style="color: #4CAF50; margin-bottom: 20px;">Reset password</h1>
-                    <p style="font-size: 16px; line-height: 1.5; margin-bottom: 25px;">
-                        You have requested to reset your password. Click the following link to continue:
-                    </p>
-                    <div style="margin: 30px 0;">
-                        <a href="${resetUrl}" 
-                           style="background-color: #4CAF50; 
-                                  color: white; 
-                                  padding: 15px 30px; 
-                                  text-decoration: none; 
-                                  border-radius: 5px; 
-                                  font-weight: bold;
-                                  display: inline-block;">
-                            Reset password
-                        </a>
-                    </div>
-                    <p style="font-size: 14px; color: #cccccc;">
-                        This link will expire in 1 hour.
-                    </p>
-                    <p style="font-size: 14px; color: #cccccc;">
-                        If you did not request this reset, you can ignore this email.
-                    </p>
-                </div>
-                <div style="border-top: 1px solid #333; padding-top: 20px; margin-top: 20px; text-align: center;">
-                    <p style="font-size: 12px; color: #999;">
-                        This is an automated email, please do not respond to this message.
-                    </p>
-                </div>
-            </div>
-        `
-    });
-};
 
 export const registerUser = async (req: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -440,7 +340,7 @@ export const requestPasswordReset = async (
             })
             .where(eq(usersTable.UserID, user.UserID));
 
-        await sendPasswordResetEmail(Email, passwordResetToken);
+        await sendVerificationEmail(Email, passwordResetToken);
 
         return reply.status(200).send({ message: "Password reset email sent" });
     } catch (error) {
