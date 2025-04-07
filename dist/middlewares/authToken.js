@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.authenticateToken = void 0;
-const token_1 = require("../src/utils/token");
+const token_1 = require("../utils/token");
 const authenticateToken = async (request, reply) => {
     try {
         const authHeader = request.headers.authorization;
@@ -29,3 +29,4 @@ const authenticateToken = async (request, reply) => {
     }
 };
 exports.authenticateToken = authenticateToken;
+//# sourceMappingURL=authToken.js.map

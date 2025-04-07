@@ -94,3 +94,4 @@ function isValidURL(url) {
         return false;
     }
 }
+//# sourceMappingURL=readPdf.js.map

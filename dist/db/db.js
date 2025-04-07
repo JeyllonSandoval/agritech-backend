@@ -13,3 +13,4 @@ const client = (0, client_1.createClient)({
 });
 const db = (0, libsql_1.drizzle)(client);
 exports.default = db;
+//# sourceMappingURL=db.js.map
