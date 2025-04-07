@@ -5,8 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const drizzle_orm_1 = require("drizzle-orm");
 const sqlite_core_1 = require("drizzle-orm/sqlite-core");
-const chatSchema_1 = __importDefault(require("@/db/schemas/chatSchema"));
-const filesSchema_1 = __importDefault(require("@/db/schemas/filesSchema"));
+const chatSchema_1 = __importDefault(require("../../src/db/schemas/chatSchema"));
+const filesSchema_1 = __importDefault(require("../../src/db/schemas/filesSchema"));
 const messageTable = (0, sqlite_core_1.sqliteTable)("message_table", {
     MessageID: (0, sqlite_core_1.text)("MessageID", { length: 36 }).primaryKey(),
     ChatID: (0, sqlite_core_1.text)("ChatID", { length: 36 }).notNull().references(() => chatSchema_1.default.ChatID),

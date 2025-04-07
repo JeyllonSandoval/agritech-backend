@@ -37,15 +37,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.updateUser = exports.getUserProfile = exports.getUsers = void 0;
-const db_1 = __importDefault(require("@/db/db"));
-const usersSchema_1 = __importDefault(require("@/db/schemas/usersSchema"));
+const db_1 = __importDefault(require("../src/db/db"));
+const usersSchema_1 = __importDefault(require("../src/db/schemas/usersSchema"));
 const drizzle_orm_1 = require("drizzle-orm");
 const zod_1 = require("zod");
 const bcrypt = __importStar(require("bcryptjs"));
 const cloudinary_1 = require("cloudinary");
-const token_1 = require("@/utils/token");
+const token_1 = require("../src/utils/token");
 const uuid_1 = require("uuid");
-const email_1 = require("@/utils/email");
+const email_1 = require("../src/utils/email");
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB en bytes
 const UPLOAD_TIMEOUT = 10000; // 10 segundos
 const getUsers = async (_req, reply) => {

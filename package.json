@@ -36,13 +36,14 @@
     "@types/pdf-parse": "^1.1.4",
     "@types/uuid": "^10.0.0",
     "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.13",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
   },
   "scripts": {
-    "dev": "ts-node -r tsconfig-paths/register src/index.ts",
-    "build": "tsc",
-    "start": "node -r tsconfig-paths/register dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc && tsc-alias",
+    "start": "node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -59,6 +60,6 @@
   "homepage": "https://github.com/JeyllonSandoval/agritech-backend#readme",
   "description": "",
   "_moduleAliases": {
-    "@": "./dist"
+    "@": "dist/src"
   }
 }
