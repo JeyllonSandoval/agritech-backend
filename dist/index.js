@@ -51,7 +51,10 @@ const fastify = (0, fastify_1.default)({
 // Configuración de multipart
 fastify.register(multipart_1.default);
 fastify.register(cors_1.default, {
-    origin: "https://agritech-frontend-beta.vercel.app",
+    origin: [
+        'http://localhost:3000',
+        process.env.FRONTEND_URL
+    ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["*"],
     credentials: true
