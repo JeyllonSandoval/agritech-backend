@@ -22,3 +22,4 @@ async function validateCloudinaryConnection() {
     }
 }
 exports.default = cloudinary_1.v2;
+//# sourceMappingURL=cloudinary.js.map

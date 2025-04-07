@@ -4,8 +4,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getCountryByID = exports.createCountry = exports.getCountries = void 0;
-const db_1 = __importDefault(require("../src/db/db"));
-const countrySchema_1 = __importDefault(require("../src/db/schemas/countrySchema"));
+const db_1 = __importDefault(require("../db/db"));
+const countrySchema_1 = __importDefault(require("../db/schemas/countrySchema"));
 const uuid_1 = require("uuid");
 const zod_1 = require("zod");
 const drizzle_orm_1 = require("drizzle-orm");
@@ -73,3 +73,4 @@ const getCountryByID = async (req, reply) => {
     }
 };
 exports.getCountryByID = getCountryByID;
+//# sourceMappingURL=country.js.map

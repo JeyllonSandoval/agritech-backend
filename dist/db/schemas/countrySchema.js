@@ -9,3 +9,4 @@ const countryTable = (0, sqlite_core_1.sqliteTable)("country_table", {
     status: (0, sqlite_core_1.text)("status").notNull(),
 });
 exports.default = countryTable;
+//# sourceMappingURL=countrySchema.js.map

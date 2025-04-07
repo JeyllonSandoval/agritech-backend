@@ -4,12 +4,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteChat = exports.updateChat = exports.getMessagesForChat = exports.getChatHistory = exports.getChatUser = exports.getChats = exports.createChat = void 0;
-const db_1 = __importDefault(require("../src/db/db"));
-const chatSchema_1 = __importDefault(require("../src/db/schemas/chatSchema"));
+const db_1 = __importDefault(require("../db/db"));
+const chatSchema_1 = __importDefault(require("../db/schemas/chatSchema"));
 const uuid_1 = require("uuid");
 const zod_1 = require("zod");
 const drizzle_orm_1 = require("drizzle-orm");
-const messageSchema_1 = __importDefault(require("../src/db/schemas/messageSchema"));
+const messageSchema_1 = __importDefault(require("../db/schemas/messageSchema"));
 const getChatUserSchema = zod_1.z.object({
     UserID: zod_1.z.string().uuid({ message: "Invalid user ID" }),
 });
@@ -225,3 +225,4 @@ const deleteChat = async (req, reply) => {
     }
 };
 exports.deleteChat = deleteChat;
+//# sourceMappingURL=chat.js.map

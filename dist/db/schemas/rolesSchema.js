@@ -9,3 +9,4 @@ const rolesTable = (0, sqlite_core_1.sqliteTable)("roles_table", {
     status: (0, sqlite_core_1.text)("status").notNull(),
 });
 exports.default = rolesTable;
+//# sourceMappingURL=rolesSchema.js.map

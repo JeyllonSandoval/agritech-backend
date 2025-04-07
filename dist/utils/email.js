@@ -100,3 +100,4 @@ const sendPasswordResetEmail = async (email, token) => {
     });
 };
 exports.sendPasswordResetEmail = sendPasswordResetEmail;
+//# sourceMappingURL=email.js.map

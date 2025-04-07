@@ -5,12 +5,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const openai_1 = __importDefault(require("openai"));
 require("dotenv/config");
-const message_1 = require("../src/controllers/message");
-const chat_1 = require("../src/controllers/chat");
-const readPdf_1 = require("../src/controllers/readPdf");
-const filesSchema_1 = __importDefault(require("../src/db/schemas/filesSchema"));
+const message_1 = require("../controllers/message");
+const chat_1 = require("../controllers/chat");
+const readPdf_1 = require("../controllers/readPdf");
+const filesSchema_1 = __importDefault(require("../db/schemas/filesSchema"));
 const drizzle_orm_1 = require("drizzle-orm");
-const db_1 = __importDefault(require("../src/db/db"));
+const db_1 = __importDefault(require("../db/db"));
 const openai = new openai_1.default({
     apiKey: process.env.OPENAI_API_KEY,
 });
@@ -93,3 +93,4 @@ const generateAIResponse = async (req, res) => {
     }
 };
 exports.default = generateAIResponse;
+//# sourceMappingURL=ai_response.js.map

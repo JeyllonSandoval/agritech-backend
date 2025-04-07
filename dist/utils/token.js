@@ -39,3 +39,4 @@ const verifyToken = (token) => {
     }
 };
 exports.verifyToken = verifyToken;
+//# sourceMappingURL=token.js.map
