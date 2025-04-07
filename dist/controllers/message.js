@@ -3,15 +3,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllMessages = exports.getChatMessages = exports.createMessage = void 0;
+exports.deleteMessage = exports.updateMessage = exports.getAllMessages = exports.getChatMessages = exports.createMessage = void 0;
 const uuid_1 = require("uuid");
 const drizzle_orm_1 = require("drizzle-orm");
-const db_1 = __importDefault(require("../db/db"));
-const messageSchema_1 = __importDefault(require("../db/schemas/messageSchema"));
+const db_1 = __importDefault(require("../src/db/db"));
+const messageSchema_1 = __importDefault(require("../src/db/schemas/messageSchema"));
 const zod_1 = require("zod");
-const ai_response_1 = __importDefault(require("../controllers/ai_response"));
-const filesSchema_1 = __importDefault(require("../db/schemas/filesSchema"));
-const readPdf_1 = require("../controllers/readPdf");
+const ai_response_1 = __importDefault(require("../src/controllers/ai_response"));
+const filesSchema_1 = __importDefault(require("../src/db/schemas/filesSchema"));
+const readPdf_1 = require("../src/controllers/readPdf");
 const createMessageSchema = zod_1.z.object({
     ChatID: zod_1.z.string().uuid({ message: "Invalid chat ID" }),
     FileID: zod_1.z.string().uuid({ message: "Invalid file ID" }).optional(),
@@ -62,19 +62,16 @@ const createMessage = async (request, reply) => {
             MessageID: (0, uuid_1.v4)(),
             ChatID: result.data.ChatID,
             FileID: result.data.FileID,
-            content: pdfContent + " \n\n *QUESTION FOR USER:*" + userQuestion,
+            content: result.data.sendertype === "user" ? `ASK USER: ${userQuestion}` : userQuestion,
             sendertype: result.data.sendertype,
             status: "active"
         }).returning();
         if (result.data.sendertype === "user") {
             const aiRequest = {
                 body: {
-                    jsonText: JSON.stringify({
-                        message: newMessage[0],
-                        fileContent: pdfContent,
-                    }),
                     ask: userQuestion,
                     ChatID: result.data.ChatID,
+                    FileID: result.data.FileID
                 },
             };
             await (0, ai_response_1.default)(aiRequest, reply);
@@ -156,3 +153,80 @@ const getAllMessages = async (_request, reply) => {
     }
 };
 exports.getAllMessages = getAllMessages;
+const updateMessage = async (request, reply) => {
+    try {
+        const { MessageID } = request.params;
+        const { content } = request.body;
+        const validation = zod_1.z.string().uuid().safeParse(MessageID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid MessageID format",
+                details: "MessageID must be a valid UUID"
+            });
+        }
+        // Validar el contenido del mensaje
+        if (!content || content.trim().length < 1) {
+            return reply.status(400).send({
+                error: "Invalid message content",
+                details: "Message content cannot be empty"
+            });
+        }
+        const updatedMessage = await db_1.default
+            .update(messageSchema_1.default)
+            .set({ content: content.trim() })
+            .where((0, drizzle_orm_1.eq)(messageSchema_1.default.MessageID, MessageID))
+            .returning();
+        if (!updatedMessage.length) {
+            return reply.status(404).send({
+                error: "Message not found",
+                details: "The specified message does not exist"
+            });
+        }
+        return reply.status(200).send({
+            message: "Message updated successfully",
+            updatedMessage
+        });
+    }
+    catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Update Message: Failed to update message",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+exports.updateMessage = updateMessage;
+const deleteMessage = async (request, reply) => {
+    try {
+        const { MessageID } = request.params;
+        const validation = zod_1.z.string().uuid().safeParse(MessageID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid MessageID format",
+                details: "MessageID must be a valid UUID"
+            });
+        }
+        const deletedMessage = await db_1.default
+            .delete(messageSchema_1.default)
+            .where((0, drizzle_orm_1.eq)(messageSchema_1.default.MessageID, MessageID))
+            .returning();
+        if (!deletedMessage.length) {
+            return reply.status(404).send({
+                error: "Message not found",
+                details: "The specified message does not exist"
+            });
+        }
+        return reply.status(200).send({
+            message: "Message deleted successfully",
+            deletedMessage
+        });
+    }
+    catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Delete Message: Failed to delete message",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+exports.deleteMessage = deleteMessage;

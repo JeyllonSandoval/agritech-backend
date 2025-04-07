@@ -3,11 +3,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createCountry = exports.getCountries = void 0;
-const db_1 = __importDefault(require("../db/db"));
-const countrySchema_1 = __importDefault(require("../db/schemas/countrySchema"));
+exports.getCountryByID = exports.createCountry = exports.getCountries = void 0;
+const db_1 = __importDefault(require("../src/db/db"));
+const countrySchema_1 = __importDefault(require("../src/db/schemas/countrySchema"));
 const uuid_1 = require("uuid");
 const zod_1 = require("zod");
+const drizzle_orm_1 = require("drizzle-orm");
 const getCountries = async (_req, reply) => {
     try {
         const allCountries = await db_1.default.select().from(countrySchema_1.default);
@@ -57,3 +58,18 @@ const createCountry = async (req, reply) => {
     }
 };
 exports.createCountry = createCountry;
+const getCountryByID = async (req, reply) => {
+    try {
+        const { CountryID } = req.params;
+        const country = await db_1.default.select().from(countrySchema_1.default).where((0, drizzle_orm_1.eq)(countrySchema_1.default.CountryID, CountryID));
+        if (!country) {
+            return reply.status(404).send({ error: "Country not found" });
+        }
+        return reply.status(200).send({ countryname: country[0].countryname });
+    }
+    catch (error) {
+        console.error(error);
+        return reply.status(500).send({ error: "Missing Failed: could not get country by ID" });
+    }
+};
+exports.getCountryByID = getCountryByID;

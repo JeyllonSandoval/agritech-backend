@@ -14,6 +14,10 @@ const usersTable = sqliteTable("users_Table", {
     password: text("password").notNull(),
     createdAt: text("createdAt").default(sql `(CURRENT_TIMESTAMP)`).notNull(),
     status: text("status").notNull(),
+    emailVerified: text("emailVerified").default("false").notNull(),
+    emailVerificationToken: text("emailVerificationToken"),
+    passwordResetToken: text("passwordResetToken"),
+    passwordResetExpires: text("passwordResetExpires"),
 });
 
 export default usersTable;

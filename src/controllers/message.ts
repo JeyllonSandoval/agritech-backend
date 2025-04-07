@@ -22,7 +22,7 @@ interface MessageBody {
     sendertype: "user" | "ai";
 }
 
-export const createMessage = async (
+const createMessage = async (
     request: FastifyRequest<{ Body: MessageBody }>,
     reply: FastifyReply
 ) => {
@@ -77,7 +77,7 @@ export const createMessage = async (
             MessageID: uuidv4(),
             ChatID: result.data.ChatID,
             FileID: result.data.FileID,
-            content: pdfContent + " \n\n *QUESTION FOR USER:*" + userQuestion,
+            content: result.data.sendertype === "user" ? `ASK USER: ${userQuestion}` : userQuestion,
             sendertype: result.data.sendertype,
             status: "active"
         }).returning();
@@ -85,12 +85,9 @@ export const createMessage = async (
         if (result.data.sendertype === "user") {
             const aiRequest = {
                 body: {
-                    jsonText: JSON.stringify({
-                        message: newMessage[0],
-                        fileContent: pdfContent,
-                    }),
                     ask: userQuestion,
                     ChatID: result.data.ChatID,
+                    FileID: result.data.FileID
                 },
             };
 
@@ -120,7 +117,7 @@ const getChatMessagesSchema = z.object({
     ChatID: z.string().uuid({ message: "Invalid chat ID" }),
 });
 
-export const getChatMessages = async (
+const getChatMessages = async (
     request: FastifyRequest<{ Params: { ChatID: string } }>,
     reply: FastifyReply 
 ) => {
@@ -167,7 +164,7 @@ export const getChatMessages = async (
     }
 };
 
-export const getAllMessages = async (
+const getAllMessages = async (
     _request: FastifyRequest,
     reply: FastifyReply 
 ) => {
@@ -187,3 +184,96 @@ export const getAllMessages = async (
         });
     }
 };
+
+const updateMessage = async (
+    request: FastifyRequest<{ Params: { MessageID: string } }>,
+    reply: FastifyReply
+) => {
+    try {
+        const { MessageID } = request.params;
+        const { content } = request.body as { content: string };
+
+        const validation = z.string().uuid().safeParse(MessageID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid MessageID format",
+                details: "MessageID must be a valid UUID"
+            });
+        }
+
+        // Validar el contenido del mensaje
+        if (!content || content.trim().length < 1) {
+            return reply.status(400).send({
+                error: "Invalid message content",
+                details: "Message content cannot be empty"
+            });
+        }
+
+        const updatedMessage = await db
+            .update(messageTable)
+            .set({ content: content.trim() })
+            .where(eq(messageTable.MessageID, MessageID))
+            .returning();
+
+        if (!updatedMessage.length) {
+            return reply.status(404).send({
+                error: "Message not found",
+                details: "The specified message does not exist"
+            });
+        }
+
+        return reply.status(200).send({
+            message: "Message updated successfully",
+            updatedMessage
+        });
+    } catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Update Message: Failed to update message",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+
+const deleteMessage = async (
+    request: FastifyRequest<{ Params: { MessageID: string } }>,
+    reply: FastifyReply
+) => {
+    try {
+        const { MessageID } = request.params;
+
+        const validation = z.string().uuid().safeParse(MessageID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid MessageID format",
+                details: "MessageID must be a valid UUID"
+            });
+        }
+
+        const deletedMessage = await db
+            .delete(messageTable)
+            .where(eq(messageTable.MessageID, MessageID))
+            .returning();
+
+        if (!deletedMessage.length) {
+            return reply.status(404).send({
+                error: "Message not found",
+                details: "The specified message does not exist"
+            });
+        }
+
+        return reply.status(200).send({
+            message: "Message deleted successfully",
+            deletedMessage
+        });
+    } catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Delete Message: Failed to delete message",  
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+
+export { createMessage, getChatMessages, getAllMessages, updateMessage, deleteMessage };
+

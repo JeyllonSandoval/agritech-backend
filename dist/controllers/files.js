@@ -3,23 +3,24 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getFiles = exports.createFiles = void 0;
-const db_1 = __importDefault(require("../db/db"));
-const filesSchema_1 = __importDefault(require("../db/schemas/filesSchema"));
-const usersSchema_1 = __importDefault(require("../db/schemas/usersSchema"));
+exports.updateFile = exports.deleteFile = exports.getFileUser = exports.getFiles = exports.createFiles = void 0;
+const db_1 = __importDefault(require("../src/db/db"));
+const filesSchema_1 = __importDefault(require("../src/db/schemas/filesSchema"));
+const usersSchema_1 = __importDefault(require("../src/db/schemas/usersSchema"));
+const messageSchema_1 = __importDefault(require("../src/db/schemas/messageSchema"));
 const uuid_1 = require("uuid");
 const cloudinary_1 = require("cloudinary");
 const drizzle_orm_1 = require("drizzle-orm");
+const zod_1 = require("zod");
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB en bytes
 const UPLOAD_TIMEOUT = 10000; // 10 segundos
 const createFiles = async (req, reply) => {
     try {
-        // Configurar límites para el parser multipart
         req.raw.setMaxListeners(0); // Evitar warnings de memory leak
         const parts = await req.parts({
             limits: {
-                fileSize: MAX_FILE_SIZE, // Limitar tamaño desde el parser
-                files: 1 // Limitar a un solo archivo
+                fileSize: MAX_FILE_SIZE,
+                files: 1
             }
         });
         let userID = null;
@@ -33,14 +34,22 @@ const createFiles = async (req, reply) => {
                 break;
             }
         }
-        // 2. Validar que se recibieron los datos necesarios
+        // Validar que se recibieron los datos necesarios
         if (!userID || !file) {
             return reply.status(400).send({
                 error: "Missing data",
                 message: "Both UserID and file are required"
             });
         }
-        // 3. Verificar que el usuario existe en la base de datos
+        // Validación del UserID usando Zod
+        const validation = zod_1.z.string().uuid().safeParse(userID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid UserID format",
+                message: "UserID must be a valid UUID"
+            });
+        }
+        // Verificar que el usuario existe en la base de datos
         const existingUser = await db_1.default
             .select()
             .from(usersSchema_1.default)
@@ -52,15 +61,14 @@ const createFiles = async (req, reply) => {
                 message: "The provided UserID does not exist"
             });
         }
-        // 4. Validar que el archivo es un PDF
-        const fileType = file.mimetype;
-        if (fileType !== 'application/pdf') {
+        // Validar que el archivo es un PDF
+        if (file.mimetype !== 'application/pdf') {
             return reply.status(400).send({
                 error: "Invalid file type",
                 message: "Only PDF files are allowed"
             });
         }
-        // 5. Mejorar el manejo del buffer y validación de tamaño
+        // Manejar el buffer del archivo y controlar el tamaño
         const chunks = [];
         let fileSize = 0;
         try {
@@ -82,7 +90,7 @@ const createFiles = async (req, reply) => {
             throw error;
         }
         const fileBuffer = Buffer.concat(chunks);
-        // 6. Mejorar el manejo de la subida a Cloudinary
+        // Subida a Cloudinary
         const uploadPromise = new Promise((resolve, reject) => {
             const uploadStream = cloudinary_1.v2.uploader.upload_stream({
                 resource_type: "auto",
@@ -103,13 +111,14 @@ const createFiles = async (req, reply) => {
             uploadPromise,
             new Promise((_, reject) => setTimeout(() => reject(new Error('UPLOAD_TIMEOUT')), UPLOAD_TIMEOUT))
         ]);
-        // 7. Guardar la URL en la base de datos
+        // Guardar la URL en la base de datos
         const fileID = (0, uuid_1.v4)();
         await db_1.default
             .insert(filesSchema_1.default)
             .values({
             FileID: fileID,
             UserID: userID,
+            FileName: file.filename || "Untitled",
             contentURL: cloudinaryUpload.secure_url,
             status: "active"
         });
@@ -128,7 +137,6 @@ const createFiles = async (req, reply) => {
                     message: "The upload operation took too long to complete"
                 });
             }
-            // Manejar error específico de Cloudinary
             if ('http_code' in error) {
                 return reply.status(400).send({
                     error: "Cloudinary Upload Error",
@@ -155,3 +163,119 @@ const getFiles = async (_req, reply) => {
     }
 };
 exports.getFiles = getFiles;
+const getFileUser = async (req, reply) => {
+    try {
+        const { UserID } = req.params;
+        // Validar el UserID
+        const validation = zod_1.z.string().uuid().safeParse(UserID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid UserID format",
+                details: "UserID must be a valid UUID"
+            });
+        }
+        const userFiles = await db_1.default
+            .select()
+            .from(filesSchema_1.default)
+            .where((0, drizzle_orm_1.eq)(filesSchema_1.default.UserID, UserID))
+            .orderBy(filesSchema_1.default.createdAt);
+        if (!userFiles.length) {
+            return reply.status(404).send({
+                message: "No files found for this user"
+            });
+        }
+        return reply.status(200).send({
+            message: "Files fetched successfully",
+            files: userFiles
+        });
+    }
+    catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Failed to fetch user files",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+exports.getFileUser = getFileUser;
+const deleteFile = async (req, reply) => {
+    try {
+        const { FileID } = req.params;
+        const validation = zod_1.z.string().uuid().safeParse(FileID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid FileID format",
+                details: "FileID must be a valid UUID"
+            });
+        }
+        // Primero eliminamos los mensajes asociados al archivo
+        await db_1.default
+            .delete(messageSchema_1.default)
+            .where((0, drizzle_orm_1.eq)(messageSchema_1.default.FileID, FileID));
+        // Luego eliminamos el archivo
+        const deletedFile = await db_1.default
+            .delete(filesSchema_1.default)
+            .where((0, drizzle_orm_1.eq)(filesSchema_1.default.FileID, FileID))
+            .returning();
+        if (!deletedFile.length) {
+            return reply.status(404).send({
+                error: "File not found",
+                details: "The specified file does not exist"
+            });
+        }
+        return reply.status(200).send({
+            message: "File and associated messages deleted successfully",
+            deletedFile
+        });
+    }
+    catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Failed to delete file",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+exports.deleteFile = deleteFile;
+const updateFile = async (req, reply) => {
+    try {
+        const { FileID } = req.params;
+        const { FileName } = req.body;
+        const validation = zod_1.z.string().uuid().safeParse(FileID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid FileID format",
+                details: "FileID must be a valid UUID"
+            });
+        }
+        if (!FileName || FileName.trim().length < 1) {
+            return reply.status(400).send({
+                error: "Invalid file name",
+                details: "File name cannot be empty"
+            });
+        }
+        const updatedFile = await db_1.default
+            .update(filesSchema_1.default)
+            .set({ FileName: FileName.trim() })
+            .where((0, drizzle_orm_1.eq)(filesSchema_1.default.FileID, FileID))
+            .returning();
+        if (!updatedFile.length) {
+            return reply.status(404).send({
+                error: "File not found",
+                details: "The specified file does not exist"
+            });
+        }
+        return reply.status(200).send({
+            message: "File updated successfully",
+            updatedFile
+        });
+    }
+    catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Failed to update file",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+exports.updateFile = updateFile;

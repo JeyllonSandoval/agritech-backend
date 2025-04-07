@@ -2,22 +2,23 @@ import { FastifyRequest, FastifyReply } from "fastify";
 import db from "@/db/db";
 import filesTable from "@/db/schemas/filesSchema";
 import usersTable from "@/db/schemas/usersSchema";
+import messageTable from "@/db/schemas/messageSchema";
 import { v4 as uuidv4 } from "uuid";
 import { v2 as cloudinary } from 'cloudinary';
 import { UploadApiResponse } from 'cloudinary';
 import { eq } from "drizzle-orm";
+import { z } from "zod";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB en bytes
 const UPLOAD_TIMEOUT = 10000; // 10 segundos
 
 const createFiles = async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-        // Configurar límites para el parser multipart
         req.raw.setMaxListeners(0);  // Evitar warnings de memory leak
         const parts = await req.parts({
             limits: {
-                fileSize: MAX_FILE_SIZE,  // Limitar tamaño desde el parser
-                files: 1  // Limitar a un solo archivo
+                fileSize: MAX_FILE_SIZE,
+                files: 1
             }
         });
 
@@ -34,7 +35,7 @@ const createFiles = async (req: FastifyRequest, reply: FastifyReply) => {
             }
         }
 
-        // 2. Validar que se recibieron los datos necesarios
+        // Validar que se recibieron los datos necesarios
         if (!userID || !file) {
             return reply.status(400).send({ 
                 error: "Missing data",
@@ -42,7 +43,16 @@ const createFiles = async (req: FastifyRequest, reply: FastifyReply) => {
             });
         }
 
-        // 3. Verificar que el usuario existe en la base de datos
+        // Validación del UserID usando Zod
+        const validation = z.string().uuid().safeParse(userID);
+        if (!validation.success) {
+            return reply.status(400).send({ 
+                error: "Invalid UserID format",
+                message: "UserID must be a valid UUID"
+            });
+        }
+
+        // Verificar que el usuario existe en la base de datos
         const existingUser = await db
             .select()
             .from(usersTable)
@@ -56,16 +66,15 @@ const createFiles = async (req: FastifyRequest, reply: FastifyReply) => {
             });
         }
 
-        // 4. Validar que el archivo es un PDF
-        const fileType = file.mimetype;
-        if (fileType !== 'application/pdf') {
+        // Validar que el archivo es un PDF
+        if (file.mimetype !== 'application/pdf') {
             return reply.status(400).send({ 
                 error: "Invalid file type",
                 message: "Only PDF files are allowed" 
             });
         }
 
-        // 5. Mejorar el manejo del buffer y validación de tamaño
+        // Manejar el buffer del archivo y controlar el tamaño
         const chunks: Buffer[] = [];
         let fileSize = 0;
 
@@ -89,7 +98,7 @@ const createFiles = async (req: FastifyRequest, reply: FastifyReply) => {
 
         const fileBuffer = Buffer.concat(chunks);
 
-        // 6. Mejorar el manejo de la subida a Cloudinary
+        // Subida a Cloudinary
         const uploadPromise = new Promise<UploadApiResponse>((resolve, reject) => {
             const uploadStream = cloudinary.uploader.upload_stream(
                 { 
@@ -105,7 +114,6 @@ const createFiles = async (req: FastifyRequest, reply: FastifyReply) => {
                     resolve(result);
                 }
             );
-
             uploadStream.end(fileBuffer);
         });
 
@@ -116,13 +124,14 @@ const createFiles = async (req: FastifyRequest, reply: FastifyReply) => {
             )
         ]) as UploadApiResponse;
 
-        // 7. Guardar la URL en la base de datos
+        // Guardar la URL en la base de datos
         const fileID = uuidv4();
         await db
             .insert(filesTable)
             .values({
                 FileID: fileID,
                 UserID: userID,
+                FileName: file.filename || "Untitled",
                 contentURL: cloudinaryUpload.secure_url,
                 status: "active"
             });
@@ -144,7 +153,6 @@ const createFiles = async (req: FastifyRequest, reply: FastifyReply) => {
                 });
             }
 
-            // Manejar error específico de Cloudinary
             if ('http_code' in error) {
                 return reply.status(400).send({ 
                     error: "Cloudinary Upload Error",
@@ -171,4 +179,141 @@ const getFiles = async (_req: FastifyRequest, reply: FastifyReply) => {
     }
 }
 
-export { createFiles, getFiles };
+const getFileUser = async (
+    req: FastifyRequest<{ Params: { UserID: string } }>, 
+    reply: FastifyReply
+) => {
+    try {
+        const { UserID } = req.params;
+
+        // Validar el UserID
+        const validation = z.string().uuid().safeParse(UserID);
+        if (!validation.success) {
+            return reply.status(400).send({ 
+                error: "Invalid UserID format",
+                details: "UserID must be a valid UUID"
+            });
+        }
+
+        const userFiles = await db
+            .select()
+            .from(filesTable)
+            .where(eq(filesTable.UserID, UserID))
+            .orderBy(filesTable.createdAt);
+
+        if (!userFiles.length) {
+            return reply.status(404).send({ 
+                message: "No files found for this user" 
+            });
+        }
+
+        return reply.status(200).send({ 
+            message: "Files fetched successfully", 
+            files: userFiles 
+        });
+    }
+    catch (error) {
+        console.error(error);
+        return reply.status(500).send({ 
+            error: "Failed to fetch user files", 
+            details: error instanceof Error ? error.message : "Unknown error" 
+        });
+    }
+};  
+
+const deleteFile = async (
+    req: FastifyRequest<{ Params: { FileID: string } }>,
+    reply: FastifyReply
+) => {
+    try {
+        const { FileID } = req.params;
+
+        const validation = z.string().uuid().safeParse(FileID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid FileID format",
+                details: "FileID must be a valid UUID"
+            });
+        }
+
+        // Primero eliminamos los mensajes asociados al archivo
+        await db
+            .delete(messageTable)
+            .where(eq(messageTable.FileID, FileID));
+
+        // Luego eliminamos el archivo
+        const deletedFile = await db
+            .delete(filesTable)
+            .where(eq(filesTable.FileID, FileID))
+            .returning();
+
+        if (!deletedFile.length) {
+            return reply.status(404).send({
+                error: "File not found",
+                details: "The specified file does not exist"
+            });
+        }
+
+        return reply.status(200).send({
+            message: "File and associated messages deleted successfully",
+            deletedFile
+        });
+    } catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Failed to delete file",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+
+const updateFile = async (
+    req: FastifyRequest<{ Params: { FileID: string } }>,
+    reply: FastifyReply
+) => {
+    try {
+        const { FileID } = req.params;
+        const { FileName } = req.body as { FileName: string };
+
+        const validation = z.string().uuid().safeParse(FileID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid FileID format",
+                details: "FileID must be a valid UUID"
+            });
+        }
+
+        if (!FileName || FileName.trim().length < 1) {
+            return reply.status(400).send({
+                error: "Invalid file name",
+                details: "File name cannot be empty"
+            });
+        }
+
+        const updatedFile = await db
+            .update(filesTable)
+            .set({ FileName: FileName.trim() })
+            .where(eq(filesTable.FileID, FileID))
+            .returning();
+
+        if (!updatedFile.length) {
+            return reply.status(404).send({
+                error: "File not found",
+                details: "The specified file does not exist"
+            });
+        }
+
+        return reply.status(200).send({
+            message: "File updated successfully",
+            updatedFile
+        });
+    } catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Failed to update file",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+
+export { createFiles, getFiles, getFileUser, deleteFile, updateFile };

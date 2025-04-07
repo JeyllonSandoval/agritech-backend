@@ -12,6 +12,7 @@ export interface TokenPayload {
     UserID: string;
     Email: string;
     RoleID: string;
+    emailVerified: string;
 }
 
 export const generateToken = (user: TokenPayload): string => {
@@ -21,6 +22,7 @@ export const generateToken = (user: TokenPayload): string => {
                 UserID: user.UserID,
                 Email: user.Email,
                 RoleID: user.RoleID,
+                emailVerified: user.emailVerified
             },
             JWT_SECRET,
             {
@@ -40,6 +42,7 @@ export const verifyToken = (token: string): TokenPayload | null => {
             UserID: decoded.UserID,
             Email: decoded.Email,
             RoleID: decoded.RoleID,
+            emailVerified: decoded.emailVerified
         };
     } catch (error) {
         console.log (error);
