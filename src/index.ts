@@ -15,11 +15,14 @@ const fastify = Fastify({
 // Configuración de multipart
 fastify.register(multipart);
 fastify.register(cors, {
-    origin: "https://agritech-frontend-beta.vercel.app",
+    origin: [
+        'http://localhost:3000',
+        'https://agritech-frontend-beta.vercel.app'
+    ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["*"],
     credentials: true
-});
+} as any);
 
 fastify.get("/", async (_request) => {
     return { message: "¡Hello, Fastify!. This is a new era 2.0" };
