@@ -51,7 +51,7 @@ const fastify = (0, fastify_1.default)({
 // Configuración de multipart
 fastify.register(multipart_1.default);
 fastify.register(cors_1.default, {
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: process.env.FRONTEND_URL || "https://agritech-frontend-beta.vercel.app",
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["*"],
     credentials: true
@@ -71,7 +71,7 @@ fastify.register(Promise.resolve().then(() => __importStar(require("./routers/me
 const start = async () => {
     try {
         await (0, cloudinary_1.validateCloudinaryConnection)();
-        const port = process.env.PORT || 5000;
+        const port = process.env.PORT || 4000;
         await fastify.listen({
             port: parseInt(port.toString()),
             host: "0.0.0.0"
