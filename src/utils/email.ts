@@ -17,13 +17,11 @@ const transporter = nodemailer.createTransport({
 // Función para enviar correo de verificación
 export const sendVerificationEmail = async (email: string, token: string) => {
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
-    
-    try {
-        await transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: email,
-            subject: 'Verify your email',
-            html: `
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: 'Verify your email',
+        html: `
                 <div style="background-color: #1a1a1a; color: #ffffff; font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border-radius: 10px;">
                     <div style="text-align: center; margin-bottom: 30px;">
                         <h1 style="color: #4CAF50; margin-bottom: 20px;">Welcome to AgriTech</h1>
@@ -53,23 +51,30 @@ export const sendVerificationEmail = async (email: string, token: string) => {
                     </div>
                 </div>
             `
-        });
+    };
+
+    console.log(`[Email] Intentando enviar correo de verificación a: ${email}`);
+    const startTime = Date.now();
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        const duration = Date.now() - startTime;
+        console.log(`[Email] Correo de verificación enviado a ${email} en ${duration}ms. Message ID: ${info.messageId}`);
     } catch (error) {
-        console.error('Error sending verification email:', error);
-        throw error;
+        const duration = Date.now() - startTime;
+        console.error(`[Email] Error enviando correo de verificación a ${email} después de ${duration}ms:`, error);
+        // Re-lanzamos el error para que sea manejado por el controlador
+        throw new Error(`Failed to send verification email: ${error instanceof Error ? error.message : String(error)}`);
     }
 };
 
 // Función para enviar correo de restablecimiento de contraseña
 export const sendPasswordResetEmail = async (email: string, token: string) => {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-    
-    try {
-        await transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: email,
-            subject: 'Reset password',
-            html: `
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: 'Reset password',
+        html: `
                 <div style="background-color: #1a1a1a; color: #ffffff; font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border-radius: 10px;">
                     <div style="text-align: center; margin-bottom: 30px;">
                         <h1 style="color: #4CAF50; margin-bottom: 20px;">Reset password</h1>
@@ -102,9 +107,18 @@ export const sendPasswordResetEmail = async (email: string, token: string) => {
                     </div>
                 </div>
             `
-        });
+    };
+
+    console.log(`[Email] Intentando enviar correo de reseteo a: ${email}`);
+    const startTime = Date.now();
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        const duration = Date.now() - startTime;
+        console.log(`[Email] Correo de reseteo enviado a ${email} en ${duration}ms. Message ID: ${info.messageId}`);
     } catch (error) {
-        console.error('Error sending password reset email:', error);
-        throw error;
+        const duration = Date.now() - startTime;
+        console.error(`[Email] Error enviando correo de reseteo a ${email} después de ${duration}ms:`, error);
+         // Re-lanzamos el error para que sea manejado por el controlador
+        throw new Error(`Failed to send password reset email: ${error instanceof Error ? error.message : String(error)}`);
     }
 }; 

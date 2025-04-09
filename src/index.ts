@@ -16,8 +16,8 @@ const fastify = Fastify({
 fastify.register(multipart);
 fastify.register(cors, {
     origin: [
-        "https://agritech-beta-exp.vercel.app",
-        "http://localhost:3000"
+        'https://agritech-beta-exp.vercel.app',
+        'http://localhost:3000'
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["*"],
