@@ -53,7 +53,7 @@ const registerUserSchema = zod_1.z.object({
     LastName: zod_1.z.string().min(2, { message: "Last name must be at least 2 characters long" }),
     CountryID: zod_1.z.string().uuid({ message: "Invalid country ID" }),
     Email: zod_1.z.string().email({ message: "Invalid email address" }),
-    password: zod_1.z.string().min(6, { message: "Password must be at least 6 characters long" })
+    password: zod_1.z.string().min(8, { message: "Password must be at least 8 characters long" })
 });
 const loginUserSchema = zod_1.z.object({
     Email: zod_1.z.string().email({ message: "Invalid email address" }),

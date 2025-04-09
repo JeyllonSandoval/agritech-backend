@@ -14,6 +14,18 @@ import { sendVerificationEmail } from "@/utils/email";
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB en bytes
 const UPLOAD_TIMEOUT = 10000; // 10 segundos
 
+// Esquema de validación para actualización de usuario
+const updateUserSchema = z.object({
+    FirstName: z.string().min(2, { message: "First name must be at least 2 characters long" }).optional(),
+    LastName: z.string().min(2, { message: "Last name must be at least 2 characters long" }).optional(),
+    Email: z.string().email({ message: "Invalid email address" }).optional(),
+    CountryID: z.string().uuid({ message: "Invalid country ID" }).optional(),
+    password: z.string().min(8, { message: "Password must be at least 8 characters long" }).optional(),
+    status: z.enum(["active", "inactive"]).optional()
+}).refine(data => Object.keys(data).length > 0, {
+    message: "At least one field must be provided for update"
+});
+
 declare module "fastify" {
     interface FastifyRequest {
         user?: TokenPayload;
@@ -73,13 +85,14 @@ const updateUser = async (request: FastifyRequest<{ Params: { UserID: string } }
         const user = request.user;
 
         if (!user) {
-            return reply.status(401).send({ error: "Unauthorized: No valid token provided" });
+            return reply.status(401).send({ 
+                error: "No valid token provided"
+            });
         }
 
         if (!request.isMultipart()) {
             return reply.status(400).send({ 
-                error: "Bad Request", 
-                message: "Request must be multipart/form-data" 
+                error: "Request must be multipart/form-data"
             });
         }
 
@@ -117,8 +130,7 @@ const updateUser = async (request: FastifyRequest<{ Params: { UserID: string } }
                     } catch (error) {
                         if (error instanceof Error && error.message === 'FILE_TOO_LARGE') {
                             return reply.status(400).send({
-                                error: "File too large",
-                                message: `The maximum allowed file size is ${MAX_FILE_SIZE / (1024 * 1024)}MB`
+                                error: `File size exceeds ${MAX_FILE_SIZE / (1024 * 1024)}MB limit`
                             });
                         }
                         throw error;
@@ -133,27 +145,33 @@ const updateUser = async (request: FastifyRequest<{ Params: { UserID: string } }
 
             // Limpiar datos antes de validar
             const cleanedData = {
-                ...formData,
-                FirstName: formData.FirstName?.trim(),
-                LastName: formData.LastName?.trim(),
-                Email: formData.Email?.trim(),
-                password: formData.password?.trim(),
-                CountryID: formData.CountryID?.trim(),
-                status: formData.status?.trim()
+                ...(formData.FirstName && { FirstName: formData.FirstName.trim() }),
+                ...(formData.LastName && { LastName: formData.LastName.trim() }),
+                ...(formData.Email && { Email: formData.Email.trim() }),
+                ...(formData.password && { password: formData.password.trim() }),
+                ...(formData.CountryID && { CountryID: formData.CountryID.trim() }),
+                ...(formData.status && { status: formData.status.trim() })
             };
+
+            // Validar datos con el esquema
+            const validationResult = updateUserSchema.safeParse(cleanedData);
+            if (!validationResult.success) {
+                const firstError = validationResult.error.errors[0];
+                return reply.status(400).send({
+                    error: firstError.message
+                });
+            }
 
             const validation = z.string().uuid().safeParse(user.UserID);
             if (!validation.success) {
                 return reply.status(400).send({
-                    error: "Invalid UserID format",
-                    details: "UserID must be a valid UUID"
+                    error: "UserID must be a valid UUID"
                 });
             }
 
             if (user.UserID !== request.params.UserID) {
                 return reply.status(403).send({ 
-                    error: "Forbidden",
-                    details: "You can only update your own profile"
+                    error: "You can only update your own profile"
                 });
             }
 
@@ -168,8 +186,7 @@ const updateUser = async (request: FastifyRequest<{ Params: { UserID: string } }
 
             if (!currentUser) {
                 return reply.status(404).send({
-                    error: "User not found",
-                    details: "The user to update does not exist"
+                    error: "The user to update does not exist"
                 });
             }
 
@@ -211,63 +228,58 @@ const updateUser = async (request: FastifyRequest<{ Params: { UserID: string } }
                     if (uploadError instanceof Error) {
                         if (uploadError.message === 'UPLOAD_TIMEOUT') {
                             return reply.status(408).send({
-                                error: "Request Timeout",
-                                message: "The upload operation took too long to complete"
+                                error: "Image upload timed out"
                             });
                         }
                         if ('http_code' in uploadError) {
                             return reply.status(400).send({
-                                error: "Cloudinary Upload Error",
-                                message: uploadError.message
+                                error: "Failed to upload image"
                             });
                         }
                     }
                     
                     return reply.status(500).send({
-                        error: "Failed to upload image",
-                        details: "Error uploading image to cloud storage"
+                        error: "Error uploading image to cloud storage"
                     });
                 }
             }
 
             const updateData: any = {
-                ...(cleanedData.FirstName && { FirstName: cleanedData.FirstName }),
-                ...(cleanedData.LastName && { LastName: cleanedData.LastName }),
-                ...(cleanedData.CountryID && { CountryID: cleanedData.CountryID }),
-                ...(cleanedData.password && { password: await bcrypt.hash(cleanedData.password, 8) }),
-                ...(cleanedData.status && { status: cleanedData.status }),
+                ...(validationResult.data.FirstName && { FirstName: validationResult.data.FirstName }),
+                ...(validationResult.data.LastName && { LastName: validationResult.data.LastName }),
+                ...(validationResult.data.CountryID && { CountryID: validationResult.data.CountryID }),
+                ...(validationResult.data.password && { password: await bcrypt.hash(validationResult.data.password, 8) }),
+                ...(validationResult.data.status && { status: validationResult.data.status }),
                 ...(imageUrl && { imageUser: imageUrl })
             };
 
             // Si el email está siendo actualizado
-            if (cleanedData.Email && cleanedData.Email !== user.Email) {
+            if (validationResult.data.Email && validationResult.data.Email !== user.Email) {
                 // Verificar si el nuevo email ya existe
                 const existingUser = await db
                     .select()
                     .from(usersTable)
-                    .where(eq(usersTable.Email, cleanedData.Email))
+                    .where(eq(usersTable.Email, validationResult.data.Email))
                     .get();
 
                 if (existingUser) {
                     return reply.status(400).send({
-                        error: "Email already exists",
-                        details: "This email is already registered"
+                        error: "This email is already registered"
                     });
                 }
 
                 const emailVerificationToken = uuidv4();
-                updateData.Email = cleanedData.Email;
+                updateData.Email = validationResult.data.Email;
                 updateData.emailVerified = "false";
                 updateData.emailVerificationToken = emailVerificationToken;
 
                 // Enviar correo de verificación al nuevo email
-                await sendVerificationEmail(cleanedData.Email, emailVerificationToken);
+                await sendVerificationEmail(validationResult.data.Email, emailVerificationToken);
             }
 
             if (Object.keys(updateData).length === 0) {
                 return reply.status(400).send({
-                    error: "No data provided",
-                    details: "At least one field must be provided for update"
+                    error: "At least one field must be provided for update"
                 });
             }
 
@@ -285,15 +297,19 @@ const updateUser = async (request: FastifyRequest<{ Params: { UserID: string } }
                 emailVerified: updatedUser[0].emailVerified
             });
 
-            const message = cleanedData.Email && cleanedData.Email !== user.Email
+            const message = validationResult.data.Email && validationResult.data.Email !== user.Email
                 ? "User updated successfully. Please check your email to verify your new email address."
                 : "User updated successfully";
 
             return reply.status(200).send({
+                success: true,
                 message,
-                updatedUser,
-                token: newToken
+                data: {
+                    user: updatedUser[0],
+                    token: newToken
+                }
             });
+
         } catch (innerError) {
             console.error("Error in processing:", innerError);
             throw innerError;
@@ -301,8 +317,7 @@ const updateUser = async (request: FastifyRequest<{ Params: { UserID: string } }
     } catch (error) {
         console.error(error);
         return reply.status(500).send({
-            error: "Update User: Failed to update user",
-            details: error instanceof Error ? error.message : "Unknown error"
+            error: error instanceof Error ? error.message : "Unknown error"
         });
     }
 };
