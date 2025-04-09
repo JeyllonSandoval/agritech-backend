@@ -550,3 +550,47 @@ export const resendVerificationEmail = async (
     }
 };
 
+// Función para validar el token de reseteo de contraseña (NUEVA)
+export const validateResetToken = async (
+    req: FastifyRequest<{ Params: { token: string } }>,
+    reply: FastifyReply
+) => {
+    try {
+        const { token } = req.params;
+
+        // 1. Validar que el token exista en la petición
+        if (!token) {
+            return reply.status(400).send({
+                error: "Reset token is missing"
+            });
+        }
+
+        // 2. Buscar usuario por el token de reseteo
+        const user = await db
+            .select({
+                passwordResetExpires: usersTable.passwordResetExpires // Solo necesitamos la fecha de expiración
+            })
+            .from(usersTable)
+            .where(eq(usersTable.passwordResetToken, token))
+            .get();
+
+        // 3. Verificar si el token es válido y no ha expirado
+        if (!user || !user.passwordResetExpires || new Date(user.passwordResetExpires) < new Date()) {
+            // Si no se encuentra usuario o el token expiró
+            return reply.status(400).send({
+                error: "This password reset link is invalid or has expired."
+            });
+        }
+
+        // 4. Si todo está bien, el token es válido
+        return reply.status(200).send({ message: "Token is valid" }); // Solo necesitamos confirmar que está OK
+
+    // 5. Manejar errores inesperados
+    } catch (error) {
+        console.error('Error in validateResetToken:', error);
+        return reply.status(500).send({
+            error: "Failed to validate password reset token. Please try again later."
+        });
+    }
+};
+

@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resendVerificationEmail = exports.resetPassword = exports.requestPasswordReset = exports.verifyEmail = exports.loginUser = exports.registerUser = void 0;
+exports.validateResetToken = exports.resendVerificationEmail = exports.resetPassword = exports.requestPasswordReset = exports.verifyEmail = exports.loginUser = exports.registerUser = void 0;
 const db_1 = __importDefault(require("../db/db"));
 const usersSchema_1 = __importDefault(require("../db/schemas/usersSchema"));
 const bcrypt = __importStar(require("bcryptjs"));
@@ -509,4 +509,41 @@ const resendVerificationEmail = async (req, reply) => {
     }
 };
 exports.resendVerificationEmail = resendVerificationEmail;
+// Función para validar el token de reseteo de contraseña (NUEVA)
+const validateResetToken = async (req, reply) => {
+    try {
+        const { token } = req.params;
+        // 1. Validar que el token exista en la petición
+        if (!token) {
+            return reply.status(400).send({
+                error: "Reset token is missing"
+            });
+        }
+        // 2. Buscar usuario por el token de reseteo
+        const user = await db_1.default
+            .select({
+            passwordResetExpires: usersSchema_1.default.passwordResetExpires // Solo necesitamos la fecha de expiración
+        })
+            .from(usersSchema_1.default)
+            .where((0, drizzle_orm_1.eq)(usersSchema_1.default.passwordResetToken, token))
+            .get();
+        // 3. Verificar si el token es válido y no ha expirado
+        if (!user || !user.passwordResetExpires || new Date(user.passwordResetExpires) < new Date()) {
+            // Si no se encuentra usuario o el token expiró
+            return reply.status(400).send({
+                error: "This password reset link is invalid or has expired."
+            });
+        }
+        // 4. Si todo está bien, el token es válido
+        return reply.status(200).send({ message: "Token is valid" }); // Solo necesitamos confirmar que está OK
+        // 5. Manejar errores inesperados
+    }
+    catch (error) {
+        console.error('Error in validateResetToken:', error);
+        return reply.status(500).send({
+            error: "Failed to validate password reset token. Please try again later."
+        });
+    }
+};
+exports.validateResetToken = validateResetToken;
 //# sourceMappingURL=auth.js.map
