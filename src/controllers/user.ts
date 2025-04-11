@@ -22,8 +22,6 @@ const updateUserSchema = z.object({
     CountryID: z.string().uuid({ message: "Invalid country ID" }).optional(),
     password: z.string().min(8, { message: "Password must be at least 8 characters long" }).optional(),
     status: z.enum(["active", "inactive"]).optional()
-}).refine(data => Object.keys(data).length > 0, {
-    message: "At least one field must be provided for update"
 });
 
 declare module "fastify" {
@@ -153,13 +151,15 @@ const updateUser = async (request: FastifyRequest<{ Params: { UserID: string } }
                 ...(formData.status && { status: formData.status.trim() })
             };
 
-            // Validar datos con el esquema
-            const validationResult = updateUserSchema.safeParse(cleanedData);
-            if (!validationResult.success) {
-                const firstError = validationResult.error.errors[0];
-                return reply.status(400).send({
-                    error: firstError.message
-                });
+            // Solo validar si hay campos para validar
+            if (Object.keys(cleanedData).length > 0) {
+                const validationResult = updateUserSchema.safeParse(cleanedData);
+                if (!validationResult.success) {
+                    const firstError = validationResult.error.errors[0];
+                    return reply.status(400).send({
+                        error: firstError.message
+                    });
+                }
             }
 
             const validation = z.string().uuid().safeParse(user.UserID);
@@ -245,21 +245,21 @@ const updateUser = async (request: FastifyRequest<{ Params: { UserID: string } }
             }
 
             const updateData: any = {
-                ...(validationResult.data.FirstName && { FirstName: validationResult.data.FirstName }),
-                ...(validationResult.data.LastName && { LastName: validationResult.data.LastName }),
-                ...(validationResult.data.CountryID && { CountryID: validationResult.data.CountryID }),
-                ...(validationResult.data.password && { password: await bcrypt.hash(validationResult.data.password, 8) }),
-                ...(validationResult.data.status && { status: validationResult.data.status }),
+                ...(cleanedData.FirstName && { FirstName: cleanedData.FirstName }),
+                ...(cleanedData.LastName && { LastName: cleanedData.LastName }),
+                ...(cleanedData.CountryID && { CountryID: cleanedData.CountryID }),
+                ...(cleanedData.password && { password: await bcrypt.hash(cleanedData.password, 8) }),
+                ...(cleanedData.status && { status: cleanedData.status }),
                 ...(imageUrl && { imageUser: imageUrl })
             };
 
             // Si el email está siendo actualizado
-            if (validationResult.data.Email && validationResult.data.Email !== user.Email) {
+            if (cleanedData.Email && cleanedData.Email !== user.Email) {
                 // Verificar si el nuevo email ya existe
                 const existingUser = await db
                     .select()
                     .from(usersTable)
-                    .where(eq(usersTable.Email, validationResult.data.Email))
+                    .where(eq(usersTable.Email, cleanedData.Email))
                     .get();
 
                 if (existingUser) {
@@ -269,17 +269,18 @@ const updateUser = async (request: FastifyRequest<{ Params: { UserID: string } }
                 }
 
                 const emailVerificationToken = uuidv4();
-                updateData.Email = validationResult.data.Email;
+                updateData.Email = cleanedData.Email;
                 updateData.emailVerified = "false";
                 updateData.emailVerificationToken = emailVerificationToken;
 
                 // Enviar correo de verificación al nuevo email
-                await sendVerificationEmail(validationResult.data.Email, emailVerificationToken);
+                await sendVerificationEmail(cleanedData.Email, emailVerificationToken);
             }
 
-            if (Object.keys(updateData).length === 0) {
+            // Verificar si hay algo para actualizar
+            if (Object.keys(updateData).length === 0 && !imageBuffer) {
                 return reply.status(400).send({
-                    error: "At least one field must be provided for update"
+                    error: "No data provided for update"
                 });
             }
 
@@ -297,7 +298,7 @@ const updateUser = async (request: FastifyRequest<{ Params: { UserID: string } }
                 emailVerified: updatedUser[0].emailVerified
             });
 
-            const message = validationResult.data.Email && validationResult.data.Email !== user.Email
+            const message = cleanedData.Email && cleanedData.Email !== user.Email
                 ? "User updated successfully. Please check your email to verify your new email address."
                 : "User updated successfully";
 
