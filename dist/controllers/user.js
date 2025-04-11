@@ -56,8 +56,6 @@ const updateUserSchema = zod_1.z.object({
     CountryID: zod_1.z.string().uuid({ message: "Invalid country ID" }).optional(),
     password: zod_1.z.string().min(8, { message: "Password must be at least 8 characters long" }).optional(),
     status: zod_1.z.enum(["active", "inactive"]).optional()
-}).refine(data => Object.keys(data).length > 0, {
-    message: "At least one field must be provided for update"
 });
 const getUsers = async (_req, reply) => {
     try {
@@ -171,13 +169,15 @@ const updateUser = async (request, reply) => {
                 ...(formData.CountryID && { CountryID: formData.CountryID.trim() }),
                 ...(formData.status && { status: formData.status.trim() })
             };
-            // Validar datos con el esquema
-            const validationResult = updateUserSchema.safeParse(cleanedData);
-            if (!validationResult.success) {
-                const firstError = validationResult.error.errors[0];
-                return reply.status(400).send({
-                    error: firstError.message
-                });
+            // Solo validar si hay campos para validar
+            if (Object.keys(cleanedData).length > 0) {
+                const validationResult = updateUserSchema.safeParse(cleanedData);
+                if (!validationResult.success) {
+                    const firstError = validationResult.error.errors[0];
+                    return reply.status(400).send({
+                        error: firstError.message
+                    });
+                }
             }
             const validation = zod_1.z.string().uuid().safeParse(user.UserID);
             if (!validation.success) {
@@ -248,20 +248,20 @@ const updateUser = async (request, reply) => {
                 }
             }
             const updateData = {
-                ...(validationResult.data.FirstName && { FirstName: validationResult.data.FirstName }),
-                ...(validationResult.data.LastName && { LastName: validationResult.data.LastName }),
-                ...(validationResult.data.CountryID && { CountryID: validationResult.data.CountryID }),
-                ...(validationResult.data.password && { password: await bcrypt.hash(validationResult.data.password, 8) }),
-                ...(validationResult.data.status && { status: validationResult.data.status }),
+                ...(cleanedData.FirstName && { FirstName: cleanedData.FirstName }),
+                ...(cleanedData.LastName && { LastName: cleanedData.LastName }),
+                ...(cleanedData.CountryID && { CountryID: cleanedData.CountryID }),
+                ...(cleanedData.password && { password: await bcrypt.hash(cleanedData.password, 8) }),
+                ...(cleanedData.status && { status: cleanedData.status }),
                 ...(imageUrl && { imageUser: imageUrl })
             };
             // Si el email está siendo actualizado
-            if (validationResult.data.Email && validationResult.data.Email !== user.Email) {
+            if (cleanedData.Email && cleanedData.Email !== user.Email) {
                 // Verificar si el nuevo email ya existe
                 const existingUser = await db_1.default
                     .select()
                     .from(usersSchema_1.default)
-                    .where((0, drizzle_orm_1.eq)(usersSchema_1.default.Email, validationResult.data.Email))
+                    .where((0, drizzle_orm_1.eq)(usersSchema_1.default.Email, cleanedData.Email))
                     .get();
                 if (existingUser) {
                     return reply.status(400).send({
@@ -269,15 +269,16 @@ const updateUser = async (request, reply) => {
                     });
                 }
                 const emailVerificationToken = (0, uuid_1.v4)();
-                updateData.Email = validationResult.data.Email;
+                updateData.Email = cleanedData.Email;
                 updateData.emailVerified = "false";
                 updateData.emailVerificationToken = emailVerificationToken;
                 // Enviar correo de verificación al nuevo email
-                await (0, email_1.sendVerificationEmail)(validationResult.data.Email, emailVerificationToken);
+                await (0, email_1.sendVerificationEmail)(cleanedData.Email, emailVerificationToken);
             }
-            if (Object.keys(updateData).length === 0) {
+            // Verificar si hay algo para actualizar
+            if (Object.keys(updateData).length === 0 && !imageBuffer) {
                 return reply.status(400).send({
-                    error: "At least one field must be provided for update"
+                    error: "No data provided for update"
                 });
             }
             const updatedUser = await db_1.default
@@ -292,7 +293,7 @@ const updateUser = async (request, reply) => {
                 RoleID: updatedUser[0].RoleID,
                 emailVerified: updatedUser[0].emailVerified
             });
-            const message = validationResult.data.Email && validationResult.data.Email !== user.Email
+            const message = cleanedData.Email && cleanedData.Email !== user.Email
                 ? "User updated successfully. Please check your email to verify your new email address."
                 : "User updated successfully";
             return reply.status(200).send({
