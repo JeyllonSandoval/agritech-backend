@@ -13,7 +13,7 @@
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/JeyllonSandoval/agritech-backend.git
+git clone https://github.com/JeyllonSandoval/agritech-backend
 cd agritech-backend
 ```
 
