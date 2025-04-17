@@ -77,7 +77,8 @@ const createMessage = async (
             MessageID: uuidv4(),
             ChatID: result.data.ChatID,
             FileID: result.data.FileID,
-            content: result.data.sendertype === "user" ? `ASK USER: ${userQuestion}` : userQuestion,
+            contentFile: pdfContent,
+            contentAsk: userQuestion,
             sendertype: result.data.sendertype,
             status: "active"
         }).returning();
@@ -191,7 +192,7 @@ const updateMessage = async (
 ) => {
     try {
         const { MessageID } = request.params;
-        const { content } = request.body as { content: string };
+        const { contentAsk } = request.body as { contentAsk: string };
 
         const validation = z.string().uuid().safeParse(MessageID);
         if (!validation.success) {
@@ -201,8 +202,7 @@ const updateMessage = async (
             });
         }
 
-        // Validar el contenido del mensaje
-        if (!content || content.trim().length < 1) {
+        if (!contentAsk || contentAsk.trim().length < 1) {
             return reply.status(400).send({
                 error: "Invalid message content",
                 details: "Message content cannot be empty"
@@ -211,7 +211,7 @@ const updateMessage = async (
 
         const updatedMessage = await db
             .update(messageTable)
-            .set({ content: content.trim() })
+            .set({ contentAsk: contentAsk.trim() })
             .where(eq(messageTable.MessageID, MessageID))
             .returning();
 
