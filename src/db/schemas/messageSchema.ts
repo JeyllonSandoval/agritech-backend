@@ -10,6 +10,7 @@ const messageTable = sqliteTable("message_table", {
     sendertype: text("sendertype").notNull(),
     contentFile: text("contentFile"),
     contentAsk: text("contentAsk"),
+    contentResponse: text("contentResponse"),
     createdAt: text("createdAt").default(sql `(CURRENT_TIMESTAMP)`).notNull(),
     status: text("status").notNull(),
 });

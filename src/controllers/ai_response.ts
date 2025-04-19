@@ -61,7 +61,7 @@ const generateAIResponse = async (req: FastifyRequest, res: FastifyReply) => {
         const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
             {
                 role: "system" as const,
-                content: `Soy un asistente especializado en análisis de documentos PDF. 
+                content: `Soy un asistente especializado en análisis de documentos PDF de agricultura, estudios de suelos, etc. 
                 ${pdfContext ? `He analizado el siguiente documento: ${pdfContext}` : ''}
                 Puedo ayudarte a responder preguntas sobre el contenido del documento y mantener una conversación coherente.`,
             },
