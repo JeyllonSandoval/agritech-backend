@@ -60,14 +60,14 @@ const generateAIResponse = async (req: FastifyRequest, res: FastifyReply) => {
         // Formatear los mensajes en el formato esperado por OpenAI
         const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
             {
-                role: "system",
+                role: "system" as const,
                 content: `Soy un asistente especializado en análisis de documentos PDF. 
                 ${pdfContext ? `He analizado el siguiente documento: ${pdfContext}` : ''}
                 Puedo ayudarte a responder preguntas sobre el contenido del documento y mantener una conversación coherente.`,
             },
             ...chatHistory.map(msg => ({
-                role: msg.sendertype === "user" ? ("user" as const) : ("assistant" as const),
-                content: msg.content
+                role: msg.sendertype === "user" ? "user" as const : "assistant" as const,
+                content: msg.contentAsk || ""
             })),
             {
                 role: "user" as const,

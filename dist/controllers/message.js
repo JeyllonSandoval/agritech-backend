@@ -62,7 +62,8 @@ const createMessage = async (request, reply) => {
             MessageID: (0, uuid_1.v4)(),
             ChatID: result.data.ChatID,
             FileID: result.data.FileID,
-            content: result.data.sendertype === "user" ? `ASK USER: ${userQuestion}` : userQuestion,
+            contentFile: pdfContent,
+            contentAsk: userQuestion,
             sendertype: result.data.sendertype,
             status: "active"
         }).returning();
@@ -156,7 +157,7 @@ exports.getAllMessages = getAllMessages;
 const updateMessage = async (request, reply) => {
     try {
         const { MessageID } = request.params;
-        const { content } = request.body;
+        const { contentAsk } = request.body;
         const validation = zod_1.z.string().uuid().safeParse(MessageID);
         if (!validation.success) {
             return reply.status(400).send({
@@ -164,8 +165,7 @@ const updateMessage = async (request, reply) => {
                 details: "MessageID must be a valid UUID"
             });
         }
-        // Validar el contenido del mensaje
-        if (!content || content.trim().length < 1) {
+        if (!contentAsk || contentAsk.trim().length < 1) {
             return reply.status(400).send({
                 error: "Invalid message content",
                 details: "Message content cannot be empty"
@@ -173,7 +173,7 @@ const updateMessage = async (request, reply) => {
         }
         const updatedMessage = await db_1.default
             .update(messageSchema_1.default)
-            .set({ content: content.trim() })
+            .set({ contentAsk: contentAsk.trim() })
             .where((0, drizzle_orm_1.eq)(messageSchema_1.default.MessageID, MessageID))
             .returning();
         if (!updatedMessage.length) {

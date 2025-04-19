@@ -12,7 +12,8 @@ const messageTable = (0, sqlite_core_1.sqliteTable)("message_table", {
     ChatID: (0, sqlite_core_1.text)("ChatID", { length: 36 }).notNull().references(() => chatSchema_1.default.ChatID),
     FileID: (0, sqlite_core_1.text)("FileID", { length: 36 }).references(() => filesSchema_1.default.FileID),
     sendertype: (0, sqlite_core_1.text)("sendertype").notNull(),
-    content: (0, sqlite_core_1.text)("content").notNull(),
+    contentFile: (0, sqlite_core_1.text)("contentFile"),
+    contentAsk: (0, sqlite_core_1.text)("contentAsk"),
     createdAt: (0, sqlite_core_1.text)("createdAt").default((0, drizzle_orm_1.sql) `(CURRENT_TIMESTAMP)`).notNull(),
     status: (0, sqlite_core_1.text)("status").notNull(),
 });

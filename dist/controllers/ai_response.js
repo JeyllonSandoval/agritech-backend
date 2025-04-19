@@ -56,7 +56,7 @@ const generateAIResponse = async (req, res) => {
             },
             ...chatHistory.map(msg => ({
                 role: msg.sendertype === "user" ? "user" : "assistant",
-                content: msg.content
+                content: msg.contentAsk || ""
             })),
             {
                 role: "user",
