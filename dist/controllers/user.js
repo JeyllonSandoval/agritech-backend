@@ -47,7 +47,6 @@ const token_1 = require("../utils/token");
 const uuid_1 = require("uuid");
 const email_1 = require("../utils/email");
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB en bytes
-const UPLOAD_TIMEOUT = 10000; // 10 segundos
 // Esquema de validación para actualización de usuario
 const updateUserSchema = zod_1.z.object({
     FirstName: zod_1.z.string().min(2, { message: "First name must be at least 2 characters long" }).optional(),
