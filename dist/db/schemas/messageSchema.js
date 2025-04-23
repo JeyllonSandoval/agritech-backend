@@ -14,6 +14,7 @@ const messageTable = (0, sqlite_core_1.sqliteTable)("message_table", {
     sendertype: (0, sqlite_core_1.text)("sendertype").notNull(),
     contentFile: (0, sqlite_core_1.text)("contentFile"),
     contentAsk: (0, sqlite_core_1.text)("contentAsk"),
+    contentResponse: (0, sqlite_core_1.text)("contentResponse"),
     createdAt: (0, sqlite_core_1.text)("createdAt").default((0, drizzle_orm_1.sql) `(CURRENT_TIMESTAMP)`).notNull(),
     status: (0, sqlite_core_1.text)("status").notNull(),
 });

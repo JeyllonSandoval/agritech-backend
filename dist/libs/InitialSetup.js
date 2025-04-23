@@ -3,8 +3,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.createCountries = exports.createRoles = void 0;
 const db_1 = __importDefault(require("../db/db"));
 const rolesSchema_1 = __importDefault(require("../db/schemas/rolesSchema"));
+const countrySchema_1 = __importDefault(require("../db/schemas/countrySchema"));
+const countries_json_1 = __importDefault(require("../db/data/countries.json"));
 const uuid_1 = require("uuid");
 const createRoles = async () => {
     try {
@@ -24,5 +27,26 @@ const createRoles = async () => {
         console.error("Missing Falling created roles ❌:", error);
     }
 };
-exports.default = createRoles;
+exports.createRoles = createRoles;
+const createCountries = async () => {
+    try {
+        const count = await db_1.default.select().from(countrySchema_1.default);
+        if (count.length > 0) {
+            console.log("Countries already exist in the database ✅");
+            return;
+        }
+        await db_1.default.insert(countrySchema_1.default).values(countries_json_1.default.countriesData.map(country => ({
+            ...country,
+            CountryID: (0, uuid_1.v4)(),
+            createdAt: new Date().toISOString(),
+            status: "active",
+            countryname: country.countryName
+        })));
+        console.log("Created countries successfully ✅");
+    }
+    catch (error) {
+        console.error("Missing Falling created countries ❌:", error);
+    }
+};
+exports.createCountries = createCountries;
 //# sourceMappingURL=InitialSetup.js.map

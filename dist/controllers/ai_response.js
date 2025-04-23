@@ -50,7 +50,7 @@ const generateAIResponse = async (req, res) => {
         const messages = [
             {
                 role: "system",
-                content: `Soy un asistente especializado en análisis de documentos PDF. 
+                content: `Soy un asistente especializado en análisis de documentos PDF de agricultura, estudios de suelos, etc. 
                 ${pdfContext ? `He analizado el siguiente documento: ${pdfContext}` : ''}
                 Puedo ayudarte a responder preguntas sobre el contenido del documento y mantener una conversación coherente.`,
             },
