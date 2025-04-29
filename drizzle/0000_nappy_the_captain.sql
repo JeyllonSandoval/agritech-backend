@@ -31,6 +31,7 @@ CREATE TABLE `message_table` (
 	`sendertype` text NOT NULL,
 	`contentFile` text,
 	`contentAsk` text,
+	`contentResponse` text,
 	`createdAt` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
 	`status` text NOT NULL,
 	FOREIGN KEY (`ChatID`) REFERENCES `chat_table`(`ChatID`) ON UPDATE no action ON DELETE no action,

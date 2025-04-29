@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import db from "@/db/db";
 import messageTable from "@/db/schemas/messageSchema";
 import { z, ZodError } from "zod";
-import generateAIResponse from "@/controllers/ai_response";
+import generateAIResponse, { AIRequest } from "@/controllers/ai_response";
 import filesTable from "@/db/schemas/filesSchema";
 import { parsePDF } from "@/controllers/readPdf";
 
@@ -88,11 +88,12 @@ const createMessage = async (
                 body: {
                     ask: userQuestion,
                     ChatID: result.data.ChatID,
-                    FileID: result.data.FileID
-                },
-            };
+                    FileID: result.data.FileID,
+                    pdfContent: pdfContent
+                }
+            } as FastifyRequest<{ Body: AIRequest }>;
 
-            await generateAIResponse(aiRequest as FastifyRequest, reply);
+            await generateAIResponse(aiRequest, reply);
         }
 
         return reply.status(201).send({ message: "The message was successfully created", newMessage: newMessage[0] });

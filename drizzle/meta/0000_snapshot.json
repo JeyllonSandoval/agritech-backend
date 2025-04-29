@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "b85ff861-b62b-45b9-9fbf-bfc69f83ae37",
+  "id": "d0035991-6b4c-4bef-acba-911ce4487c90",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "chat_table": {
@@ -207,6 +207,13 @@
         },
         "contentAsk": {
           "name": "contentAsk",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "contentResponse": {
+          "name": "contentResponse",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

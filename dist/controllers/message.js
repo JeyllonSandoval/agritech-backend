@@ -72,8 +72,9 @@ const createMessage = async (request, reply) => {
                 body: {
                     ask: userQuestion,
                     ChatID: result.data.ChatID,
-                    FileID: result.data.FileID
-                },
+                    FileID: result.data.FileID,
+                    pdfContent: pdfContent
+                }
             };
             await (0, ai_response_1.default)(aiRequest, reply);
         }
