@@ -171,10 +171,10 @@ export const resetPassword = async (
         const validation = resetPasswordSchema.safeParse(req.body);
 
         if (!validation.success) {
-             const firstError = validation.error.errors[0];
+            const firstError = validation.error.errors[0];
             return reply.status(400).send({
-                 error: firstError?.message || "Invalid input data"
-             });
+                error: firstError?.message || "Invalid input data"
+            });
         }
 
         const { token, password } = validation.data;
@@ -219,13 +219,13 @@ export const resetPassword = async (
             throw new Error("Failed to update password after validation");
         }
 
-        // Opcional: Generar y enviar un nuevo token JWT si quieres loguear al usuario automáticamente
-         const newToken = generateToken({
-             UserID: updatedUser.UserID,
-             Email: updatedUser.Email,
-             RoleID: updatedUser.RoleID,
-             emailVerified: updatedUser.emailVerified
-         });
+        // Generar y enviar un nuevo token JWT
+        const newToken = generateToken({
+            UserID: updatedUser.UserID,
+            Email: updatedUser.Email,
+            RoleID: updatedUser.RoleID,
+            emailVerified: updatedUser.emailVerified
+        });
 
         return reply.status(200).send({
             message: "Your password has been successfully reset.",

@@ -20,9 +20,9 @@ const transporter = nodemailer_1.default.createTransport({
 });
 // Función para enviar correo de verificación
 const sendVerificationEmail = async (email, token) => {
-    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
+    const verificationUrl = `${process.env.FRONTEND_URL_DEV}/verify-email?token=${token}`;
     console.log(verificationUrl);
-    console.log(process.env.FRONTEND_URL);
+    console.log(process.env.FRONTEND_URL_DEV);
     const mailOptions = {
         from: process.env.EMAIL_USER,
         to: email,
@@ -75,9 +75,9 @@ const sendVerificationEmail = async (email, token) => {
 exports.sendVerificationEmail = sendVerificationEmail;
 // Función para enviar correo de restablecimiento de contraseña
 const sendPasswordResetEmail = async (email, token) => {
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+    const resetUrl = `${process.env.FRONTEND_URL_DEV}/reset-password?token=${token}`;
     console.log(resetUrl);
-    console.log(process.env.FRONTEND_URL);
+    console.log(process.env.FRONTEND_URL_DEV);
     const mailOptions = {
         from: process.env.EMAIL_USER,
         to: email,
