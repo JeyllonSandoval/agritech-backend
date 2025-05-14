@@ -15,8 +15,11 @@ const readPdf_1 = require("../controllers/readPdf");
 const createMessageSchema = zod_1.z.object({
     ChatID: zod_1.z.string().uuid({ message: "Invalid chat ID" }),
     FileID: zod_1.z.string().uuid({ message: "Invalid file ID" }).optional(),
-    content: zod_1.z.string().min(1, { message: "Content is required" }),
     sendertype: zod_1.z.enum(["user", "ai"], { message: "Invalid sender type" }),
+    contentFile: zod_1.z.string().optional(),
+    contentAsk: zod_1.z.string().optional(),
+    contentResponse: zod_1.z.string().optional(),
+    status: zod_1.z.enum(["active", "inactive", "deleted"], { message: "Invalid status" }).default("active")
 });
 const createMessage = async (request, reply) => {
     try {
@@ -24,8 +27,11 @@ const createMessage = async (request, reply) => {
             ...request.body,
             ChatID: request.body.ChatID.trim(),
             FileID: request.body.FileID?.trim(),
-            content: request.body.content.trim(),
-            sendertype: request.body.sendertype.trim()
+            sendertype: request.body.sendertype.trim(),
+            contentFile: request.body.contentFile?.trim(),
+            contentAsk: request.body.contentAsk?.trim(),
+            contentResponse: request.body.contentResponse?.trim(),
+            status: request.body.status || "active"
         };
         const result = createMessageSchema.safeParse(cleanedData);
         if (!result.success) {
@@ -34,9 +40,14 @@ const createMessage = async (request, reply) => {
                 details: result.error.format()
             });
         }
+        if (!result.data.contentFile && !result.data.contentAsk && !result.data.contentResponse) {
+            return reply.status(400).send({
+                error: "Message: Content validation error",
+                details: "At least one content field (contentFile, contentAsk, or contentResponse) must be present"
+            });
+        }
         let fileContent = null;
         let pdfContent = '';
-        const userQuestion = result.data.content;
         if (result.data.FileID) {
             const file = await db_1.default
                 .select()
@@ -62,15 +73,16 @@ const createMessage = async (request, reply) => {
             MessageID: (0, uuid_1.v4)(),
             ChatID: result.data.ChatID,
             FileID: result.data.FileID,
-            contentFile: pdfContent,
-            contentAsk: userQuestion,
+            contentFile: result.data.contentFile || pdfContent,
+            contentAsk: result.data.contentAsk,
+            contentResponse: result.data.contentResponse,
             sendertype: result.data.sendertype,
-            status: "active"
+            status: result.data.status
         }).returning();
-        if (result.data.sendertype === "user") {
+        if (result.data.sendertype === "user" && result.data.contentAsk) {
             const aiRequest = {
                 body: {
-                    ask: userQuestion,
+                    ask: result.data.contentAsk,
                     ChatID: result.data.ChatID,
                     FileID: result.data.FileID,
                     pdfContent: pdfContent
@@ -78,7 +90,10 @@ const createMessage = async (request, reply) => {
             };
             await (0, ai_response_1.default)(aiRequest, reply);
         }
-        return reply.status(201).send({ message: "The message was successfully created", newMessage: newMessage[0] });
+        return reply.status(201).send({
+            message: "The message was successfully created",
+            newMessage: newMessage[0]
+        });
     }
     catch (error) {
         console.error(error);

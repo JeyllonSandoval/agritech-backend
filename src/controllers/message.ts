@@ -11,15 +11,21 @@ import { parsePDF } from "@/controllers/readPdf";
 const createMessageSchema = z.object({
     ChatID: z.string().uuid({ message: "Invalid chat ID" }),
     FileID: z.string().uuid({ message: "Invalid file ID" }).optional(),
-    content: z.string().min(1, { message: "Content is required" }),
     sendertype: z.enum(["user", "ai"], { message: "Invalid sender type" }),
+    contentFile: z.string().optional(),
+    contentAsk: z.string().optional(),
+    contentResponse: z.string().optional(),
+    status: z.enum(["active", "inactive", "deleted"], { message: "Invalid status" }).default("active")
 });
 
 interface MessageBody {
     ChatID: string;
     FileID?: string;
-    content: string;
     sendertype: "user" | "ai";
+    contentFile?: string;
+    contentAsk?: string;
+    contentResponse?: string;
+    status?: "active" | "inactive" | "deleted";
 }
 
 const createMessage = async (
@@ -31,8 +37,11 @@ const createMessage = async (
             ...request.body,
             ChatID: request.body.ChatID.trim(),
             FileID: request.body.FileID?.trim(),
-            content: request.body.content.trim(),
-            sendertype: request.body.sendertype.trim()
+            sendertype: request.body.sendertype.trim(),
+            contentFile: request.body.contentFile?.trim(),
+            contentAsk: request.body.contentAsk?.trim(),
+            contentResponse: request.body.contentResponse?.trim(),
+            status: request.body.status || "active"
         };
         
         const result = createMessageSchema.safeParse(cleanedData);
@@ -44,9 +53,15 @@ const createMessage = async (
             });
         }
 
+        if (!result.data.contentFile && !result.data.contentAsk && !result.data.contentResponse) {
+            return reply.status(400).send({
+                error: "Message: Content validation error",
+                details: "At least one content field (contentFile, contentAsk, or contentResponse) must be present"
+            });
+        }
+
         let fileContent: string | null = null;
         let pdfContent = '';
-        const userQuestion = result.data.content;
 
         if (result.data.FileID) {
             const file = await db
@@ -77,16 +92,17 @@ const createMessage = async (
             MessageID: uuidv4(),
             ChatID: result.data.ChatID,
             FileID: result.data.FileID,
-            contentFile: pdfContent,
-            contentAsk: userQuestion,
+            contentFile: result.data.contentFile || pdfContent,
+            contentAsk: result.data.contentAsk,
+            contentResponse: result.data.contentResponse,
             sendertype: result.data.sendertype,
-            status: "active"
+            status: result.data.status
         }).returning();
 
-        if (result.data.sendertype === "user") {
+        if (result.data.sendertype === "user" && result.data.contentAsk) {
             const aiRequest = {
                 body: {
-                    ask: userQuestion,
+                    ask: result.data.contentAsk,
                     ChatID: result.data.ChatID,
                     FileID: result.data.FileID,
                     pdfContent: pdfContent
@@ -96,7 +112,10 @@ const createMessage = async (
             await generateAIResponse(aiRequest, reply);
         }
 
-        return reply.status(201).send({ message: "The message was successfully created", newMessage: newMessage[0] });
+        return reply.status(201).send({ 
+            message: "The message was successfully created", 
+            newMessage: newMessage[0] 
+        });
 
     } catch (error) {
         console.error(error);
