@@ -5,91 +5,62 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const openai_1 = __importDefault(require("openai"));
 require("dotenv/config");
-const message_1 = require("../controllers/message");
 const chat_1 = require("../controllers/chat");
-const readPdf_1 = require("../controllers/readPdf");
-const filesSchema_1 = __importDefault(require("../db/schemas/filesSchema"));
-const drizzle_orm_1 = require("drizzle-orm");
 const db_1 = __importDefault(require("../db/db"));
+const messageSchema_1 = __importDefault(require("../db/schemas/messageSchema"));
+const uuid_1 = require("uuid");
 const openai = new openai_1.default({
     apiKey: process.env.OPENAI_API_KEY,
 });
-const generateAIResponse = async (req, res) => {
+const generateAIResponse = async (request, reply) => {
     try {
-        const { ask, ChatID, FileID } = req.body;
-        // Validar que los datos requeridos están presentes
-        if (!ask || !ChatID) {
-            return res.status(400).send({ error: "ChatID y pregunta ('ask') son obligatorios" });
-        }
-        // Obtener el historial del chat desde la base de datos
+        const { ask, ChatID, FileID, pdfContent } = request.body;
+        // Obtener el historial de mensajes del chat
         const chatHistory = await (0, chat_1.getMessagesForChat)(ChatID);
-        // Si hay un FileID, procesar el PDF y obtener su contenido
-        let pdfContext = "";
-        if (FileID) {
-            // Primero obtener la URL del archivo desde la base de datos
-            const file = await db_1.default
-                .select()
-                .from(filesSchema_1.default)
-                .where((0, drizzle_orm_1.eq)(filesSchema_1.default.FileID, FileID));
-            if (file.length > 0 && file[0].contentURL) {
-                const pdfRequest = {
-                    body: { fileURL: file[0].contentURL }
-                };
-                const pdfReply = {
-                    status: () => ({
-                        send: (data) => {
-                            pdfContext = data.data.rawText;
-                            return data;
-                        }
-                    })
-                };
-                await (0, readPdf_1.parsePDF)(pdfRequest, pdfReply);
-            }
+        // Construir el contexto del chat
+        const chatContext = chatHistory.map(msg => ({
+            role: msg.senderType === "user" ? "user" : "assistant",
+            content: msg.content || ""
+        }));
+        // Construir el prompt con el contexto del PDF si existe
+        let systemPrompt = "Eres un asistente útil que responde preguntas basado en el contexto proporcionado.";
+        if (pdfContent) {
+            systemPrompt += `\n\nContexto del documento:\n${pdfContent}`;
         }
-        // Formatear los mensajes en el formato esperado por OpenAI
-        const messages = [
-            {
-                role: "system",
-                content: `Soy un asistente especializado en análisis de documentos PDF. 
-                ${pdfContext ? `He analizado el siguiente documento: ${pdfContext}` : ''}
-                Puedo ayudarte a responder preguntas sobre el contenido del documento y mantener una conversación coherente.`,
-            },
-            ...chatHistory.map(msg => ({
-                role: msg.sendertype === "user" ? "user" : "assistant",
-                content: msg.content
-            })),
-            {
-                role: "user",
-                content: ask
-            }
-        ];
-        // Llamar a la API de OpenAI
-        const response = await openai.chat.completions.create({
+        // Llamar a OpenAI
+        const completion = await openai.chat.completions.create({
             model: "gpt-3.5-turbo",
-            messages: messages,
+            messages: [
+                { role: "system", content: systemPrompt },
+                ...chatContext,
+                { role: "user", content: ask }
+            ],
+            temperature: 0.7,
+            max_tokens: 1000
         });
-        const aiResponse = response.choices[0]?.message?.content?.trim();
-        if (!aiResponse) {
-            return res.status(500).send({ error: "No se recibió una respuesta válida de OpenAI" });
-        }
-        // Guardar el mensaje de AI en la base de datos
-        const messageRequest = {
-            body: {
-                ChatID,
-                content: aiResponse,
-                sendertype: "ai",
-            },
+        const aiResponse = completion.choices[0].message.content;
+        // Crear un nuevo mensaje con la respuesta de la IA directamente en contentResponse
+        const aiMessage = await db_1.default.insert(messageSchema_1.default).values({
+            MessageID: (0, uuid_1.v4)(),
+            ChatID,
+            FileID,
+            contentFile: "NULL",
+            contentAsk: "NULL",
+            contentResponse: aiResponse,
+            sendertype: "ai",
+            status: "active"
+        }).returning();
+        return {
+            message: aiMessage[0],
+            content: aiResponse
         };
-        await (0, message_1.createMessage)(messageRequest, res);
-        // Enviar la respuesta al cliente
-        res.send({ response: aiResponse });
     }
     catch (error) {
-        console.error("Error generating AI response:", error);
-        if (error.response) {
-            return res.status(error.response.status).send({ error: error.response.data });
-        }
-        res.status(500).send({ error: "Error interno del servidor" });
+        console.error(error);
+        return reply.status(500).send({
+            error: "AI Response: Failed to generate response",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
     }
 };
 exports.default = generateAIResponse;

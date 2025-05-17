@@ -4,22 +4,28 @@ import { eq } from "drizzle-orm";
 import db from "@/db/db";
 import messageTable from "@/db/schemas/messageSchema";
 import { z, ZodError } from "zod";
-import generateAIResponse from "@/controllers/ai_response";
+import generateAIResponse, { AIRequest } from "@/controllers/ai_response";
 import filesTable from "@/db/schemas/filesSchema";
 import { parsePDF } from "@/controllers/readPdf";
 
 const createMessageSchema = z.object({
     ChatID: z.string().uuid({ message: "Invalid chat ID" }),
     FileID: z.string().uuid({ message: "Invalid file ID" }).optional(),
-    content: z.string().min(1, { message: "Content is required" }),
     sendertype: z.enum(["user", "ai"], { message: "Invalid sender type" }),
+    contentFile: z.string().optional(),
+    contentAsk: z.string().optional(),
+    contentResponse: z.string().optional(),
+    status: z.enum(["active", "inactive", "deleted"], { message: "Invalid status" }).default("active")
 });
 
 interface MessageBody {
     ChatID: string;
     FileID?: string;
-    content: string;
     sendertype: "user" | "ai";
+    contentFile?: string;
+    contentAsk?: string;
+    contentResponse?: string;
+    status?: "active" | "inactive" | "deleted";
 }
 
 const createMessage = async (
@@ -31,8 +37,11 @@ const createMessage = async (
             ...request.body,
             ChatID: request.body.ChatID.trim(),
             FileID: request.body.FileID?.trim(),
-            content: request.body.content.trim(),
-            sendertype: request.body.sendertype.trim()
+            sendertype: request.body.sendertype.trim(),
+            contentFile: request.body.contentFile?.trim(),
+            contentAsk: request.body.contentAsk?.trim(),
+            contentResponse: request.body.contentResponse?.trim(),
+            status: request.body.status || "active"
         };
         
         const result = createMessageSchema.safeParse(cleanedData);
@@ -44,9 +53,15 @@ const createMessage = async (
             });
         }
 
+        if (!result.data.contentFile && !result.data.contentAsk && !result.data.contentResponse) {
+            return reply.status(400).send({
+                error: "Message: Content validation error",
+                details: "At least one content field (contentFile, contentAsk, or contentResponse) must be present"
+            });
+        }
+
         let fileContent: string | null = null;
         let pdfContent = '';
-        const userQuestion = result.data.content;
 
         if (result.data.FileID) {
             const file = await db
@@ -77,24 +92,58 @@ const createMessage = async (
             MessageID: uuidv4(),
             ChatID: result.data.ChatID,
             FileID: result.data.FileID,
-            content: result.data.sendertype === "user" ? `ASK USER: ${userQuestion}` : userQuestion,
+            contentFile: result.data.contentFile || pdfContent,
+            contentAsk: result.data.contentAsk,
+            contentResponse: result.data.contentResponse,
             sendertype: result.data.sendertype,
-            status: "active"
+            status: result.data.status
         }).returning();
 
-        if (result.data.sendertype === "user") {
+        if (result.data.sendertype === "user" && result.data.contentAsk) {
             const aiRequest = {
                 body: {
-                    ask: userQuestion,
+                    ask: result.data.contentAsk,
                     ChatID: result.data.ChatID,
-                    FileID: result.data.FileID
-                },
-            };
+                    FileID: result.data.FileID,
+                    pdfContent: pdfContent
+                }
+            } as FastifyRequest<{ Body: AIRequest }>;
 
-            await generateAIResponse(aiRequest as FastifyRequest, reply);
+            const aiResponse = await generateAIResponse(aiRequest, reply);
+            
+            console.log('AI Response sent:', {
+                messageId: aiResponse.message.MessageID,
+                chatId: aiResponse.message.ChatID,
+                content: aiResponse.content,
+                timestamp: new Date().toISOString()
+            });
+            
+            return reply.status(201).send({ 
+                success: true,
+                message: {
+                    id: aiResponse.message.MessageID,
+                    chatId: aiResponse.message.ChatID,
+                    fileId: aiResponse.message.FileID,
+                    senderType: aiResponse.message.sendertype,
+                    content: aiResponse.content,
+                    createdAt: aiResponse.message.createdAt,
+                    status: aiResponse.message.status
+                }
+            });
         }
 
-        return reply.status(201).send({ message: "The message was successfully created", newMessage: newMessage[0] });
+        return reply.status(201).send({ 
+            success: true,
+            message: {
+                id: newMessage[0].MessageID,
+                chatId: newMessage[0].ChatID,
+                fileId: newMessage[0].FileID,
+                senderType: newMessage[0].sendertype,
+                content: newMessage[0].contentAsk || newMessage[0].contentResponse || newMessage[0].contentFile,
+                createdAt: newMessage[0].createdAt,
+                status: newMessage[0].status
+            }
+        });
 
     } catch (error) {
         console.error(error);
@@ -191,7 +240,7 @@ const updateMessage = async (
 ) => {
     try {
         const { MessageID } = request.params;
-        const { content } = request.body as { content: string };
+        const { contentAsk } = request.body as { contentAsk: string };
 
         const validation = z.string().uuid().safeParse(MessageID);
         if (!validation.success) {
@@ -201,8 +250,7 @@ const updateMessage = async (
             });
         }
 
-        // Validar el contenido del mensaje
-        if (!content || content.trim().length < 1) {
+        if (!contentAsk || contentAsk.trim().length < 1) {
             return reply.status(400).send({
                 error: "Invalid message content",
                 details: "Message content cannot be empty"
@@ -211,7 +259,7 @@ const updateMessage = async (
 
         const updatedMessage = await db
             .update(messageTable)
-            .set({ content: content.trim() })
+            .set({ contentAsk: contentAsk.trim() })
             .where(eq(messageTable.MessageID, MessageID))
             .returning();
 

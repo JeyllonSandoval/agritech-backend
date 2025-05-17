@@ -15,8 +15,11 @@ const readPdf_1 = require("../controllers/readPdf");
 const createMessageSchema = zod_1.z.object({
     ChatID: zod_1.z.string().uuid({ message: "Invalid chat ID" }),
     FileID: zod_1.z.string().uuid({ message: "Invalid file ID" }).optional(),
-    content: zod_1.z.string().min(1, { message: "Content is required" }),
     sendertype: zod_1.z.enum(["user", "ai"], { message: "Invalid sender type" }),
+    contentFile: zod_1.z.string().optional(),
+    contentAsk: zod_1.z.string().optional(),
+    contentResponse: zod_1.z.string().optional(),
+    status: zod_1.z.enum(["active", "inactive", "deleted"], { message: "Invalid status" }).default("active")
 });
 const createMessage = async (request, reply) => {
     try {
@@ -24,8 +27,11 @@ const createMessage = async (request, reply) => {
             ...request.body,
             ChatID: request.body.ChatID.trim(),
             FileID: request.body.FileID?.trim(),
-            content: request.body.content.trim(),
-            sendertype: request.body.sendertype.trim()
+            sendertype: request.body.sendertype.trim(),
+            contentFile: request.body.contentFile?.trim(),
+            contentAsk: request.body.contentAsk?.trim(),
+            contentResponse: request.body.contentResponse?.trim(),
+            status: request.body.status || "active"
         };
         const result = createMessageSchema.safeParse(cleanedData);
         if (!result.success) {
@@ -34,9 +40,14 @@ const createMessage = async (request, reply) => {
                 details: result.error.format()
             });
         }
+        if (!result.data.contentFile && !result.data.contentAsk && !result.data.contentResponse) {
+            return reply.status(400).send({
+                error: "Message: Content validation error",
+                details: "At least one content field (contentFile, contentAsk, or contentResponse) must be present"
+            });
+        }
         let fileContent = null;
         let pdfContent = '';
-        const userQuestion = result.data.content;
         if (result.data.FileID) {
             const file = await db_1.default
                 .select()
@@ -62,21 +73,53 @@ const createMessage = async (request, reply) => {
             MessageID: (0, uuid_1.v4)(),
             ChatID: result.data.ChatID,
             FileID: result.data.FileID,
-            content: result.data.sendertype === "user" ? `ASK USER: ${userQuestion}` : userQuestion,
+            contentFile: result.data.contentFile || pdfContent,
+            contentAsk: result.data.contentAsk,
+            contentResponse: result.data.contentResponse,
             sendertype: result.data.sendertype,
-            status: "active"
+            status: result.data.status
         }).returning();
-        if (result.data.sendertype === "user") {
+        if (result.data.sendertype === "user" && result.data.contentAsk) {
             const aiRequest = {
                 body: {
-                    ask: userQuestion,
+                    ask: result.data.contentAsk,
                     ChatID: result.data.ChatID,
-                    FileID: result.data.FileID
-                },
+                    FileID: result.data.FileID,
+                    pdfContent: pdfContent
+                }
             };
-            await (0, ai_response_1.default)(aiRequest, reply);
+            const aiResponse = await (0, ai_response_1.default)(aiRequest, reply);
+            console.log('AI Response sent:', {
+                messageId: aiResponse.message.MessageID,
+                chatId: aiResponse.message.ChatID,
+                content: aiResponse.content,
+                timestamp: new Date().toISOString()
+            });
+            return reply.status(201).send({
+                success: true,
+                message: {
+                    id: aiResponse.message.MessageID,
+                    chatId: aiResponse.message.ChatID,
+                    fileId: aiResponse.message.FileID,
+                    senderType: aiResponse.message.sendertype,
+                    content: aiResponse.content,
+                    createdAt: aiResponse.message.createdAt,
+                    status: aiResponse.message.status
+                }
+            });
         }
-        return reply.status(201).send({ message: "The message was successfully created", newMessage: newMessage[0] });
+        return reply.status(201).send({
+            success: true,
+            message: {
+                id: newMessage[0].MessageID,
+                chatId: newMessage[0].ChatID,
+                fileId: newMessage[0].FileID,
+                senderType: newMessage[0].sendertype,
+                content: newMessage[0].contentAsk || newMessage[0].contentResponse || newMessage[0].contentFile,
+                createdAt: newMessage[0].createdAt,
+                status: newMessage[0].status
+            }
+        });
     }
     catch (error) {
         console.error(error);
@@ -156,7 +199,7 @@ exports.getAllMessages = getAllMessages;
 const updateMessage = async (request, reply) => {
     try {
         const { MessageID } = request.params;
-        const { content } = request.body;
+        const { contentAsk } = request.body;
         const validation = zod_1.z.string().uuid().safeParse(MessageID);
         if (!validation.success) {
             return reply.status(400).send({
@@ -164,8 +207,7 @@ const updateMessage = async (request, reply) => {
                 details: "MessageID must be a valid UUID"
             });
         }
-        // Validar el contenido del mensaje
-        if (!content || content.trim().length < 1) {
+        if (!contentAsk || contentAsk.trim().length < 1) {
             return reply.status(400).send({
                 error: "Invalid message content",
                 details: "Message content cannot be empty"
@@ -173,7 +215,7 @@ const updateMessage = async (request, reply) => {
         }
         const updatedMessage = await db_1.default
             .update(messageSchema_1.default)
-            .set({ content: content.trim() })
+            .set({ contentAsk: contentAsk.trim() })
             .where((0, drizzle_orm_1.eq)(messageSchema_1.default.MessageID, MessageID))
             .returning();
         if (!updatedMessage.length) {

@@ -12,7 +12,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { sendVerificationEmail } from "@/utils/email";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB en bytes
-const UPLOAD_TIMEOUT = 10000; // 10 segundos
 
 // Esquema de validación para actualización de usuario
 const updateUserSchema = z.object({

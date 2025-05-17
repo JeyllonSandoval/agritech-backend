@@ -40,7 +40,7 @@ require("module-alias/register");
 const fastify_1 = __importDefault(require("fastify"));
 require("dotenv/config");
 const db_1 = __importDefault(require("./db/db"));
-const InitialSetup_1 = __importDefault(require("./libs/InitialSetup"));
+const InitialSetup_1 = require("./libs/InitialSetup");
 const multipart_1 = __importDefault(require("@fastify/multipart"));
 const cloudinary_1 = require("./db/services/cloudinary");
 const cors_1 = __importDefault(require("@fastify/cors"));
@@ -69,11 +69,12 @@ fastify.register(Promise.resolve().then(() => __importStar(require("./routers/co
 fastify.register(Promise.resolve().then(() => __importStar(require("./routers/file.routes"))));
 fastify.register(Promise.resolve().then(() => __importStar(require("./routers/chat.routes"))));
 fastify.register(Promise.resolve().then(() => __importStar(require("./routers/message.routes"))));
-// Funtion Create roles
-(0, InitialSetup_1.default)();
 const start = async () => {
     try {
         await (0, cloudinary_1.validateCloudinaryConnection)();
+        // Funtion Create roles and countries
+        await (0, InitialSetup_1.createRoles)();
+        await (0, InitialSetup_1.createCountries)();
         const port = process.env.PORT || 4000;
         await fastify.listen({
             port: parseInt(port.toString()),

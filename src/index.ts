@@ -2,7 +2,7 @@ import "module-alias/register";
 import Fastify from "fastify";
 import 'dotenv/config';
 import db from "@/db/db";
-import createRoles from "@/libs/InitialSetup";
+import { createRoles, createCountries } from "@/libs/InitialSetup";
 import multipart from "@fastify/multipart";
 import { validateCloudinaryConnection } from "@/db/services/cloudinary";
 import cors from "@fastify/cors";
@@ -36,12 +36,13 @@ fastify.register(import("@/routers/file.routes"));
 fastify.register(import("@/routers/chat.routes"));
 fastify.register(import("@/routers/message.routes"));
 
-// Funtion Create roles
-createRoles();
-
 const start = async () => {
     try {
         await validateCloudinaryConnection();
+
+        // Funtion Create roles and countries
+        await createRoles();
+        await createCountries();
 
         const port = process.env.PORT || 4000;
         await fastify.listen({ 

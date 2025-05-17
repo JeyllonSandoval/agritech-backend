@@ -7,6 +7,8 @@ import { parsePDF } from "@/controllers/readPdf";
 import filesTable from "@/db/schemas/filesSchema";
 import { eq } from "drizzle-orm";
 import db from "@/db/db";
+import messageTable from "@/db/schemas/messageSchema";
+import { v4 as uuidv4 } from "uuid";
 
 interface MessageBody {
     ChatID: string;
@@ -14,100 +16,91 @@ interface MessageBody {
     sendertype: "user" | "ai";
 }
 
+interface CreateMessageResponse {
+    message: string;
+    newMessage: {
+        MessageID: string;
+        ChatID: string;
+        FileID?: string;
+        sendertype: string;
+        contentFile?: string;
+        contentAsk?: string;
+        contentResponse?: string;
+        createdAt: string;
+        status: string;
+    };
+}
+
+export interface AIRequest {
+    ask: string;
+    ChatID: string;
+    FileID?: string;
+    pdfContent?: string;
+}
+
 const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY!,
+    apiKey: process.env.OPENAI_API_KEY,
 });
 
-const generateAIResponse = async (req: FastifyRequest, res: FastifyReply) => {
+const generateAIResponse = async (
+    request: FastifyRequest<{ Body: AIRequest }>,
+    reply: FastifyReply
+) => {
     try {
-        const { ask, ChatID, FileID } = req.body as { ask: string; ChatID: string; FileID?: string };
+        const { ask, ChatID, FileID, pdfContent } = request.body;
 
-        // Validar que los datos requeridos están presentes
-        if (!ask || !ChatID) {
-            return res.status(400).send({ error: "ChatID y pregunta ('ask') son obligatorios" });
-        }
-
-        // Obtener el historial del chat desde la base de datos
+        // Obtener el historial de mensajes del chat
         const chatHistory = await getMessagesForChat(ChatID);
+        
+        // Construir el contexto del chat
+        const chatContext: OpenAI.Chat.ChatCompletionMessageParam[] = chatHistory.map(msg => ({
+            role: msg.senderType === "user" ? "user" : "assistant",
+            content: msg.content || ""
+        }));
 
-        // Si hay un FileID, procesar el PDF y obtener su contenido
-        let pdfContext = "";
-        if (FileID) {
-            // Primero obtener la URL del archivo desde la base de datos
-            const file = await db
-                .select()
-                .from(filesTable)
-                .where(eq(filesTable.FileID, FileID));
-            
-            if (file.length > 0 && file[0].contentURL) {
-                const pdfRequest = {
-                    body: { fileURL: file[0].contentURL }
-                } as FastifyRequest;
-                
-                const pdfReply = {
-                    status: () => ({
-                        send: (data: any) => {
-                            pdfContext = data.data.rawText;
-                            return data;
-                        }
-                    })
-                } as unknown as FastifyReply;
-                
-                await parsePDF(pdfRequest, pdfReply);
-            }
+        // Construir el prompt con el contexto del PDF si existe
+        let systemPrompt = "Eres un asistente útil que responde preguntas basado en el contexto proporcionado.";
+        if (pdfContent) {
+            systemPrompt += `\n\nContexto del documento:\n${pdfContent}`;
         }
 
-        // Formatear los mensajes en el formato esperado por OpenAI
-        const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-            {
-                role: "system",
-                content: `Soy un asistente especializado en análisis de documentos PDF. 
-                ${pdfContext ? `He analizado el siguiente documento: ${pdfContext}` : ''}
-                Puedo ayudarte a responder preguntas sobre el contenido del documento y mantener una conversación coherente.`,
-            },
-            ...chatHistory.map(msg => ({
-                role: msg.sendertype === "user" ? ("user" as const) : ("assistant" as const),
-                content: msg.content
-            })),
-            {
-                role: "user" as const,
-                content: ask
-            }
-        ];
-
-        // Llamar a la API de OpenAI
-        const response = await openai.chat.completions.create({
+        // Llamar a OpenAI
+        const completion = await openai.chat.completions.create({
             model: "gpt-3.5-turbo",
-            messages: messages,
+            messages: [
+                { role: "system", content: systemPrompt },
+                ...chatContext,
+                { role: "user", content: ask }
+            ] as OpenAI.Chat.ChatCompletionMessageParam[],
+            temperature: 0.7,
+            max_tokens: 1000
         });
 
-        const aiResponse = response.choices[0]?.message?.content?.trim();
-        if (!aiResponse) {
-            return res.status(500).send({ error: "No se recibió una respuesta válida de OpenAI" });
-        }
+        const aiResponse = completion.choices[0].message.content;
 
-        // Guardar el mensaje de AI en la base de datos
-        const messageRequest = {
-            body: {
-                ChatID,
-                content: aiResponse,
-                sendertype: "ai" as const,
-            },
+        // Crear un nuevo mensaje con la respuesta de la IA directamente en contentResponse
+        const aiMessage = await db.insert(messageTable).values({
+            MessageID: uuidv4(),
+            ChatID,
+            FileID,
+            contentFile: "NULL",
+            contentAsk: "NULL",
+            contentResponse: aiResponse,
+            sendertype: "ai",
+            status: "active"
+        }).returning();
+
+        return {
+            message: aiMessage[0],
+            content: aiResponse
         };
 
-        await createMessage(messageRequest as FastifyRequest<{ Body: MessageBody }>, res);
-
-        // Enviar la respuesta al cliente
-        res.send({ response: aiResponse });
-
-    } catch (error: any) {
-        console.error("Error generating AI response:", error);
-
-        if (error.response) {
-            return res.status(error.response.status).send({ error: error.response.data });
-        }
-
-        res.status(500).send({ error: "Error interno del servidor" });
+    } catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "AI Response: Failed to generate response",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
     }
 };
 

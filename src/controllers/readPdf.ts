@@ -50,7 +50,7 @@ export const parsePDF = async (req: FastifyRequest, reply: FastifyReply) => {
     }
 };
 
-// 📌 Descargar el PDF de Cloudinary con control de errores
+// Descargar el PDF de Cloudinary con control de errores
 async function downloadPDF(url: string): Promise<Buffer> {
     try {
         const response = await axios.get(url, { responseType: "arraybuffer" });
@@ -65,7 +65,7 @@ async function downloadPDF(url: string): Promise<Buffer> {
     }
 }
 
-// 📌 Extraer el texto del PDF con un timeout seguro
+// Extraer el texto del PDF con un timeout seguro
 async function extractPDFText(buffer: Buffer): Promise<PDFData> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
@@ -78,13 +78,13 @@ async function extractPDFText(buffer: Buffer): Promise<PDFData> {
     }
 }
 
-// 📌 Validar si el archivo es un PDF
+// Validar si el archivo es un PDF
 function isPDFFormat(buffer: Buffer): boolean {
     const signature = buffer.slice(0, 5).toString();
     return signature === '%PDF-';
 }
 
-// 📌 Limpiar y estructurar el texto extraído
+// Limpiar y estructurar el texto extraído
 function processPDFText(text: string) {
     const cleanedText = text.replace(/\s+/g, ' ').trim();
     const lines = cleanedText.split('. ').filter(line => line.trim() !== '');
@@ -100,7 +100,7 @@ function processPDFText(text: string) {
     };
 }
 
-// 📌 Validar la estructura de la URL
+// Validar la estructura de la URL
 function isValidURL(url: string): boolean {
     try {
         new URL(url);

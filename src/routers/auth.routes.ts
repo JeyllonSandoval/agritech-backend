@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify";
-import { registerUser, loginUser, verifyEmail, requestPasswordReset, resetPassword, resendVerificationEmail, validateResetToken } from "@/controllers/auth";
+import { registerUser, loginUser } from "@/controllers/auth";
+import { verifyEmail, requestPasswordReset, resetPassword, resendVerificationEmail, validateResetToken } from "@/utils/FuntionsEmail";
 
 const authRoutes = async (fastify: FastifyInstance) => {
     fastify.post("/register", registerUser);

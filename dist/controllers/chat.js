@@ -119,9 +119,24 @@ const getChatHistory = async (req, reply) => {
             .from(messageSchema_1.default)
             .where((0, drizzle_orm_1.eq)(messageSchema_1.default.ChatID, ChatID))
             .orderBy(messageSchema_1.default.createdAt);
+        if (messages.length === 0) {
+            return reply.status(404).send({
+                error: "No messages found",
+                message: "No messages have been created in this chat yet"
+            });
+        }
+        const formattedMessages = messages.map(msg => ({
+            id: msg.MessageID,
+            chatId: msg.ChatID,
+            fileId: msg.FileID,
+            senderType: msg.sendertype,
+            content: msg.contentAsk || msg.contentResponse || msg.contentFile,
+            createdAt: msg.createdAt,
+            status: msg.status
+        }));
         return reply.status(200).send({
-            message: "Messages fetched successfully",
-            messages
+            success: true,
+            messages: formattedMessages
         });
     }
     catch (error) {
@@ -140,7 +155,15 @@ const getMessagesForChat = async (ChatID) => {
         .from(messageSchema_1.default)
         .where((0, drizzle_orm_1.eq)(messageSchema_1.default.ChatID, ChatID))
         .orderBy(messageSchema_1.default.createdAt);
-    return messages;
+    return messages.map(msg => ({
+        id: msg.MessageID,
+        chatId: msg.ChatID,
+        fileId: msg.FileID,
+        senderType: msg.sendertype,
+        content: msg.contentAsk || msg.contentResponse || msg.contentFile,
+        createdAt: msg.createdAt,
+        status: msg.status
+    }));
 };
 exports.getMessagesForChat = getMessagesForChat;
 const updateChat = async (req, reply) => {

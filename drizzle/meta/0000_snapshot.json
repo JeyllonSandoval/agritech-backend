@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "c6cced8a-443e-42ba-be7d-622061df77d4",
+  "id": "d0035991-6b4c-4bef-acba-911ce4487c90",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "chat_table": {
@@ -198,11 +198,25 @@
           "notNull": true,
           "autoincrement": false
         },
-        "content": {
-          "name": "content",
+        "contentFile": {
+          "name": "contentFile",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "contentAsk": {
+          "name": "contentAsk",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "contentResponse": {
+          "name": "contentResponse",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "createdAt": {
