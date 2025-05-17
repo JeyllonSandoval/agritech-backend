@@ -54,8 +54,8 @@ const generateAIResponse = async (
         
         // Construir el contexto del chat
         const chatContext: OpenAI.Chat.ChatCompletionMessageParam[] = chatHistory.map(msg => ({
-            role: msg.sendertype === "user" ? "user" : "assistant",
-            content: msg.contentAsk || msg.contentResponse || ""
+            role: msg.senderType === "user" ? "user" : "assistant",
+            content: msg.content || ""
         }));
 
         // Construir el prompt con el contexto del PDF si existe
@@ -79,7 +79,7 @@ const generateAIResponse = async (
         const aiResponse = completion.choices[0].message.content;
 
         // Crear un nuevo mensaje con la respuesta de la IA directamente en contentResponse
-        await db.insert(messageTable).values({
+        const aiMessage = await db.insert(messageTable).values({
             MessageID: uuidv4(),
             ChatID,
             FileID,
@@ -88,9 +88,12 @@ const generateAIResponse = async (
             contentResponse: aiResponse,
             sendertype: "ai",
             status: "active"
-        });
+        }).returning();
 
-        return aiResponse;
+        return {
+            message: aiMessage[0],
+            content: aiResponse
+        };
 
     } catch (error) {
         console.error(error);

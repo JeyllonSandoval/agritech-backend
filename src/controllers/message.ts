@@ -109,12 +109,40 @@ const createMessage = async (
                 }
             } as FastifyRequest<{ Body: AIRequest }>;
 
-            await generateAIResponse(aiRequest, reply);
+            const aiResponse = await generateAIResponse(aiRequest, reply);
+            
+            console.log('AI Response sent:', {
+                messageId: aiResponse.message.MessageID,
+                chatId: aiResponse.message.ChatID,
+                content: aiResponse.content,
+                timestamp: new Date().toISOString()
+            });
+            
+            return reply.status(201).send({ 
+                success: true,
+                message: {
+                    id: aiResponse.message.MessageID,
+                    chatId: aiResponse.message.ChatID,
+                    fileId: aiResponse.message.FileID,
+                    senderType: aiResponse.message.sendertype,
+                    content: aiResponse.content,
+                    createdAt: aiResponse.message.createdAt,
+                    status: aiResponse.message.status
+                }
+            });
         }
 
         return reply.status(201).send({ 
-            message: "The message was successfully created", 
-            newMessage: newMessage[0] 
+            success: true,
+            message: {
+                id: newMessage[0].MessageID,
+                chatId: newMessage[0].ChatID,
+                fileId: newMessage[0].FileID,
+                senderType: newMessage[0].sendertype,
+                content: newMessage[0].contentAsk || newMessage[0].contentResponse || newMessage[0].contentFile,
+                createdAt: newMessage[0].createdAt,
+                status: newMessage[0].status
+            }
         });
 
     } catch (error) {

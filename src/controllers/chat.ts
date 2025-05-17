@@ -138,9 +138,26 @@ const getChatHistory = async (
             .where(eq(messagesTable.ChatID, ChatID))
             .orderBy(messagesTable.createdAt);
 
+        if (messages.length === 0) {
+            return reply.status(404).send({
+                error: "No messages found",
+                message: "No messages have been created in this chat yet"
+            });
+        }
+
+        const formattedMessages = messages.map(msg => ({
+            id: msg.MessageID,
+            chatId: msg.ChatID,
+            fileId: msg.FileID,
+            senderType: msg.sendertype,
+            content: msg.contentAsk || msg.contentResponse || msg.contentFile,
+            createdAt: msg.createdAt,
+            status: msg.status
+        }));
+
         return reply.status(200).send({
-            message: "Messages fetched successfully",
-            messages
+            success: true,
+            messages: formattedMessages
         });
     } catch (error) {
         console.error(error);
@@ -159,7 +176,15 @@ const getMessagesForChat = async (ChatID: string) => {
         .where(eq(messagesTable.ChatID, ChatID))
         .orderBy(messagesTable.createdAt);
     
-    return messages;
+    return messages.map(msg => ({
+        id: msg.MessageID,
+        chatId: msg.ChatID,
+        fileId: msg.FileID,
+        senderType: msg.sendertype,
+        content: msg.contentAsk || msg.contentResponse || msg.contentFile,
+        createdAt: msg.createdAt,
+        status: msg.status
+    }));
 };
 
 const updateChat = async (

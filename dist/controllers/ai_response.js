@@ -19,8 +19,8 @@ const generateAIResponse = async (request, reply) => {
         const chatHistory = await (0, chat_1.getMessagesForChat)(ChatID);
         // Construir el contexto del chat
         const chatContext = chatHistory.map(msg => ({
-            role: msg.sendertype === "user" ? "user" : "assistant",
-            content: msg.contentAsk || msg.contentResponse || ""
+            role: msg.senderType === "user" ? "user" : "assistant",
+            content: msg.content || ""
         }));
         // Construir el prompt con el contexto del PDF si existe
         let systemPrompt = "Eres un asistente útil que responde preguntas basado en el contexto proporcionado.";
@@ -40,7 +40,7 @@ const generateAIResponse = async (request, reply) => {
         });
         const aiResponse = completion.choices[0].message.content;
         // Crear un nuevo mensaje con la respuesta de la IA directamente en contentResponse
-        await db_1.default.insert(messageSchema_1.default).values({
+        const aiMessage = await db_1.default.insert(messageSchema_1.default).values({
             MessageID: (0, uuid_1.v4)(),
             ChatID,
             FileID,
@@ -49,8 +49,11 @@ const generateAIResponse = async (request, reply) => {
             contentResponse: aiResponse,
             sendertype: "ai",
             status: "active"
-        });
-        return aiResponse;
+        }).returning();
+        return {
+            message: aiMessage[0],
+            content: aiResponse
+        };
     }
     catch (error) {
         console.error(error);
