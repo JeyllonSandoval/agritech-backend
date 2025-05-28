@@ -12,6 +12,7 @@ const chatRoutes = async (fastify) => {
     fastify.get("/chat/user/:UserID", chat_1.getChatUser);
     fastify.put("/chat/:ChatID", chat_1.updateChat);
     fastify.delete("/chat/:ChatID", chat_1.deleteChat);
+    fastify.delete("/chat/user/:UserID", chat_1.deleteAllUserChats);
 };
 exports.default = chatRoutes;
 //# sourceMappingURL=chat.routes.js.map
