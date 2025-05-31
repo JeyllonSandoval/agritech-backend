@@ -1,5 +1,5 @@
 import { FastifyInstance } from "fastify";
-import { createFiles, getFiles, getFileUser, deleteFile, updateFile } from "@/controllers/files";
+import { createFiles, getFiles, getFileUser, deleteFile, updateFile, deleteAllUserFiles } from "@/controllers/files";
 import { parsePDF } from "@/controllers/readPdf";
 
 const fileRoutes = async (fastify: FastifyInstance) => {
@@ -9,6 +9,7 @@ const fileRoutes = async (fastify: FastifyInstance) => {
     fastify.get("/files/user/:UserID", getFileUser);
     fastify.delete("/file/:FileID", deleteFile);
     fastify.put("/file/:FileID", updateFile);
+    fastify.delete("/files/user/:UserID", deleteAllUserFiles);
 }
 
 export default fileRoutes;

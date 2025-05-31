@@ -316,4 +316,50 @@ const updateFile = async (
     }
 };
 
-export { createFiles, getFiles, getFileUser, deleteFile, updateFile };
+const deleteAllUserFiles = async (
+    req: FastifyRequest<{ Params: { UserID: string } }>,
+    reply: FastifyReply
+) => {
+    try {
+        const { UserID } = req.params;
+
+        const validation = z.string().uuid().safeParse(UserID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid UserID format",
+                details: "UserID must be a valid UUID"
+            });
+        }
+
+        // Get all files for the user
+        const userFiles = await db
+            .select()
+            .from(filesTable)
+            .where(eq(filesTable.UserID, UserID));
+
+        if (!userFiles.length) {
+            return reply.status(404).send({
+                message: "No files found for this user"
+            });
+        }
+
+        // Delete all files for the user
+        const deletedFiles = await db
+            .delete(filesTable)
+            .where(eq(filesTable.UserID, UserID))
+            .returning();
+
+        return reply.status(200).send({
+            message: "All user files deleted successfully",
+            deletedFiles
+        });
+    } catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Failed to delete user files",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+
+export { createFiles, getFiles, getFileUser, deleteFile, updateFile, deleteAllUserFiles };

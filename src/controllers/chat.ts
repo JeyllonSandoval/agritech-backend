@@ -283,4 +283,57 @@ const deleteChat = async (
     }
 };
 
-export { createChat, getChats, getChatUser, getChatHistory, getMessagesForChat, updateChat, deleteChat };
+const deleteAllUserChats = async (
+    req: FastifyRequest<{ Params: { UserID: string } }>,
+    reply: FastifyReply
+) => {
+    try {
+        const { UserID } = req.params;
+
+        const validation = z.string().uuid().safeParse(UserID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid UserID format",
+                details: "UserID must be a valid UUID"
+            });
+        }
+
+        // First get all chats for the user
+        const userChats = await db
+            .select()
+            .from(chatsTable)
+            .where(eq(chatsTable.UserID, UserID));
+
+        if (!userChats.length) {
+            return reply.status(404).send({
+                message: "No chats found for this user"
+            });
+        }
+
+        // Delete all messages associated with these chats
+        for (const chat of userChats) {
+            await db
+                .delete(messagesTable)
+                .where(eq(messagesTable.ChatID, chat.ChatID));
+        }
+
+        // Delete all chats for the user
+        const deletedChats = await db
+            .delete(chatsTable)
+            .where(eq(chatsTable.UserID, UserID))
+            .returning();
+
+        return reply.status(200).send({
+            message: "All user chats and associated messages deleted successfully",
+            deletedChats
+        });
+    } catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Failed to delete user chats",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+
+export { createChat, getChats, getChatUser, getChatHistory, getMessagesForChat, updateChat, deleteChat, deleteAllUserChats };

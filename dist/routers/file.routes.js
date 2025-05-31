@@ -9,6 +9,7 @@ const fileRoutes = async (fastify) => {
     fastify.get("/files/user/:UserID", files_1.getFileUser);
     fastify.delete("/file/:FileID", files_1.deleteFile);
     fastify.put("/file/:FileID", files_1.updateFile);
+    fastify.delete("/files/user/:UserID", files_1.deleteAllUserFiles);
 };
 exports.default = fileRoutes;
 //# sourceMappingURL=file.routes.js.map

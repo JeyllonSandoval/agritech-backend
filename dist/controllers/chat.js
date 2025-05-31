@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteChat = exports.updateChat = exports.getMessagesForChat = exports.getChatHistory = exports.getChatUser = exports.getChats = exports.createChat = void 0;
+exports.deleteAllUserChats = exports.deleteChat = exports.updateChat = exports.getMessagesForChat = exports.getChatHistory = exports.getChatUser = exports.getChats = exports.createChat = void 0;
 const db_1 = __importDefault(require("../db/db"));
 const chatSchema_1 = __importDefault(require("../db/schemas/chatSchema"));
 const uuid_1 = require("uuid");
@@ -248,4 +248,49 @@ const deleteChat = async (req, reply) => {
     }
 };
 exports.deleteChat = deleteChat;
+const deleteAllUserChats = async (req, reply) => {
+    try {
+        const { UserID } = req.params;
+        const validation = zod_1.z.string().uuid().safeParse(UserID);
+        if (!validation.success) {
+            return reply.status(400).send({
+                error: "Invalid UserID format",
+                details: "UserID must be a valid UUID"
+            });
+        }
+        // First get all chats for the user
+        const userChats = await db_1.default
+            .select()
+            .from(chatSchema_1.default)
+            .where((0, drizzle_orm_1.eq)(chatSchema_1.default.UserID, UserID));
+        if (!userChats.length) {
+            return reply.status(404).send({
+                message: "No chats found for this user"
+            });
+        }
+        // Delete all messages associated with these chats
+        for (const chat of userChats) {
+            await db_1.default
+                .delete(messageSchema_1.default)
+                .where((0, drizzle_orm_1.eq)(messageSchema_1.default.ChatID, chat.ChatID));
+        }
+        // Delete all chats for the user
+        const deletedChats = await db_1.default
+            .delete(chatSchema_1.default)
+            .where((0, drizzle_orm_1.eq)(chatSchema_1.default.UserID, UserID))
+            .returning();
+        return reply.status(200).send({
+            message: "All user chats and associated messages deleted successfully",
+            deletedChats
+        });
+    }
+    catch (error) {
+        console.error(error);
+        return reply.status(500).send({
+            error: "Failed to delete user chats",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+};
+exports.deleteAllUserChats = deleteAllUserChats;
 //# sourceMappingURL=chat.js.map
