@@ -14,6 +14,18 @@ CREATE TABLE `country_table` (
 	`status` text NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE `device_table` (
+	`DeviceID` text(36) PRIMARY KEY NOT NULL,
+	`DeviceName` text NOT NULL,
+	`DeviceMac` text NOT NULL,
+	`DeviceApplicationKey` text NOT NULL,
+	`DeviceApiKey` text NOT NULL,
+	`DeviceType` text NOT NULL,
+	`UserID` text NOT NULL,
+	`createdAt` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
+	`status` text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `files_table` (
 	`FileID` text(36) PRIMARY KEY NOT NULL,
 	`UserID` text(36) NOT NULL,
@@ -64,4 +76,7 @@ CREATE TABLE `users_Table` (
 	FOREIGN KEY (`CountryID`) REFERENCES `country_table`(`CountryID`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
+CREATE UNIQUE INDEX `device_table_DeviceID_unique` ON `device_table` (`DeviceID`);--> statement-breakpoint
+CREATE UNIQUE INDEX `device_table_DeviceMac_unique` ON `device_table` (`DeviceMac`);--> statement-breakpoint
+CREATE UNIQUE INDEX `device_table_DeviceApplicationKey_unique` ON `device_table` (`DeviceApplicationKey`);--> statement-breakpoint
 CREATE UNIQUE INDEX `users_Table_Email_unique` ON `users_Table` (`Email`);

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.rolesTable = exports.filesTable = exports.countryTable = exports.chatTable = exports.messageTable = exports.usersTable = void 0;
+exports.deviceTable = exports.rolesTable = exports.filesTable = exports.countryTable = exports.chatTable = exports.messageTable = exports.usersTable = void 0;
 const usersSchema_1 = __importDefault(require("../../db/schemas/usersSchema"));
 exports.usersTable = usersSchema_1.default;
 const messageSchema_1 = __importDefault(require("../../db/schemas/messageSchema"));
@@ -16,4 +16,6 @@ const filesSchema_1 = __importDefault(require("../../db/schemas/filesSchema"));
 exports.filesTable = filesSchema_1.default;
 const rolesSchema_1 = __importDefault(require("../../db/schemas/rolesSchema"));
 exports.rolesTable = rolesSchema_1.default;
+const deviceSchema_1 = __importDefault(require("../../db/schemas/deviceSchema"));
+exports.deviceTable = deviceSchema_1.default;
 //# sourceMappingURL=schemas.js.map

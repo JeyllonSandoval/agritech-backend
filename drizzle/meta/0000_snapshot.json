@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "d0035991-6b4c-4bef-acba-911ce4487c90",
+  "id": "a452129f-85c4-4dd9-aba9-e190ecfaacea",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "chat_table": {
@@ -97,6 +97,101 @@
         }
       },
       "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "device_table": {
+      "name": "device_table",
+      "columns": {
+        "DeviceID": {
+          "name": "DeviceID",
+          "type": "text(36)",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "DeviceName": {
+          "name": "DeviceName",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "DeviceMac": {
+          "name": "DeviceMac",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "DeviceApplicationKey": {
+          "name": "DeviceApplicationKey",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "DeviceApiKey": {
+          "name": "DeviceApiKey",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "DeviceType": {
+          "name": "DeviceType",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "UserID": {
+          "name": "UserID",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(CURRENT_TIMESTAMP)"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "device_table_DeviceID_unique": {
+          "name": "device_table_DeviceID_unique",
+          "columns": [
+            "DeviceID"
+          ],
+          "isUnique": true
+        },
+        "device_table_DeviceMac_unique": {
+          "name": "device_table_DeviceMac_unique",
+          "columns": [
+            "DeviceMac"
+          ],
+          "isUnique": true
+        },
+        "device_table_DeviceApplicationKey_unique": {
+          "name": "device_table_DeviceApplicationKey_unique",
+          "columns": [
+            "DeviceApplicationKey"
+          ],
+          "isUnique": true
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}

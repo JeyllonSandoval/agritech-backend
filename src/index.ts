@@ -35,6 +35,7 @@ fastify.register(import("@/routers/country.routes"));
 fastify.register(import("@/routers/file.routes"));
 fastify.register(import("@/routers/chat.routes"));
 fastify.register(import("@/routers/message.routes"));
+fastify.register(import("@/routers/device.routes"));
 
 const start = async () => {
     try {
