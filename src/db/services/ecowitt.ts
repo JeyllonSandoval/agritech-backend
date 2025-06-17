@@ -1,9 +1,37 @@
 import db from '@/db/db';
 import devices from '@/db/schemas/deviceSchema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import axios from 'axios';
 
 const ECOWITT_API_BASE = 'https://api.ecowitt.net/api/v3';
+
+// Tipos de datos para la API
+interface DeviceInfo {
+  device_id: string;
+  model: string;
+  name: string;
+  location: {
+    latitude: number;
+    longitude: number;
+    elevation: number;
+  };
+  sensors: Array<{
+    name: string;
+    type: string;
+    unit: string;
+  }>;
+}
+
+interface HistoricalData {
+  timestamp: string;
+  data: Record<string, any>;
+}
+
+interface DeviceResponse {
+  mac: string;
+  data?: any;
+  error?: string;
+}
 
 export class EcowittService {
   /**
@@ -180,5 +208,147 @@ export class EcowittService {
       }
       throw error;
     }
+  }
+
+  /**
+   * Obtener datos históricos de múltiples dispositivos
+   * Nota: La API de EcoWitt requiere una llamada individual por dispositivo
+   */
+  static async getMultipleDevicesHistory(
+    devices: Array<{ applicationKey: string; apiKey: string; mac: string }>,
+    startTime: string,
+    endTime: string
+  ): Promise<Record<string, any>> {
+    try {
+      // Realizar llamadas en paralelo para cada dispositivo
+      const promises = devices.map(device => 
+        this.getDeviceHistory(device.applicationKey, device.apiKey, device.mac, startTime, endTime)
+          .then(data => ({ mac: device.mac, data } as DeviceResponse))
+          .catch(error => ({ mac: device.mac, error: error.message } as DeviceResponse))
+      );
+      
+      const results = await Promise.all(promises);
+      
+      // Agrupar resultados por MAC address
+      return results.reduce((acc, result) => {
+        acc[result.mac] = result.data || { error: result.error };
+        return acc;
+      }, {} as Record<string, any>);
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Ecowitt API Error: ${error.response?.data?.message || error.message}`);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Obtener datos en tiempo real de múltiples dispositivos
+   * Nota: La API de EcoWitt requiere una llamada individual por dispositivo
+   */
+  static async getMultipleDevicesRealtime(
+    devices: Array<{ applicationKey: string; apiKey: string; mac: string }>
+  ): Promise<Record<string, any>> {
+    try {
+      // Realizar llamadas en paralelo para cada dispositivo
+      const promises = devices.map(device => 
+        this.getDeviceRealtime(device.applicationKey, device.apiKey, device.mac)
+          .then(data => ({ mac: device.mac, data } as DeviceResponse))
+          .catch(error => ({ mac: device.mac, error: error.message } as DeviceResponse))
+      );
+      
+      const results = await Promise.all(promises);
+      
+      // Agrupar resultados por MAC address
+      return results.reduce((acc, result) => {
+        acc[result.mac] = result.data || { error: result.error };
+        return acc;
+      }, {} as Record<string, any>);
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Ecowitt API Error: ${error.response?.data?.message || error.message}`);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Obtener información detallada de un dispositivo
+   */
+  static async getDeviceDetailedInfo(applicationKey: string, apiKey: string, mac: string) {
+    try {
+      // La API de EcoWitt no tiene un endpoint específico para información detallada
+      // Obtenemos la información combinando real_time y config
+      const [realtimeData, configData] = await Promise.all([
+        this.getDeviceRealtime(applicationKey, apiKey, mac),
+        this.getDeviceConfig(applicationKey, apiKey, mac)
+      ]);
+
+      return {
+        device_id: configData.device_id,
+        model: configData.model,
+        name: configData.name,
+        location: {
+          latitude: configData.latitude,
+          longitude: configData.longitude,
+          elevation: configData.elevation
+        },
+        sensors: Object.entries(realtimeData)
+          .filter(([key]) => !['dateutc', 'stationtype', 'freq', 'model'].includes(key))
+          .map(([key, value]) => ({
+            name: key,
+            type: typeof value,
+            unit: this.getSensorUnit(key)
+          }))
+      };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(`Ecowitt API Error: ${error.response?.data?.message || error.message}`);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Helper para obtener la unidad de medida de un sensor
+   */
+  private static getSensorUnit(sensorName: string): string {
+    const unitMap: Record<string, string> = {
+      temperature: '°C',
+      humidity: '%',
+      pressure: 'hPa',
+      wind_speed: 'km/h',
+      wind_direction: '°',
+      rainfall: 'mm',
+      uv: 'index',
+      solar_radiation: 'W/m²',
+      pm25: 'μg/m³',
+      pm10: 'μg/m³',
+      co2: 'ppm',
+      soil_temperature: '°C',
+      soil_moisture: '%',
+      leaf_temperature: '°C',
+      leaf_wetness: '%'
+    };
+
+    return unitMap[sensorName] || 'unknown';
+  }
+
+  /**
+   * Obtener dispositivos por IDs específicos
+   */
+  static async getDevicesByIds(deviceIds: string[]) {
+    return await db.select().from(devices).where(
+      inArray(devices.DeviceID, deviceIds)
+    );
+  }
+
+  /**
+   * Obtener dispositivos por Application Keys específicos
+   */
+  static async getDevicesByApplicationKeys(applicationKeys: string[]) {
+    return await db.select().from(devices).where(
+      inArray(devices.DeviceApplicationKey, applicationKeys)
+    );
   }
 }

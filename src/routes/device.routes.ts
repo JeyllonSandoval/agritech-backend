@@ -15,4 +15,20 @@ export default async function deviceRoutes(fastify: FastifyInstance) {
   fastify.get('/devices/:applicationKey/status', DeviceController.getDeviceStatus);
   fastify.get('/devices/:applicationKey/config', DeviceController.getDeviceConfig);
   fastify.put('/devices/:applicationKey/config', DeviceController.updateDeviceConfig);
+
+  // Rutas para datos del dispositivo
+  fastify.get(
+    '/devices/:applicationKey/detailed-info',
+    DeviceController.getDeviceDetailedInfo
+  );
+
+  fastify.get(
+    '/devices/history',
+    DeviceController.getMultipleDevicesHistory
+  );
+
+  fastify.get(
+    '/devices/realtime',
+    DeviceController.getMultipleDevicesRealtime
+  );
 }

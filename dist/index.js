@@ -63,13 +63,15 @@ fastify.get("/", async (_request) => {
     return { message: "¡Hello, Fastify!. This is a new era 2.0" };
 });
 // Importing routes
-fastify.register(Promise.resolve().then(() => __importStar(require("./routers/auth.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("./routers/user.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("./routers/country.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("./routers/file.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("./routers/chat.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("./routers/message.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("./routers/device.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("./routes/auth.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("./routes/user.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("./routes/country.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("./routes/file.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("./routes/chat.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("./routes/message.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("./routes/device.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("./routes/deviceGroup.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("./routes/deviceComparison.routes"))));
 const start = async () => {
     try {
         await (0, cloudinary_1.validateCloudinaryConnection)();

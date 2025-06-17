@@ -2,6 +2,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { EcowittService } from '@/db/services/ecowitt';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
+import { TimeRangeType, getTimeRange } from '@/utils/timeRanges';
 
 // Schemas para validación
 const macAddressRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
@@ -36,6 +37,21 @@ const updateDeviceSchema = createDeviceSchema.partial().refine(
   (data) => Object.keys(data).length > 0,
   { message: "At least one field must be provided for update" }
 );
+
+// Nuevos schemas para validación
+const deviceIdsSchema = z.object({
+  deviceIds: z.array(z.string().uuid())
+});
+
+const applicationKeysSchema = z.object({
+  applicationKeys: z.array(z.string())
+});
+
+const timeRangeSchema = z.object({
+  rangeType: z.nativeEnum(TimeRangeType),
+  customStartTime: z.string().datetime().optional(),
+  customEndTime: z.string().datetime().optional()
+});
 
 export class DeviceController {
   /**
@@ -273,6 +289,120 @@ export class DeviceController {
       return reply.send(updatedConfig);
     } catch (error) {
       return reply.code(500).send({ error: 'Error al actualizar la configuración del dispositivo' });
+    }
+  }
+
+  /**
+   * Obtener información detallada de un dispositivo
+   */
+  static async getDeviceDetailedInfo(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { applicationKey } = request.params as { applicationKey: string };
+
+      const device = await EcowittService.getDeviceByApplicationKey(applicationKey);
+      if (!device) {
+        return reply.code(404).send({ error: 'Dispositivo no encontrado' });
+      }
+
+      const deviceInfo = await EcowittService.getDeviceDetailedInfo(
+        device.DeviceApplicationKey,
+        device.DeviceApiKey,
+        device.DeviceMac
+      );
+      return reply.send(deviceInfo);
+    } catch (error) {
+      console.error('Error getting device detailed info:', error);
+      return reply.code(500).send({ 
+        error: 'Error al obtener información detallada del dispositivo',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Obtener datos históricos de múltiples dispositivos
+   */
+  static async getMultipleDevicesHistory(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { deviceIds } = request.query as { deviceIds: string };
+      const { rangeType, customStartTime, customEndTime } = timeRangeSchema.parse(request.query);
+
+      const parsedDeviceIds = deviceIds.split(',').map(id => id.trim());
+      const devices = await EcowittService.getDevicesByIds(parsedDeviceIds);
+      if (devices.length === 0) {
+        return reply.code(404).send({ error: 'No se encontraron dispositivos' });
+      }
+
+      const { startTime, endTime } = getTimeRange(rangeType, customStartTime, customEndTime);
+
+      const deviceData = devices.map(device => ({
+        applicationKey: device.DeviceApplicationKey,
+        apiKey: device.DeviceApiKey,
+        mac: device.DeviceMac
+      }));
+
+      const historyData = await EcowittService.getMultipleDevicesHistory(
+        deviceData,
+        startTime,
+        endTime
+      );
+
+      return reply.send({
+        timeRange: {
+          type: rangeType,
+          startTime,
+          endTime
+        },
+        data: historyData
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.code(400).send({ 
+          error: 'Validation error', 
+          details: error.errors 
+        });
+      }
+      console.error('Error getting multiple devices history:', error);
+      return reply.code(500).send({ 
+        error: 'Error al obtener datos históricos de los dispositivos',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Obtener datos en tiempo real de múltiples dispositivos
+   */
+  static async getMultipleDevicesRealtime(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { deviceIds } = request.query as { deviceIds: string };
+
+      const parsedDeviceIds = deviceIds.split(',').map(id => id.trim());
+      const devices = await EcowittService.getDevicesByIds(parsedDeviceIds);
+      if (devices.length === 0) {
+        return reply.code(404).send({ error: 'No se encontraron dispositivos' });
+      }
+
+      const deviceData = devices.map(device => ({
+        applicationKey: device.DeviceApplicationKey,
+        apiKey: device.DeviceApiKey,
+        mac: device.DeviceMac
+      }));
+
+      const realtimeData = await EcowittService.getMultipleDevicesRealtime(deviceData);
+      return reply.send(realtimeData);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return reply.code(400).send({ 
+          error: 'Validation error', 
+          details: error.errors 
+        });
+      }
+      console.error('Error getting multiple devices realtime data:', error);
+      return reply.code(500).send({ 
+        error: 'Error al obtener datos en tiempo real de los dispositivos',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }
 }

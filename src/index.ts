@@ -29,13 +29,15 @@ fastify.get("/", async (_request) => {
 });
 
 // Importing routes
-fastify.register(import("@/routers/auth.routes"));
-fastify.register(import("@/routers/user.routes"));
-fastify.register(import("@/routers/country.routes"));
-fastify.register(import("@/routers/file.routes"));
-fastify.register(import("@/routers/chat.routes"));
-fastify.register(import("@/routers/message.routes"));
-fastify.register(import("@/routers/device.routes"));
+fastify.register(import("@/routes/auth.routes"));
+fastify.register(import("@/routes/user.routes"));
+fastify.register(import("@/routes/country.routes"));
+fastify.register(import("@/routes/file.routes"));
+fastify.register(import("@/routes/chat.routes"));
+fastify.register(import("@/routes/message.routes"));
+fastify.register(import("@/routes/device.routes"));
+fastify.register(import("@/routes/deviceGroup.routes"));
+fastify.register(import("@/routes/deviceComparison.routes"));
 
 const start = async () => {
     try {

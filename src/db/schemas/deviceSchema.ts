@@ -1,16 +1,14 @@
 import { sql } from "drizzle-orm";
-import { sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
-const deviceTable = sqliteTable("device_table", {
-    DeviceID: text("DeviceID", { length: 36 }).primaryKey().notNull().unique(),
-    DeviceName: text("DeviceName").notNull(),
-    DeviceMac: text("DeviceMac").notNull().unique(),
-    DeviceApplicationKey: text("DeviceApplicationKey").notNull().unique(),
-    DeviceApiKey: text("DeviceApiKey").notNull(),
-    DeviceType: text("DeviceType").notNull(),
-    UserID: text("UserID").notNull(),
-    createdAt: text("createdAt").default(sql `(CURRENT_TIMESTAMP)`).notNull(),
-    status: text("status").notNull(),
+export default sqliteTable('device_table', {
+  DeviceID: text('device_id').primaryKey(),
+  UserID: text('user_id').notNull(),
+  DeviceName: text('device_name').notNull(),
+  DeviceMac: text('device_mac').notNull(),
+  DeviceApplicationKey: text('device_application_key').notNull(),
+  DeviceApiKey: text('device_api_key').notNull(),
+  DeviceType: text('device_type').notNull(),
+  createdAt: text('created_at').default(sql `(CURRENT_TIMESTAMP)`).notNull(),
+  status: text('status').notNull().default('active')
 });
-
-export default deviceTable;
