@@ -13,7 +13,7 @@ export class DeviceGroupService {
     DeviceGroupID: string;
     GroupName: string;
     UserID: string;
-    description?: string;
+    Description?: string;
     deviceIds: { DeviceGroupMemberID: string; DeviceID: string; }[];
   }) {
     const { deviceIds, ...groupInfo } = groupData;
@@ -73,7 +73,7 @@ export class DeviceGroupService {
     DeviceGroupID: string,
     updateData: {
       GroupName?: string;
-      description?: string;
+      Description?: string;
       deviceIds?: { DeviceGroupMemberID: string; DeviceID: string; }[];
     }
   ) {

@@ -32,20 +32,27 @@ export class DeviceGroupController {
       Body: {
         GroupName: string;
         UserID: string;
-        description?: string;
+        Description?: string;
         deviceIds: string[];
       };
     }>,
     reply: FastifyReply
   ) {
     try {
-      const { GroupName, UserID, description, deviceIds } = request.body;
+      const { GroupName, UserID, Description, deviceIds } = request.body;
+
+      // Validar que deviceIds sea un array válido
+      if (!Array.isArray(deviceIds) || deviceIds.length === 0) {
+        return reply.status(400).send({
+          error: 'Se requiere al menos un dispositivo en el grupo'
+        });
+      }
 
       const group = await DeviceGroupService.createGroup({
         DeviceGroupID: uuidv4(),
         GroupName,
         UserID,
-        description,
+        Description,
         deviceIds: deviceIds.map(id => ({
           DeviceGroupMemberID: uuidv4(),
           DeviceID: id
@@ -147,7 +154,7 @@ export class DeviceGroupController {
       };
       Body: {
         GroupName?: string;
-        description?: string;
+        Description?: string;
         deviceIds?: string[];
       };
     }>,
@@ -155,11 +162,11 @@ export class DeviceGroupController {
   ) {
     try {
       const { id } = request.params;
-      const { GroupName, description, deviceIds } = request.body;
+      const { GroupName, Description, deviceIds } = request.body;
 
       const group = await DeviceGroupService.updateGroup(id, {
         GroupName,
-        description,
+        Description,
         deviceIds: deviceIds?.map(deviceId => ({
           DeviceGroupMemberID: uuidv4(),
           DeviceID: deviceId
