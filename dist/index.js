@@ -73,6 +73,7 @@ fastify.register(Promise.resolve().then(() => __importStar(require("./routes/dev
 fastify.register(Promise.resolve().then(() => __importStar(require("./routes/deviceGroup.routes"))));
 fastify.register(Promise.resolve().then(() => __importStar(require("./routes/deviceComparison.routes"))));
 fastify.register(Promise.resolve().then(() => __importStar(require("./routes/weather.routes"))), { prefix: '/api/weather' });
+fastify.register(Promise.resolve().then(() => __importStar(require("./routes/reports.routes"))), { prefix: '/api' });
 const start = async () => {
     try {
         await (0, cloudinary_1.validateCloudinaryConnection)();

@@ -39,6 +39,7 @@ fastify.register(import("@/routes/device.routes"));
 fastify.register(import("@/routes/deviceGroup.routes"));
 fastify.register(import("@/routes/deviceComparison.routes"));
 fastify.register(import("@/routes/weather.routes"), { prefix: '/api/weather' });
+fastify.register(import("@/routes/reports.routes"), { prefix: '/api' });
 
 const start = async () => {
     try {
