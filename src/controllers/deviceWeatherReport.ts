@@ -1,91 +1,79 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { DeviceWeatherReportService } from '@/db/services/deviceWeatherReport';
-import { z } from 'zod';
 import cloudinary from '@/db/services/cloudinary';
+import { PDFGenerator } from '@/utils/pdfGenerator';
 import db from '@/db/db';
 import filesTable from '@/db/schemas/filesSchema';
-import { v4 as uuidv4 } from 'uuid';
-import { UploadApiResponse } from 'cloudinary';
+import { z } from 'zod';
 import { eq, and, like } from 'drizzle-orm';
+import { v4 as uuidv4 } from 'uuid';
 
-// Schemas para validación
-const generateDeviceReportSchema = z.object({
-  applicationKey: z.string().min(1),
-  userId: z.string().uuid(),
-  includeHistory: z.boolean().default(false),
+// Esquemas de validación
+const deviceReportSchema = z.object({
+  deviceId: z.string().uuid('Device ID debe ser un UUID válido'),
+  userId: z.string().uuid('User ID debe ser un UUID válido'),
+  includeHistory: z.boolean().optional().default(false),
   historyRange: z.object({
-    startTime: z.string().datetime(),
-    endTime: z.string().datetime()
+    startTime: z.string().datetime('startTime debe ser una fecha ISO válida'),
+    endTime: z.string().datetime('endTime debe ser una fecha ISO válida')
   }).optional(),
-  format: z.enum(['json', 'pdf']).default('pdf')
+  format: z.enum(['pdf', 'json']).optional().default('pdf')
 });
 
-const generateGroupReportSchema = z.object({
-  groupId: z.string().uuid(),
-  userId: z.string().uuid(),
-  includeHistory: z.boolean().default(false),
+const groupReportSchema = z.object({
+  groupId: z.string().uuid('Group ID debe ser un UUID válido'),
+  userId: z.string().uuid('User ID debe ser un UUID válido'),
+  includeHistory: z.boolean().optional().default(false),
   historyRange: z.object({
-    startTime: z.string().datetime(),
-    endTime: z.string().datetime()
+    startTime: z.string().datetime('startTime debe ser una fecha ISO válida'),
+    endTime: z.string().datetime('endTime debe ser una fecha ISO válida')
   }).optional(),
-  format: z.enum(['json', 'pdf']).default('pdf')
+  format: z.enum(['pdf', 'json']).optional().default('pdf')
 });
 
 export class DeviceWeatherReportController {
   /**
-   * Genera un reporte combinado para un dispositivo individual
-   * POST /api/reports/device
+   * Generar reporte de dispositivo individual
    */
   static async generateDeviceReport(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const body = request.body as any;
-      
-      // Validar el cuerpo de la petición
-      const validation = generateDeviceReportSchema.safeParse(body);
-      if (!validation.success) {
-        return reply.status(400).send({
-          success: false,
-          message: 'Datos de entrada inválidos',
-          errors: validation.error.errors
-        });
-      }
+      // Validar datos de entrada
+      const validatedData = deviceReportSchema.parse(request.body);
+      const { deviceId, userId, includeHistory, historyRange, format } = validatedData;
 
-      const { applicationKey, userId, includeHistory, historyRange, format } = validation.data;
-
-      // 1. Generar el reporte
-      const report = await DeviceWeatherReportService.generateDeviceWeatherReport(
-        applicationKey,
+      // Generar el reporte
+      const result = await DeviceWeatherReportService.generateDeviceReport(
+        deviceId,
         userId,
         includeHistory,
         historyRange
       );
 
-      let fileBuffer: Buffer;
+      // Preparar el contenido del archivo
+      let fileContent: Buffer | string;
       let fileName: string;
-      let mimeType: string;
+      let folder: string;
 
       if (format === 'pdf') {
-        // 2. Generar PDF
-        fileBuffer = await DeviceWeatherReportService.generateReportPDF(report);
-        fileName = DeviceWeatherReportService.generateFileName(report, 'pdf');
-        mimeType = 'application/pdf';
+        // Generar PDF - pasar directamente los datos del reporte
+        fileContent = await PDFGenerator.generateDevicePDF(result.report.data);
+        fileName = DeviceWeatherReportService.generateFileName(result.device.DeviceName, 'pdf');
+        folder = 'WeatherReports_PDF_AgriTech';
       } else {
-        // 2. Convertir a JSON
-        const jsonContent = DeviceWeatherReportService.convertReportToJson(report);
-        fileBuffer = Buffer.from(jsonContent, 'utf-8');
-        fileName = DeviceWeatherReportService.generateFileName(report, 'json');
-        mimeType = 'application/json';
+        // Generar JSON
+        fileContent = JSON.stringify(result.report, null, 2);
+        fileName = DeviceWeatherReportService.generateFileName(result.device.DeviceName, 'json');
+        folder = 'WeatherReports_JSON_AgriTech';
       }
 
-      // 3. Subir a Cloudinary
-      const uploadPromise = new Promise<UploadApiResponse>((resolve, reject) => {
+      // Subir archivo a Cloudinary
+      const uploadResult = await new Promise<any>((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           {
-            resource_type: 'auto',
-            folder: format === 'pdf' ? 'WeatherReports_PDF_AgriTech' : 'WeatherReports_JSON_AgriTech',
-            timeout: format === 'pdf' ? 15000 : 10000,
-            allowed_formats: format === 'pdf' ? ['pdf'] : ['json'],
-            format: format
+            resource_type: "auto",
+            folder: "PDFs_Group_AgriTech",
+            allowed_formats: ['pdf'],
+            format: 'pdf'
           },
           (error, result) => {
             if (error) return reject(error);
@@ -93,49 +81,53 @@ export class DeviceWeatherReportController {
             resolve(result);
           }
         );
-        uploadStream.end(fileBuffer);
+        
+        if (fileContent instanceof Buffer) {
+          uploadStream.end(fileContent);
+        } else {
+          uploadStream.end(Buffer.from(fileContent as string, 'utf-8'));
+        }
       });
 
-      const cloudinaryUpload = await Promise.race([
-        uploadPromise,
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('UPLOAD_TIMEOUT')), format === 'pdf' ? 15000 : 10000)
-        )
-      ]) as UploadApiResponse;
-
-      // 4. Guardar en la base de datos
+      // Guardar registro en la base de datos
       const fileID = uuidv4();
-      await db
-        .insert(filesTable)
-        .values({
-          FileID: fileID,
-          UserID: userId,
-          FileName: fileName,
-          contentURL: cloudinaryUpload.secure_url,
-          status: 'active'
-        });
+      await db.insert(filesTable).values({
+        FileID: fileID,
+        UserID: userId,
+        FileName: fileName,
+        contentURL: uploadResult.secure_url,
+        status: 'active'
+      });
 
-      return reply.status(201).send({
+      return reply.send({
         success: true,
         message: `Reporte de dispositivo y clima generado exitosamente en formato ${format.toUpperCase()}`,
         data: {
           fileID,
           fileName,
-          fileURL: cloudinaryUpload.secure_url,
+          fileURL: uploadResult.secure_url,
           format,
           report: {
-            deviceId: report.deviceId,
-            deviceName: report.deviceName,
-            location: report.location,
-            timestamp: report.timestamp
+            deviceId: result.device.DeviceID,
+            deviceName: result.device.DeviceName,
+            location: result.deviceInfo.location,
+            timestamp: result.report.generatedAt
           }
         }
       });
 
     } catch (error) {
-      console.error('Error generando reporte de dispositivo:', error);
+      console.error('Error generating device report:', error);
       
-      return reply.status(500).send({
+      if (error instanceof z.ZodError) {
+        return reply.code(400).send({
+          success: false,
+          message: 'Datos de entrada inválidos',
+          error: error.errors
+        });
+      }
+
+      return reply.code(500).send({
         success: false,
         message: 'Error generando reporte de dispositivo y clima',
         error: error instanceof Error ? error.message : 'Error desconocido'
@@ -144,59 +136,46 @@ export class DeviceWeatherReportController {
   }
 
   /**
-   * Genera un reporte combinado para un grupo de dispositivos
-   * POST /api/reports/group
+   * Generar reporte de grupo de dispositivos
    */
   static async generateGroupReport(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const body = request.body as any;
-      
-      // Validar el cuerpo de la petición
-      const validation = generateGroupReportSchema.safeParse(body);
-      if (!validation.success) {
-        return reply.status(400).send({
-          success: false,
-          message: 'Datos de entrada inválidos',
-          errors: validation.error.errors
-        });
-      }
+      // Validar datos de entrada
+      const validatedData = groupReportSchema.parse(request.body);
+      const { groupId, userId, includeHistory, historyRange, format } = validatedData;
 
-      const { groupId, userId, includeHistory, historyRange, format } = validation.data;
-
-      // 1. Generar el reporte del grupo
-      const report = await DeviceWeatherReportService.generateGroupWeatherReport(
+      // Generar el reporte
+      const result = await DeviceWeatherReportService.generateGroupReport(
         groupId,
         userId,
         includeHistory,
         historyRange
       );
 
-      let fileBuffer: Buffer;
+      // Preparar el contenido del archivo
+      let fileContent: Buffer | string;
       let fileName: string;
-      let mimeType: string;
+      let folder: string;
 
       if (format === 'pdf') {
-        // 2. Generar PDF
-        fileBuffer = await DeviceWeatherReportService.generateReportPDF(report);
-        fileName = DeviceWeatherReportService.generateFileName(report, 'pdf');
-        mimeType = 'application/pdf';
+        // Generar PDF - pasar directamente los datos del reporte
+        fileContent = await PDFGenerator.generateGroupPDF(result.report.data);
+        fileName = DeviceWeatherReportService.generateGroupFileName(result.group.GroupName, 'pdf');
+        folder = 'WeatherReports_PDF_AgriTech';
       } else {
-        // 2. Convertir a JSON
-        const jsonContent = DeviceWeatherReportService.convertReportToJson(report);
-        fileBuffer = Buffer.from(jsonContent, 'utf-8');
-        fileName = DeviceWeatherReportService.generateFileName(report, 'json');
-        mimeType = 'application/json';
+        // Generar JSON
+        fileContent = JSON.stringify(result.report, null, 2);
+        fileName = DeviceWeatherReportService.generateGroupFileName(result.group.GroupName, 'json');
+        folder = 'WeatherReports_JSON_AgriTech';
       }
 
-      // 3. Subir a Cloudinary
-      const uploadPromise = new Promise<UploadApiResponse>((resolve, reject) => {
+      // Subir archivo a Cloudinary
+      const uploadResult = await new Promise<any>((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           {
             resource_type: 'auto',
-            folder: format === 'pdf' ? 'WeatherReports_PDF_AgriTech' : 'WeatherReports_JSON_AgriTech',
-            timeout: format === 'pdf' ? 20000 : 15000, // Más tiempo para grupos
-            allowed_formats: format === 'pdf' ? ['pdf'] : ['json'],
-            format: format
+            folder,
+            timeout: format === 'pdf' ? 20000 : 15000
           },
           (error, result) => {
             if (error) return reject(error);
@@ -204,49 +183,53 @@ export class DeviceWeatherReportController {
             resolve(result);
           }
         );
-        uploadStream.end(fileBuffer);
+        
+        if (fileContent instanceof Buffer) {
+          uploadStream.end(fileContent);
+        } else {
+          uploadStream.end(Buffer.from(fileContent as string, 'utf-8'));
+        }
       });
 
-      const cloudinaryUpload = await Promise.race([
-        uploadPromise,
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('UPLOAD_TIMEOUT')), format === 'pdf' ? 20000 : 15000)
-        )
-      ]) as UploadApiResponse;
-
-      // 4. Guardar en la base de datos
+      // Guardar registro en la base de datos
       const fileID = uuidv4();
-      await db
-        .insert(filesTable)
-        .values({
-          FileID: fileID,
-          UserID: userId,
-          FileName: fileName,
-          contentURL: cloudinaryUpload.secure_url,
-          status: 'active'
-        });
+      await db.insert(filesTable).values({
+        FileID: fileID,
+        UserID: userId,
+        FileName: fileName,
+        contentURL: uploadResult.secure_url,
+        status: 'active'
+      });
 
-      return reply.status(201).send({
+      return reply.send({
         success: true,
         message: `Reporte de grupo y clima generado exitosamente en formato ${format.toUpperCase()}`,
         data: {
           fileID,
           fileName,
-          fileURL: cloudinaryUpload.secure_url,
+          fileURL: uploadResult.secure_url,
           format,
           report: {
-            groupId: report.groupId,
-            groupName: report.groupName,
-            deviceCount: report.devices.length,
-            timestamp: report.timestamp
+            groupId: result.group.DeviceGroupID,
+            groupName: result.group.GroupName,
+            deviceCount: result.deviceReports.length,
+            timestamp: result.report.generatedAt
           }
         }
       });
 
     } catch (error) {
-      console.error('Error generando reporte de grupo:', error);
+      console.error('Error generating group report:', error);
       
-      return reply.status(500).send({
+      if (error instanceof z.ZodError) {
+        return reply.code(400).send({
+          success: false,
+          message: 'Datos de entrada inválidos',
+          error: error.errors
+        });
+      }
+
+      return reply.code(500).send({
         success: false,
         message: 'Error generando reporte de grupo y clima',
         error: error instanceof Error ? error.message : 'Error desconocido'
@@ -255,49 +238,54 @@ export class DeviceWeatherReportController {
   }
 
   /**
-   * Obtiene la lista de reportes generados por un usuario
-   * GET /api/reports/user/:userId
+   * Obtener reportes de un usuario
    */
-  static async getUserReports(
-    request: FastifyRequest<{ Params: { userId: string } }>,
-    reply: FastifyReply
-  ) {
+  static async getUserReports(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const { userId } = request.params;
+      const { userId } = request.params as { userId: string };
 
-      // Validar el UserID
-      const validation = z.string().uuid().safeParse(userId);
-      if (!validation.success) {
-        return reply.status(400).send({
+      if (!userId) {
+        return reply.code(400).send({
           success: false,
-          message: 'UserID inválido'
+          message: 'User ID es requerido'
         });
       }
 
-      // Obtener archivos que contengan reportes de clima
-      const userFiles = await db
-        .select()
-        .from(filesTable)
-        .where(
-          and(
-            eq(filesTable.UserID, userId),
-            like(filesTable.FileName, '%weather-report%')
-          )
-        );
+      // Validar que userId sea un UUID válido
+      try {
+        z.string().uuid().parse(userId);
+      } catch {
+        return reply.code(400).send({
+          success: false,
+          message: 'User ID debe ser un UUID válido'
+        });
+      }
 
-      return reply.status(200).send({
+      // Obtener archivos del usuario que sean reportes de clima
+      const files = await db.select().from(filesTable).where(
+        and(
+          eq(filesTable.UserID, userId),
+          like(filesTable.FileName, '%weather-report%')
+        )
+      );
+
+      const weatherReports = files.filter((file: any) => 
+        file.FileName.includes('weather-report-') && 
+        (file.FileName.includes('device-') || file.FileName.includes('group-'))
+      );
+
+      return reply.send({
         success: true,
         message: 'Reportes obtenidos exitosamente',
         data: {
-          reports: userFiles,
-          count: userFiles.length
+          reports: weatherReports,
+          count: weatherReports.length
         }
       });
 
     } catch (error) {
-      console.error('Error obteniendo reportes del usuario:', error);
-      
-      return reply.status(500).send({
+      console.error('Error getting user reports:', error);
+      return reply.code(500).send({
         success: false,
         message: 'Error obteniendo reportes del usuario',
         error: error instanceof Error ? error.message : 'Error desconocido'

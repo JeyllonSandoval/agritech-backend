@@ -107,3 +107,39 @@ agritech-backend/
 ├── dist/              # Compiled JavaScript
 └── package.json       # Project dependencies
 ```
+
+## 🔧 API Features
+
+### Device Management
+- **Device Registration**: Register EcoWitt weather stations with API credentials
+- **Device Information**: Get comprehensive device information including sensor data
+- **Device Characteristics**: Get device-specific characteristics (MAC, ID, location, timezone, etc.) from EcoWitt API
+- **Real-time Data**: Retrieve real-time sensor readings
+- **Historical Data**: Access historical data with customizable time ranges
+- **Device Groups**: Organize devices into groups for batch operations
+
+### Weather Data
+- **Real-time Weather**: Get current weather conditions
+- **Weather History**: Access historical weather data
+- **Weather Reports**: Generate comprehensive weather reports
+
+### User Management
+- **Authentication**: JWT-based user authentication
+- **User Profiles**: Manage user information and preferences
+- **Role-based Access**: Implement role-based permissions
+
+### AI Integration
+- **AI Responses**: Get AI-powered insights and recommendations
+- **Chat Functionality**: Interactive chat with AI for agricultural queries
+
+### File Management
+- **Image Upload**: Secure image upload and storage via Cloudinary
+- **PDF Processing**: Extract and process PDF documents
+- **File Organization**: Organize files with metadata
+
+## 📚 Documentation
+
+- [EcoWitt API Documentation](./ECOWITT_API.md) - Complete guide for EcoWitt weather station integration
+- [Device Characteristics API](./DEVICE_CHARACTERISTICS_API.md) - New endpoint for device characteristics
+- [Weather API Documentation](./WEATHER_API.md) - Weather data endpoints
+- [Device Weather Reports API](./DEVICE_WEATHER_REPORTS_API.md) - Weather report generation

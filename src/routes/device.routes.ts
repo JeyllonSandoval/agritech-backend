@@ -5,22 +5,30 @@ export default async function deviceRoutes(fastify: FastifyInstance) {
   // Rutas para gestión de dispositivos
   fastify.post('/devices', DeviceController.createDevice);
   fastify.get('/devices', DeviceController.getAllDevices);
-  fastify.get('/devices/:applicationKey', DeviceController.getDeviceByApplicationKey);
-  fastify.put('/devices/:applicationKey', DeviceController.updateDevice);
-  fastify.delete('/devices/:applicationKey', DeviceController.deleteDevice);
+  fastify.get('/devices/:deviceId', DeviceController.getDeviceByDeviceId);
+  fastify.put('/devices/:deviceId', DeviceController.updateDevice);
+  fastify.delete('/devices/:deviceId', DeviceController.deleteDevice);
 
   // Rutas para datos del dispositivo
-  fastify.get('/devices/:applicationKey/realtime', DeviceController.getDeviceRealtime);
-  fastify.get('/devices/:applicationKey/history', DeviceController.getDeviceHistory);
-  fastify.get('/devices/:applicationKey/status', DeviceController.getDeviceStatus);
-  fastify.get('/devices/:applicationKey/config', DeviceController.getDeviceConfig);
-  fastify.put('/devices/:applicationKey/config', DeviceController.updateDeviceConfig);
+  fastify.get('/devices/:deviceId/realtime', DeviceController.getDeviceRealtime);
+  fastify.get('/devices/:deviceId/history', DeviceController.getDeviceHistory);
+  fastify.get('/devices/:deviceId/status', DeviceController.getDeviceStatus);
+  fastify.get('/devices/:deviceId/config', DeviceController.getDeviceConfig);
+  fastify.put('/devices/:deviceId/config', DeviceController.updateDeviceConfig);
 
-  // Rutas para datos del dispositivo
+  // Rutas para información del dispositivo
+  fastify.get('/devices/:deviceId/info', DeviceController.getDeviceInfo);
   fastify.get(
-    '/devices/:applicationKey/detailed-info',
+    '/devices/:deviceId/detailed-info',
     DeviceController.getDeviceDetailedInfo
   );
+  fastify.get(
+    '/devices/:deviceId/characteristics',
+    DeviceController.getDeviceCharacteristics
+  );
+
+  // Ruta temporal para probar endpoints de EcoWitt
+  fastify.get('/devices/:deviceId/test-endpoints', DeviceController.testEcoWittEndpoints);
 
   fastify.get(
     '/devices/history',

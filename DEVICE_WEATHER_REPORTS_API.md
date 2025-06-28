@@ -11,6 +11,8 @@ Esta API permite generar reportes que combinan datos de dispositivos EcoWitt con
 - **Registro en base de datos**: Se registran como archivos del usuario en el sistema
 - **PDFs legibles y atractivos**: Diseño profesional con información organizada y fácil de entender
 - **Formato flexible**: Permite elegir entre PDF (por defecto) o JSON
+- **Gestión segura de credenciales**: Las credenciales de EcoWitt se obtienen internamente usando el deviceId
+- **Validación robusta**: Validación de UUIDs y fechas ISO para todos los parámetros
 
 ## Configuración Requerida
 
@@ -48,12 +50,12 @@ Genera un reporte combinado para un dispositivo específico en formato PDF (por 
 
 ```json
 {
-  "applicationKey": "string",
-  "userId": "uuid",
+  "deviceId": "550e8400-e29b-41d4-a716-446655440002",
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
   "includeHistory": false,
   "historyRange": {
-    "startTime": "2024-01-01T00:00:00Z",
-    "endTime": "2024-01-02T00:00:00Z"
+    "startTime": "2024-01-01T00:00:00.000Z",
+    "endTime": "2024-01-02T00:00:00.000Z"
   },
   "format": "pdf"
 }
@@ -63,11 +65,19 @@ Genera un reporte combinado para un dispositivo específico en formato PDF (por 
 
 | Parámetro | Tipo | Requerido | Descripción |
 |-----------|------|-----------|-------------|
-| `applicationKey` | string | ✅ | Clave de aplicación del dispositivo EcoWitt |
-| `userId` | string | ✅ | UUID del usuario propietario |
+| `deviceId` | string (UUID) | ✅ | UUID válido del dispositivo registrado en el sistema |
+| `userId` | string (UUID) | ✅ | UUID válido del usuario propietario |
 | `includeHistory` | boolean | ❌ | Incluir datos históricos (default: false) |
-| `historyRange` | object | ❌ | Rango de fechas para datos históricos |
+| `historyRange` | object | ❌ | Rango de fechas para datos históricos (formato ISO) |
 | `format` | string | ❌ | Formato del reporte: `pdf` o `json` (default: `pdf`) |
+
+#### Validaciones
+
+- `deviceId` debe ser un UUID válido y existir en la base de datos
+- `userId` debe ser un UUID válido
+- `groupId` debe ser un UUID válido (para reportes de grupo)
+- `startTime` y `endTime` deben ser fechas ISO válidas
+- El dispositivo debe pertenecer al usuario especificado
 
 #### Ejemplo de Uso
 
@@ -76,17 +86,31 @@ Genera un reporte combinado para un dispositivo específico en formato PDF (por 
 curl -X POST http://localhost:4000/api/reports/device \
   -H "Content-Type: application/json" \
   -d '{
-    "applicationKey": "tu_application_key",
-    "userId": "uuid-del-usuario"
+    "deviceId": "550e8400-e29b-41d4-a716-446655440002",
+    "userId": "550e8400-e29b-41d4-a716-446655440000"
   }'
 
 # Generar reporte en JSON
 curl -X POST http://localhost:4000/api/reports/device \
   -H "Content-Type: application/json" \
   -d '{
-    "applicationKey": "tu_application_key",
-    "userId": "uuid-del-usuario",
+    "deviceId": "550e8400-e29b-41d4-a716-446655440002",
+    "userId": "550e8400-e29b-41d4-a716-446655440000",
     "format": "json"
+  }'
+
+# Generar reporte con datos históricos
+curl -X POST http://localhost:4000/api/reports/device \
+  -H "Content-Type: application/json" \
+  -d '{
+    "deviceId": "550e8400-e29b-41d4-a716-446655440002",
+    "userId": "550e8400-e29b-41d4-a716-446655440000",
+    "includeHistory": true,
+    "historyRange": {
+      "startTime": "2024-01-01T00:00:00.000Z",
+      "endTime": "2024-01-02T00:00:00.000Z"
+    },
+    "format": "pdf"
   }'
 ```
 
@@ -97,12 +121,12 @@ curl -X POST http://localhost:4000/api/reports/device \
   "success": true,
   "message": "Reporte de dispositivo y clima generado exitosamente en formato PDF",
   "data": {
-    "fileID": "uuid-del-archivo",
+    "fileID": "550e8400-e29b-41d4-a716-446655440001",
     "fileName": "weather-report-device-Estacion-Jardin-2024-01-15-14-30-25.pdf",
     "fileURL": "https://res.cloudinary.com/.../weather-report-device-...pdf",
     "format": "pdf",
     "report": {
-      "deviceId": "uuid-del-dispositivo",
+      "deviceId": "550e8400-e29b-41d4-a716-446655440002",
       "deviceName": "Estación del Jardín",
       "location": {
         "latitude": 40.4168,
@@ -125,12 +149,12 @@ Genera un reporte combinado para todos los dispositivos en un grupo en formato P
 
 ```json
 {
-  "groupId": "uuid",
-  "userId": "uuid",
+  "groupId": "550e8400-e29b-41d4-a716-446655440003",
+  "userId": "550e8400-e29b-41d4-a716-446655440000",
   "includeHistory": false,
   "historyRange": {
-    "startTime": "2024-01-01T00:00:00Z",
-    "endTime": "2024-01-02T00:00:00Z"
+    "startTime": "2024-01-01T00:00:00.000Z",
+    "endTime": "2024-01-02T00:00:00.000Z"
   },
   "format": "pdf"
 }
@@ -140,10 +164,10 @@ Genera un reporte combinado para todos los dispositivos en un grupo en formato P
 
 | Parámetro | Tipo | Requerido | Descripción |
 |-----------|------|-----------|-------------|
-| `groupId` | string | ✅ | UUID del grupo de dispositivos |
-| `userId` | string | ✅ | UUID del usuario propietario |
+| `groupId` | string (UUID) | ✅ | UUID válido del grupo de dispositivos |
+| `userId` | string (UUID) | ✅ | UUID válido del usuario propietario |
 | `includeHistory` | boolean | ❌ | Incluir datos históricos (default: false) |
-| `historyRange` | object | ❌ | Rango de fechas para datos históricos |
+| `historyRange` | object | ❌ | Rango de fechas para datos históricos (formato ISO) |
 | `format` | string | ❌ | Formato del reporte: `pdf` o `json` (default: `pdf`) |
 
 #### Ejemplo de Uso
@@ -153,12 +177,12 @@ Genera un reporte combinado para todos los dispositivos en un grupo en formato P
 curl -X POST http://localhost:4000/api/reports/group \
   -H "Content-Type: application/json" \
   -d '{
-    "groupId": "uuid-del-grupo",
-    "userId": "uuid-del-usuario",
+    "groupId": "550e8400-e29b-41d4-a716-446655440003",
+    "userId": "550e8400-e29b-41d4-a716-446655440000",
     "includeHistory": true,
     "historyRange": {
-      "startTime": "2024-01-01T00:00:00Z",
-      "endTime": "2024-01-02T00:00:00Z"
+      "startTime": "2024-01-01T00:00:00.000Z",
+      "endTime": "2024-01-02T00:00:00.000Z"
     }
   }'
 
@@ -166,8 +190,8 @@ curl -X POST http://localhost:4000/api/reports/group \
 curl -X POST http://localhost:4000/api/reports/group \
   -H "Content-Type: application/json" \
   -d '{
-    "groupId": "uuid-del-grupo",
-    "userId": "uuid-del-usuario",
+    "groupId": "550e8400-e29b-41d4-a716-446655440003",
+    "userId": "550e8400-e29b-41d4-a716-446655440000",
     "format": "json"
   }'
 ```
@@ -179,12 +203,12 @@ curl -X POST http://localhost:4000/api/reports/group \
   "success": true,
   "message": "Reporte de grupo y clima generado exitosamente en formato PDF",
   "data": {
-    "fileID": "uuid-del-archivo",
+    "fileID": "550e8400-e29b-41d4-a716-446655440004",
     "fileName": "weather-report-group-Sensores-Campo-2024-01-15-14-30-25.pdf",
     "fileURL": "https://res.cloudinary.com/.../weather-report-group-...pdf",
     "format": "pdf",
     "report": {
-      "groupId": "uuid-del-grupo",
+      "groupId": "550e8400-e29b-41d4-a716-446655440003",
       "groupName": "Sensores de Campo",
       "deviceCount": 3,
       "timestamp": "2024-01-15T14:30:25.123Z"
@@ -203,12 +227,12 @@ Obtiene la lista de todos los reportes generados por un usuario específico.
 
 | Parámetro | Tipo | Requerido | Descripción |
 |-----------|------|-----------|-------------|
-| `userId` | string | ✅ | UUID del usuario |
+| `userId` | string (UUID) | ✅ | UUID válido del usuario |
 
 #### Ejemplo de Uso
 
 ```bash
-curl http://localhost:4000/api/reports/user/uuid-del-usuario
+curl http://localhost:4000/api/reports/user/550e8400-e29b-41d4-a716-446655440000
 ```
 
 #### Respuesta
@@ -220,16 +244,16 @@ curl http://localhost:4000/api/reports/user/uuid-del-usuario
   "data": {
     "reports": [
       {
-        "FileID": "uuid-del-archivo-1",
-        "UserID": "uuid-del-usuario",
+        "FileID": "550e8400-e29b-41d4-a716-446655440001",
+        "UserID": "550e8400-e29b-41d4-a716-446655440000",
         "FileName": "weather-report-device-Estacion-Jardin-2024-01-15-14-30-25.pdf",
         "contentURL": "https://res.cloudinary.com/.../weather-report-device-...pdf",
         "createdAt": "2024-01-15T14:30:25.123Z",
         "status": "active"
       },
       {
-        "FileID": "uuid-del-archivo-2",
-        "UserID": "uuid-del-usuario",
+        "FileID": "550e8400-e29b-41d4-a716-446655440004",
+        "UserID": "550e8400-e29b-41d4-a716-446655440000",
         "FileName": "weather-report-group-Sensores-Campo-2024-01-15-14-30-25.pdf",
         "contentURL": "https://res.cloudinary.com/.../weather-report-group-...pdf",
         "createdAt": "2024-01-15T14:30:25.123Z",
@@ -285,11 +309,11 @@ Los reportes JSON mantienen la estructura original para compatibilidad:
 
 ```json
 {
-  "reportId": "uuid-del-reporte",
+  "reportId": "550e8400-e29b-41d4-a716-446655440005",
   "generatedAt": "2024-01-15T14:30:25.123Z",
   "type": "deviceWeatherReport",
   "data": {
-    "deviceId": "uuid-del-dispositivo",
+    "deviceId": "550e8400-e29b-41d4-a716-446655440002",
     "deviceName": "Estación del Jardín",
     "deviceType": "Outdoor",
     "location": {
@@ -298,15 +322,12 @@ Los reportes JSON mantienen la estructura original para compatibilidad:
       "elevation": 667
     },
     "deviceData": {
-      // Datos del dispositivo EcoWitt (tiempo real o histórico)
       "dateutc": "2024-01-15T14:30:25Z",
       "temp1f": 72.5,
       "humidity1": 65,
-      "baromrelin": 29.92,
-      // ... más datos del sensor
+      "baromrelin": 29.92
     },
     "weatherData": {
-      // Datos meteorológicos de OpenWeather
       "lat": 40.4168,
       "lon": -3.7038,
       "timezone": "Europe/Madrid",
@@ -323,10 +344,7 @@ Los reportes JSON mantienen la estructura original para compatibilidad:
             "icon": "01d"
           }
         ]
-      },
-      "hourly": [...],
-      "daily": [...],
-      "alerts": [...]
+      }
     },
     "timestamp": "2024-01-15T14:30:25.123Z"
   }
@@ -337,34 +355,21 @@ Los reportes JSON mantienen la estructura original para compatibilidad:
 
 ```json
 {
-  "reportId": "uuid-del-reporte",
+  "reportId": "550e8400-e29b-41d4-a716-446655440006",
   "generatedAt": "2024-01-15T14:30:25.123Z",
   "type": "deviceWeatherReport",
   "data": {
-    "groupId": "uuid-del-grupo",
+    "groupId": "550e8400-e29b-41d4-a716-446655440003",
     "groupName": "Sensores de Campo",
     "devices": [
       {
-        "deviceId": "uuid-dispositivo-1",
+        "deviceId": "550e8400-e29b-41d4-a716-446655440002",
         "deviceName": "Estación Norte",
         "deviceType": "Outdoor",
         "location": {
           "latitude": 40.4168,
           "longitude": -3.7038,
           "elevation": 667
-        },
-        "deviceData": { ... },
-        "weatherData": { ... },
-        "timestamp": "2024-01-15T14:30:25.123Z"
-      },
-      {
-        "deviceId": "uuid-dispositivo-2",
-        "deviceName": "Estación Sur",
-        "deviceType": "Outdoor",
-        "location": {
-          "latitude": 40.4100,
-          "longitude": -3.7000,
-          "elevation": 670
         },
         "deviceData": { ... },
         "weatherData": { ... },
@@ -384,7 +389,39 @@ Los reportes JSON mantienen la estructura original para compatibilidad:
 | 404 | Dispositivo o grupo no encontrado |
 | 500 | Error interno del servidor o error en las APIs externas |
 
+### Ejemplos de Errores
+
+```json
+{
+  "success": false,
+  "message": "Datos de entrada inválidos",
+  "error": [
+    {
+      "code": "invalid_string",
+      "validation": "uuid",
+      "message": "Device ID debe ser un UUID válido",
+      "path": ["deviceId"]
+    }
+  ]
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "Error generando reporte de dispositivo y clima",
+  "error": "Dispositivo no encontrado o no tienes permisos"
+}
+```
+
 ## Consideraciones Importantes
+
+### Gestión de Credenciales
+
+- **Seguridad mejorada**: Las credenciales de EcoWitt se obtienen internamente usando el deviceId
+- **No exposición de credenciales**: Los usuarios no necesitan conocer las claves de API
+- **Validación automática**: Se verifica que el dispositivo existe y pertenece al usuario
+- **Manejo de errores**: Si el dispositivo no existe, se devuelve un error claro
 
 ### Ubicación de Dispositivos
 
@@ -420,14 +457,14 @@ Los reportes JSON mantienen la estructura original para compatibilidad:
 
 ```javascript
 // Generar reporte PDF de dispositivo
-const generateDevicePDFReport = async (applicationKey, userId) => {
+const generateDevicePDFReport = async (deviceId, userId) => {
   const response = await fetch('/api/reports/device', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      applicationKey,
+      deviceId,
       userId,
       format: 'pdf'
     })
@@ -438,14 +475,14 @@ const generateDevicePDFReport = async (applicationKey, userId) => {
 };
 
 // Generar reporte JSON de dispositivo
-const generateDeviceJSONReport = async (applicationKey, userId) => {
+const generateDeviceJSONReport = async (deviceId, userId) => {
   const response = await fetch('/api/reports/device', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      applicationKey,
+      deviceId,
       userId,
       format: 'json'
     })
@@ -467,8 +504,8 @@ const generateGroupPDFReport = async (groupId, userId) => {
       userId,
       includeHistory: true,
       historyRange: {
-        startTime: '2024-01-01T00:00:00Z',
-        endTime: '2024-01-02T00:00:00Z'
+        startTime: '2024-01-01T00:00:00.000Z',
+        endTime: '2024-01-02T00:00:00.000Z'
       },
       format: 'pdf'
     })
@@ -493,8 +530,8 @@ const getUserReports = async (userId) => {
 curl -X POST http://localhost:4000/api/reports/device \
   -H "Content-Type: application/json" \
   -d '{
-    "applicationKey": "tu_application_key",
-    "userId": "uuid-del-usuario",
+    "deviceId": "550e8400-e29b-41d4-a716-446655440002",
+    "userId": "550e8400-e29b-41d4-a716-446655440000",
     "format": "pdf"
   }'
 
@@ -502,8 +539,8 @@ curl -X POST http://localhost:4000/api/reports/device \
 curl -X POST http://localhost:4000/api/reports/device \
   -H "Content-Type: application/json" \
   -d '{
-    "applicationKey": "tu_application_key",
-    "userId": "uuid-del-usuario",
+    "deviceId": "550e8400-e29b-41d4-a716-446655440002",
+    "userId": "550e8400-e29b-41d4-a716-446655440000",
     "format": "json"
   }'
 
@@ -511,18 +548,18 @@ curl -X POST http://localhost:4000/api/reports/device \
 curl -X POST http://localhost:4000/api/reports/group \
   -H "Content-Type: application/json" \
   -d '{
-    "groupId": "uuid-del-grupo",
-    "userId": "uuid-del-usuario",
+    "groupId": "550e8400-e29b-41d4-a716-446655440003",
+    "userId": "550e8400-e29b-41d4-a716-446655440000",
     "includeHistory": true,
     "historyRange": {
-      "startTime": "2024-01-01T00:00:00Z",
-      "endTime": "2024-01-02T00:00:00Z"
+      "startTime": "2024-01-01T00:00:00.000Z",
+      "endTime": "2024-01-02T00:00:00.000Z"
     },
     "format": "pdf"
   }'
 
 # Obtener reportes del usuario
-curl http://localhost:4000/api/reports/user/uuid-del-usuario
+curl http://localhost:4000/api/reports/user/550e8400-e29b-41d4-a716-446655440000
 ```
 
 ## Ventajas de los PDFs
@@ -549,6 +586,11 @@ curl http://localhost:4000/api/reports/user/uuid-del-usuario
 - Opción de elegir entre PDF y JSON
 - Compatibilidad con el sistema existente
 - Fácil integración con aplicaciones existentes
+
+### 🔒 **Seguridad Mejorada**
+- No exposición de credenciales sensibles
+- Validación automática de dispositivos
+- Gestión interna de claves de API
 
 ## Funcionalidades Futuras
 

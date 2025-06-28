@@ -18,9 +18,7 @@ const updateGroupSchema = createGroupSchema.partial().refine(
 );
 
 const timeRangeSchema = z.object({
-  rangeType: z.nativeEnum(TimeRangeType),
-  customStartTime: z.string().datetime().optional(),
-  customEndTime: z.string().datetime().optional()
+  rangeType: z.nativeEnum(TimeRangeType)
 });
 
 export class DeviceGroupController {
@@ -63,7 +61,7 @@ export class DeviceGroupController {
     } catch (error) {
       console.error('Error al crear grupo:', error);
       return reply.status(500).send({
-        error: 'Error al crear grupo de dispositivos'
+        error: 'Error creating device group'
       });
     }
   }
@@ -85,7 +83,7 @@ export class DeviceGroupController {
 
       if (!group) {
         return reply.status(404).send({
-          error: 'Grupo no encontrado'
+          error: 'Group not found'
         });
       }
 
@@ -93,7 +91,7 @@ export class DeviceGroupController {
     } catch (error) {
       console.error('Error al obtener grupo:', error);
       return reply.status(500).send({
-        error: 'Error al obtener grupo de dispositivos'
+        error: 'Error retrieving group'
       });
     }
   }
@@ -116,7 +114,7 @@ export class DeviceGroupController {
     } catch (error) {
       console.error('Error al obtener grupos del usuario:', error);
       return reply.status(500).send({
-        error: 'Error al obtener grupos de dispositivos del usuario'
+        error: 'Error retrieving user groups'
       });
     }
   }
@@ -175,10 +173,13 @@ export class DeviceGroupController {
 
       return reply.send(group);
     } catch (error) {
-      console.error('Error al actualizar grupo:', error);
-      return reply.status(500).send({
-        error: 'Error al actualizar grupo de dispositivos'
-      });
+      if (error instanceof z.ZodError) {
+        return reply.code(400).send({ 
+          error: 'Validation error', 
+          details: error.errors 
+        });
+      }
+      return reply.code(500).send({ error: 'Error updating group' });
     }
   }
 
@@ -200,7 +201,7 @@ export class DeviceGroupController {
     } catch (error) {
       console.error('Error al eliminar grupo:', error);
       return reply.status(500).send({
-        error: 'Error al eliminar grupo de dispositivos'
+        error: 'Error deleting group'
       });
     }
   }
@@ -211,9 +212,9 @@ export class DeviceGroupController {
   static async getGroupDevicesHistory(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { groupId } = request.params as { groupId: string };
-      const { rangeType, customStartTime, customEndTime } = timeRangeSchema.parse(request.query);
+      const { rangeType } = timeRangeSchema.parse(request.query);
 
-      const { startTime, endTime } = getTimeRange(rangeType, customStartTime, customEndTime);
+      const { startTime, endTime } = getTimeRange(rangeType);
 
       const historyData = await DeviceGroupService.getGroupDevicesHistory(
         groupId,
@@ -236,7 +237,7 @@ export class DeviceGroupController {
           details: error.errors 
         });
       }
-      return reply.code(500).send({ error: 'Error al obtener datos históricos del grupo' });
+      return reply.code(500).send({ error: 'Error retrieving group historical data' });
     }
   }
 
@@ -246,10 +247,17 @@ export class DeviceGroupController {
   static async getGroupDevicesRealtime(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { groupId } = request.params as { groupId: string };
+      
+      // Check if group exists
+      const existingGroup = await DeviceGroupService.getGroupById(groupId);
+      if (!existingGroup) {
+        return reply.code(404).send({ error: 'Group not found' });
+      }
+
       const realtimeData = await DeviceGroupService.getGroupDevicesRealtime(groupId);
       return reply.send(realtimeData);
     } catch (error) {
-      return reply.code(500).send({ error: 'Error al obtener datos en tiempo real del grupo' });
+      return reply.code(500).send({ error: 'Error retrieving group real-time data' });
     }
   }
 } 
