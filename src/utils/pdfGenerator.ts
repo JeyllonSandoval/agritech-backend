@@ -1,25 +1,100 @@
 import puppeteer from 'puppeteer';
 import { v4 as uuidv4 } from 'uuid';
 
-interface DeviceWeatherData {
-  deviceId: string;
-  deviceName: string;
-  deviceType: string;
+// Interfaces actualizadas para el nuevo formato de reporte
+interface DeviceCharacteristics {
+  id: string | number;
+  name: string;
+  mac: string;
+  type: string | number;
+  stationType: string;
+  timezone: string;
+  createdAt: string;
   location: {
     latitude: number;
     longitude: number;
     elevation: number;
   };
-  deviceData: any;
-  weatherData: any;
-  timestamp: string;
+  lastUpdate: any;
+}
+
+interface WeatherData {
+  current: {
+    temperature: number;
+    feelsLike: number;
+    humidity: number;
+    pressure: number;
+    windSpeed: number;
+    windDirection: number;
+    visibility: number;
+    weather: any[];
+    sunrise: number;
+    sunset: number;
+    uvi: number;
+    clouds: number;
+    dewPoint: number;
+  };
+  forecast: {
+    daily: any[];
+    hourly: any[];
+  };
+  location: any;
+}
+
+interface DeviceDataReport {
+  realtime: any;
+  historical: any;
+  characteristics: DeviceCharacteristics;
+}
+
+interface DeviceWeatherData {
+  device: {
+    id: string;
+    name: string;
+    type: string;
+    characteristics: DeviceCharacteristics;
+  };
+  weather: WeatherData | null;
+  deviceData: DeviceDataReport;
+  generatedAt: string;
+  timeRange?: {
+    start: string;
+    end: string;
+  } | null;
+  metadata: {
+    includeHistory: boolean;
+    hasWeatherData: boolean;
+    hasHistoricalData: boolean;
+    deviceOnline: boolean;
+  };
 }
 
 interface GroupWeatherData {
-  groupId: string;
-  groupName: string;
-  devices: DeviceWeatherData[];
-  timestamp: string;
+  group: {
+    id: string;
+    name: string;
+    description: string | null;
+    createdAt: string | null;
+    deviceCount: number;
+  };
+  devices: Array<{
+    device: any;
+    deviceInfo: any;
+    report: DeviceWeatherData;
+  }>;
+  errors: any[];
+  generatedAt: string;
+  timeRange?: {
+    start: string;
+    end: string;
+  } | null;
+  metadata: {
+    includeHistory: boolean;
+    totalDevices: number;
+    successfulReports: number;
+    failedReports: number;
+    hasErrors: boolean;
+  };
 }
 
 export class PDFGenerator {
@@ -52,6 +127,9 @@ export class PDFGenerator {
       const page = await browser.newPage();
       await page.setContent(html, { waitUntil: 'networkidle0' });
       
+      // Esperar a que los gráficos se rendericen
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       const pdf = await page.pdf({
         format: 'A4',
         margin: {
@@ -73,9 +151,10 @@ export class PDFGenerator {
    * Genera HTML para reporte de dispositivo individual
    */
   private static generateDeviceHTML(report: DeviceWeatherData): string {
-    const currentWeather = report.weatherData.current;
+    const device = report.device;
+    const weather = report.weather;
     const deviceData = report.deviceData;
-    const timestamp = new Date(report.timestamp).toLocaleString('es-ES');
+    const timestamp = new Date(report.generatedAt).toLocaleString('es-ES');
 
     return `
       <!DOCTYPE html>
@@ -83,7 +162,8 @@ export class PDFGenerator {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Reporte de Dispositivo y Clima</title>
+        <title>Reporte Completo de Dispositivo y Clima</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <style>
           * {
             margin: 0;
@@ -101,7 +181,7 @@ export class PDFGenerator {
           }
           
           .container {
-            max-width: 800px;
+            max-width: 1000px;
             margin: 0 auto;
             background: white;
             border-radius: 15px;
@@ -227,6 +307,72 @@ export class PDFGenerator {
             content: "📍";
           }
           
+          .characteristics-section h2::before {
+            content: "⚙️";
+          }
+          
+          .chart-section h2::before {
+            content: "📈";
+          }
+          
+          .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          }
+          
+          .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-top: 15px;
+          }
+          
+          .forecast-section {
+            background: linear-gradient(135deg, #fd79a8 0%, #e84393 100%);
+            color: white;
+          }
+          
+          .forecast-section h2 {
+            color: white;
+          }
+          
+          .forecast-section h2::before {
+            content: "📅";
+          }
+          
+          .forecast-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+          }
+          
+          .forecast-card {
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+          }
+          
+          .forecast-card .day {
+            font-weight: bold;
+            margin-bottom: 5px;
+          }
+          
+          .forecast-card .temp {
+            font-size: 1.2em;
+            margin-bottom: 3px;
+          }
+          
+          .forecast-card .description {
+            font-size: 0.8em;
+            opacity: 0.9;
+          }
+          
           .footer {
             background: #f8f9fa;
             padding: 20px;
@@ -249,13 +395,31 @@ export class PDFGenerator {
             background: rgba(255,255,255,0.2);
             border-radius: 8px;
           }
+          
+          .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+          }
+          
+          .status-online {
+            background-color: #28a745;
+          }
+          
+          .status-offline {
+            background-color: #dc3545;
+          }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
-            <h1>Reporte de Dispositivo y Clima</h1>
-            <div class="subtitle">${report.deviceName}</div>
+            <h1>Reporte Completo de Dispositivo y Clima</h1>
+            <div class="subtitle">
+              ${device.name} - ${new Date().toLocaleDateString('es-ES')}
+            </div>
           </div>
           
           <div class="content">
@@ -265,15 +429,45 @@ export class PDFGenerator {
               <div class="info-grid">
                 <div class="info-card">
                   <h3>Nombre</h3>
-                  <div class="value">${report.deviceName}</div>
+                  <div class="value">${device.name}</div>
                 </div>
                 <div class="info-card">
                   <h3>Tipo</h3>
-                  <div class="value">${report.deviceType}</div>
+                  <div class="value">${device.type}</div>
                 </div>
                 <div class="info-card">
                   <h3>ID del Dispositivo</h3>
-                  <div class="value">${report.deviceId}</div>
+                  <div class="value">${device.id}</div>
+                </div>
+                <div class="info-card">
+                  <h3>Estado</h3>
+                  <div class="value">
+                    <span class="status-indicator ${report.metadata.deviceOnline ? 'status-online' : 'status-offline'}"></span>
+                    ${report.metadata.deviceOnline ? 'En línea' : 'Desconectado'}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Características del Dispositivo -->
+            <div class="section characteristics-section">
+              <h2>Características del Dispositivo</h2>
+              <div class="info-grid">
+                <div class="info-card">
+                  <h3>MAC Address</h3>
+                  <div class="value">${device.characteristics.mac}</div>
+                </div>
+                <div class="info-card">
+                  <h3>Modelo</h3>
+                  <div class="value">${device.characteristics.stationType}</div>
+                </div>
+                <div class="info-card">
+                  <h3>Zona Horaria</h3>
+                  <div class="value">${device.characteristics.timezone}</div>
+                </div>
+                <div class="info-card">
+                  <h3>Fecha de Creación</h3>
+                  <div class="value">${new Date(device.characteristics.createdAt).toLocaleDateString('es-ES')}</div>
                 </div>
               </div>
             </div>
@@ -284,69 +478,265 @@ export class PDFGenerator {
               <div class="info-grid">
                 <div class="info-card">
                   <h3>Latitud</h3>
-                  <div class="value">${report.location.latitude}°</div>
+                  <div class="value">${device.characteristics.location.latitude}°</div>
                 </div>
                 <div class="info-card">
                   <h3>Longitud</h3>
-                  <div class="value">${report.location.longitude}°</div>
+                  <div class="value">${device.characteristics.location.longitude}°</div>
                 </div>
                 <div class="info-card">
                   <h3>Elevación</h3>
-                  <div class="value">${report.location.elevation} m</div>
+                  <div class="value">${device.characteristics.location.elevation} m</div>
                 </div>
               </div>
             </div>
             
-            <!-- Datos del Clima -->
+            ${weather ? `
+            <!-- Datos del Clima Actual -->
             <div class="section weather-section">
               <h2>Condiciones Meteorológicas Actuales</h2>
               <div class="weather-description">
-                ${currentWeather.weather[0]?.description || 'Información meteorológica disponible'}
+                ${weather.current.weather[0]?.description || 'Información meteorológica disponible'}
               </div>
               <div class="weather-grid">
                 <div class="weather-card">
-                  <div class="value">${currentWeather.temp}°C</div>
+                  <div class="value">${weather.current.temperature}°C</div>
                   <div class="label">Temperatura</div>
                 </div>
                 <div class="weather-card">
-                  <div class="value">${currentWeather.feels_like}°C</div>
+                  <div class="value">${weather.current.feelsLike}°C</div>
                   <div class="label">Sensación Térmica</div>
                 </div>
                 <div class="weather-card">
-                  <div class="value">${currentWeather.humidity}%</div>
+                  <div class="value">${weather.current.humidity}%</div>
                   <div class="label">Humedad</div>
                 </div>
                 <div class="weather-card">
-                  <div class="value">${currentWeather.pressure} hPa</div>
+                  <div class="value">${weather.current.pressure} hPa</div>
                   <div class="label">Presión</div>
                 </div>
                 <div class="weather-card">
-                  <div class="value">${currentWeather.wind_speed} m/s</div>
+                  <div class="value">${weather.current.windSpeed} m/s</div>
                   <div class="label">Velocidad del Viento</div>
                 </div>
                 <div class="weather-card">
-                  <div class="value">${currentWeather.visibility / 1000} km</div>
+                  <div class="value">${weather.current.visibility / 1000} km</div>
                   <div class="label">Visibilidad</div>
                 </div>
               </div>
             </div>
             
+            <!-- Pronóstico de 7 Días -->
+            <div class="section forecast-section">
+              <h2>Pronóstico de 7 Días</h2>
+              <div class="forecast-grid">
+                ${weather.forecast.daily.slice(0, 7).map(day => `
+                  <div class="forecast-card">
+                    <div class="day">${new Date(day.dt * 1000).toLocaleDateString('es-ES', { weekday: 'short' })}</div>
+                    <div class="temp">${Math.round(day.temp.day)}°C</div>
+                    <div class="description">${day.weather[0]?.description || ''}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+            ` : `
+            <!-- Sin datos del clima -->
+            <div class="section">
+              <h2>Datos del Clima</h2>
+              <div class="info-card">
+                <h3>Estado</h3>
+                <div class="value">No disponible</div>
+              </div>
+            </div>
+            `}
+            
             <!-- Datos del Sensor -->
             <div class="section">
               <h2>Datos del Sensor</h2>
               <div class="info-grid">
-                ${this.formatDeviceData(deviceData)}
+                ${this.formatDeviceData(deviceData.realtime)}
               </div>
             </div>
+            
+            ${report.metadata.hasHistoricalData && deviceData.historical ? `
+            <!-- Gráficos de Datos Históricos -->
+            <div class="section chart-section">
+              <h2>Análisis de Datos Históricos</h2>
+              <div class="chart-grid">
+                <div class="chart-container">
+                  <canvas id="temperatureChart" width="400" height="200"></canvas>
+                </div>
+                <div class="chart-container">
+                  <canvas id="humidityChart" width="400" height="200"></canvas>
+                </div>
+                <div class="chart-container">
+                  <canvas id="pressureChart" width="400" height="200"></canvas>
+                </div>
+                <div class="chart-container">
+                  <canvas id="windChart" width="400" height="200"></canvas>
+                </div>
+              </div>
+            </div>
+            ` : ''}
           </div>
           
           <div class="footer">
             <div>Reporte generado automáticamente por AgriTech</div>
             <div class="timestamp">Generado el: ${timestamp}</div>
+            ${report.timeRange ? `
+            <div class="timestamp">Período: ${new Date(report.timeRange.start).toLocaleDateString('es-ES')} - ${new Date(report.timeRange.end).toLocaleDateString('es-ES')}</div>
+            ` : ''}
           </div>
         </div>
+        
+        ${report.metadata.hasHistoricalData && deviceData.historical ? `
+        <script>
+          // Generar gráficos con Chart.js
+          ${this.generateChartScripts(deviceData.historical)}
+        </script>
+        ` : ''}
       </body>
       </html>
+    `;
+  }
+
+  /**
+   * Genera scripts para los gráficos de Chart.js
+   */
+  private static generateChartScripts(historicalData: any): string {
+    // Extraer datos para los gráficos
+    const data = historicalData.data || [];
+    const timestamps = data.map((item: any) => new Date(item.dateutc).toLocaleString('es-ES', { month: 'short', day: 'numeric', hour: '2-digit' }));
+    
+    // Temperatura
+    const temperatures = data.map((item: any) => item.temp1f || item.temp1c || null).filter((t: any) => t !== null);
+    
+    // Humedad
+    const humidity = data.map((item: any) => item.humidity1 || null).filter((h: any) => h !== null);
+    
+    // Presión
+    const pressure = data.map((item: any) => item.baromrelin || null).filter((p: any) => p !== null);
+    
+    // Viento
+    const windSpeed = data.map((item: any) => item.windspeedmph || null).filter((w: any) => w !== null);
+
+    return `
+      // Gráfico de Temperatura
+      new Chart(document.getElementById('temperatureChart'), {
+        type: 'line',
+        data: {
+          labels: ${JSON.stringify(timestamps.slice(0, temperatures.length))},
+          datasets: [{
+            label: 'Temperatura (°F)',
+            data: ${JSON.stringify(temperatures)},
+            borderColor: 'rgb(255, 99, 132)',
+            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+            tension: 0.1
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: {
+              display: true,
+              text: 'Evolución de la Temperatura'
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: false
+            }
+          }
+        }
+      });
+
+      // Gráfico de Humedad
+      new Chart(document.getElementById('humidityChart'), {
+        type: 'line',
+        data: {
+          labels: ${JSON.stringify(timestamps.slice(0, humidity.length))},
+          datasets: [{
+            label: 'Humedad (%)',
+            data: ${JSON.stringify(humidity)},
+            borderColor: 'rgb(54, 162, 235)',
+            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+            tension: 0.1
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: {
+              display: true,
+              text: 'Evolución de la Humedad'
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100
+            }
+          }
+        }
+      });
+
+      // Gráfico de Presión
+      new Chart(document.getElementById('pressureChart'), {
+        type: 'line',
+        data: {
+          labels: ${JSON.stringify(timestamps.slice(0, pressure.length))},
+          datasets: [{
+            label: 'Presión (inHg)',
+            data: ${JSON.stringify(pressure)},
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+            tension: 0.1
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: {
+              display: true,
+              text: 'Evolución de la Presión'
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: false
+            }
+          }
+        }
+      });
+
+      // Gráfico de Viento
+      new Chart(document.getElementById('windChart'), {
+        type: 'line',
+        data: {
+          labels: ${JSON.stringify(timestamps.slice(0, windSpeed.length))},
+          datasets: [{
+            label: 'Velocidad del Viento (mph)',
+            data: ${JSON.stringify(windSpeed)},
+            borderColor: 'rgb(255, 205, 86)',
+            backgroundColor: 'rgba(255, 205, 86, 0.1)',
+            tension: 0.1
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: {
+              display: true,
+              text: 'Evolución de la Velocidad del Viento'
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
     `;
   }
 
@@ -354,7 +744,7 @@ export class PDFGenerator {
    * Genera HTML para reporte de grupo
    */
   private static generateGroupHTML(report: GroupWeatherData): string {
-    const timestamp = new Date(report.timestamp).toLocaleString('es-ES');
+    const timestamp = new Date(report.generatedAt).toLocaleString('es-ES');
 
     return `
       <!DOCTYPE html>
@@ -575,7 +965,9 @@ export class PDFGenerator {
         <div class="container">
           <div class="header">
             <h1>Reporte de Grupo y Clima</h1>
-            <div class="subtitle">${report.groupName}</div>
+            <div class="subtitle">
+              ${report.group.name} - ${new Date().toLocaleDateString('es-ES')}
+            </div>
           </div>
           
           <div class="content">
@@ -585,15 +977,19 @@ export class PDFGenerator {
               <div class="info-grid">
                 <div class="info-card">
                   <h3>Nombre del Grupo</h3>
-                  <div class="value">${report.groupName}</div>
+                  <div class="value">${report.group.name}</div>
                 </div>
                 <div class="info-card">
                   <h3>ID del Grupo</h3>
-                  <div class="value">${report.groupId}</div>
+                  <div class="value">${report.group.id}</div>
                 </div>
                 <div class="info-card">
                   <h3>Número de Dispositivos</h3>
-                  <div class="value">${report.devices.length}</div>
+                  <div class="value">${report.metadata.successfulReports} / ${report.metadata.totalDevices}</div>
+                </div>
+                <div class="info-card">
+                  <h3>Estado</h3>
+                  <div class="value">${report.metadata.hasErrors ? 'Con errores' : 'Completado'}</div>
                 </div>
               </div>
             </div>
@@ -603,11 +999,27 @@ export class PDFGenerator {
               <h2>Dispositivos del Grupo</h2>
               ${report.devices.map(device => this.generateDeviceCardHTML(device)).join('')}
             </div>
+            
+            ${report.errors.length > 0 ? `
+            <!-- Errores -->
+            <div class="section">
+              <h2>Errores Encontrados</h2>
+              ${report.errors.map(error => `
+                <div class="info-card">
+                  <h3>${error.deviceName}</h3>
+                  <div class="value">${error.error}</div>
+                </div>
+              `).join('')}
+            </div>
+            ` : ''}
           </div>
           
           <div class="footer">
             <div>Reporte generado automáticamente por AgriTech</div>
             <div class="timestamp">Generado el: ${timestamp}</div>
+            ${report.timeRange ? `
+            <div class="timestamp">Período: ${new Date(report.timeRange.start).toLocaleDateString('es-ES')} - ${new Date(report.timeRange.end).toLocaleDateString('es-ES')}</div>
+            ` : ''}
           </div>
         </div>
       </body>
@@ -618,57 +1030,60 @@ export class PDFGenerator {
   /**
    * Genera HTML para una tarjeta de dispositivo en el reporte de grupo
    */
-  private static generateDeviceCardHTML(device: DeviceWeatherData): string {
-    const currentWeather = device.weatherData.current;
-    const deviceData = device.deviceData;
+  private static generateDeviceCardHTML(device: any): string {
+    const deviceReport = device.report;
+    const weather = deviceReport.weather;
+    const deviceData = deviceReport.deviceData;
 
     return `
       <div class="device-card">
         <div class="device-header">
-          <div class="device-name">${device.deviceName}</div>
-          <div class="device-type">${device.deviceType}</div>
+          <div class="device-name">${deviceReport.device.name}</div>
+          <div class="device-type">${deviceReport.device.type}</div>
         </div>
         
         <div class="device-data-grid">
           <div class="data-item">
             <div class="data-label">ID</div>
-            <div class="data-value">${device.deviceId}</div>
+            <div class="data-value">${deviceReport.device.id}</div>
           </div>
           <div class="data-item">
             <div class="data-label">Latitud</div>
-            <div class="data-value">${device.location.latitude}°</div>
+            <div class="data-value">${deviceReport.device.characteristics.location.latitude}°</div>
           </div>
           <div class="data-item">
             <div class="data-label">Longitud</div>
-            <div class="data-value">${device.location.longitude}°</div>
+            <div class="data-value">${deviceReport.device.characteristics.location.longitude}°</div>
           </div>
           <div class="data-item">
-            <div class="data-label">Elevación</div>
-            <div class="data-value">${device.location.elevation} m</div>
+            <div class="data-label">Estado</div>
+            <div class="data-value">${deviceReport.metadata.deviceOnline ? 'En línea' : 'Desconectado'}</div>
           </div>
         </div>
         
+        ${weather ? `
         <div class="weather-summary">
           <h4>🌤️ Condiciones Meteorológicas</h4>
           <div class="weather-data">
             <div class="weather-item">
               <div class="data-label">Temperatura</div>
-              <div class="data-value">${currentWeather.temp}°C</div>
+              <div class="data-value">${weather.current.temperature}°C</div>
             </div>
             <div class="weather-item">
               <div class="data-label">Humedad</div>
-              <div class="data-value">${currentWeather.humidity}%</div>
+              <div class="data-value">${weather.current.humidity}%</div>
             </div>
             <div class="weather-item">
               <div class="data-label">Presión</div>
-              <div class="data-value">${currentWeather.pressure} hPa</div>
+              <div class="data-value">${weather.current.pressure} hPa</div>
             </div>
             <div class="weather-item">
               <div class="data-label">Viento</div>
-              <div class="data-value">${currentWeather.wind_speed} m/s</div>
+              <div class="data-value">${weather.current.windSpeed} m/s</div>
             </div>
           </div>
         </div>
+        ` : ''}
       </div>
     `;
   }
@@ -721,45 +1136,31 @@ export class PDFGenerator {
       wh91batt: { label: 'Batería WH91', unit: 'V', transform: (v) => `${v}V` },
       wh92batt: { label: 'Batería WH92', unit: 'V', transform: (v) => `${v}V` },
       wh93batt: { label: 'Batería WH93', unit: 'V', transform: (v) => `${v}V` },
-      wh94batt: { label: 'Batería WH94', unit: 'V', transform: (v) => `${v}V` },
-      wh95batt: { label: 'Batería WH95', unit: 'V', transform: (v) => `${v}V` },
-      wh96batt: { label: 'Batería WH96', unit: 'V', transform: (v) => `${v}V` },
-      wh97batt: { label: 'Batería WH97', unit: 'V', transform: (v) => `${v}V` },
-      wh98batt: { label: 'Batería WH98', unit: 'V', transform: (v) => `${v}V` },
-      wh99batt: { label: 'Batería WH99', unit: 'V', transform: (v) => `${v}V` },
-      wh100batt: { label: 'Batería WH100', unit: 'V', transform: (v) => `${v}V` }
     };
 
-    // Procesar cada campo de datos
-    Object.entries(deviceData).forEach(([key, value]) => {
-      if (value !== null && value !== undefined && value !== '') {
-        const mapping = fieldMappings[key];
-        if (mapping) {
+    // Procesar datos del dispositivo
+    if (deviceData && typeof deviceData === 'object') {
+      Object.entries(deviceData).forEach(([key, value]) => {
+        if (fieldMappings[key] && value !== null && value !== undefined) {
+          const mapping = fieldMappings[key];
           const displayValue = mapping.transform ? mapping.transform(value) : `${value} ${mapping.unit}`;
+          
           formattedData.push(`
             <div class="info-card">
               <h3>${mapping.label}</h3>
               <div class="value">${displayValue}</div>
             </div>
           `);
-        } else if (typeof value === 'number' || typeof value === 'string') {
-          // Para campos no mapeados, mostrar como están
-          formattedData.push(`
-            <div class="info-card">
-              <h3>${key}</h3>
-              <div class="value">${value}</div>
-            </div>
-          `);
         }
-      }
-    });
+      });
+    }
 
-    // Si no hay datos formateados, mostrar un mensaje
+    // Si no hay datos formateados, mostrar mensaje
     if (formattedData.length === 0) {
       return `
         <div class="info-card">
-          <h3>Datos del Sensor</h3>
-          <div class="value">No hay datos disponibles</div>
+          <h3>Estado</h3>
+          <div class="value">Sin datos disponibles</div>
         </div>
       `;
     }
@@ -776,10 +1177,10 @@ export class PDFGenerator {
     
     if ('devices' in report) {
       // Es un reporte de grupo
-      return `weather-report-group-${report.groupName}-${timestamp}-${time}.pdf`;
+      return `weather-report-group-${report.group.name}-${timestamp}-${time}.pdf`;
     } else {
       // Es un reporte de dispositivo individual
-      return `weather-report-device-${report.deviceName}-${timestamp}-${time}.pdf`;
+      return `weather-report-device-${report.device.name}-${timestamp}-${time}.pdf`;
     }
   }
 } 

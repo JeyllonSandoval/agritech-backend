@@ -111,7 +111,7 @@ export class DeviceWeatherReportController {
             deviceId: result.device.DeviceID,
             deviceName: result.device.DeviceName,
             location: result.deviceInfo.location,
-            timestamp: result.report.generatedAt
+            timestamp: result.report.data.generatedAt
           }
         }
       });
@@ -213,7 +213,7 @@ export class DeviceWeatherReportController {
             groupId: result.group.DeviceGroupID,
             groupName: result.group.GroupName,
             deviceCount: result.deviceReports.length,
-            timestamp: result.report.generatedAt
+            timestamp: result.report.data.generatedAt
           }
         }
       });

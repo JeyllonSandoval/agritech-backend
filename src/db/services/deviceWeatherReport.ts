@@ -32,80 +32,133 @@ export class DeviceWeatherReportService {
         throw new Error('Dispositivo no encontrado o no tienes permisos');
       }
 
-      // 2. Obtener datos del dispositivo usando las credenciales correctas
-      let deviceData;
-      if (includeHistory && historyRange) {
-        deviceData = await EcowittService.getDeviceHistory(
-          device.DeviceApplicationKey,
-          device.DeviceApiKey,
-          device.DeviceMac,
-          historyRange.startTime,
-          historyRange.endTime
-        );
-      } else {
-        deviceData = await EcowittService.getDeviceRealtime(
-          device.DeviceApplicationKey,
-          device.DeviceApiKey,
-          device.DeviceMac
-        );
-      }
+      // 2. Obtener características del dispositivo (incluyendo latitud/longitud)
+      const deviceInfo = await EcowittService.getDeviceInfo(
+        device.DeviceApplicationKey,
+        device.DeviceApiKey,
+        device.DeviceMac
+      );
 
-      // 3. Obtener información de ubicación del dispositivo
-      // Usamos solo getDeviceRealtime para evitar el error de getDeviceConfig
+      // 3. Obtener datos realtime del dispositivo
       const realtimeData = await EcowittService.getDeviceRealtime(
         device.DeviceApplicationKey,
         device.DeviceApiKey,
         device.DeviceMac
       );
 
-      // Extraer información de ubicación de los datos en tiempo real
-      const deviceInfo = {
-        device_id: device.DeviceID,
-        model: device.DeviceType,
-        name: device.DeviceName,
+      // 4. Obtener datos del clima usando las coordenadas del dispositivo
+      let weatherData = null;
+      if (deviceInfo.data && deviceInfo.data.latitude && deviceInfo.data.longitude) {
+        try {
+          weatherData = await this.weatherService.getWeatherOverview({
+            lat: deviceInfo.data.latitude,
+            lon: deviceInfo.data.longitude,
+            units: 'metric',
+            lang: 'es'
+          });
+        } catch (weatherError) {
+          console.warn('Error obteniendo datos del clima:', weatherError);
+          // Continuar sin datos del clima
+        }
+      }
+
+      // 5. Obtener datos históricos si se solicita
+      let historicalData = null;
+      if (includeHistory && historyRange) {
+        try {
+          historicalData = await EcowittService.getDeviceHistory(
+            device.DeviceApplicationKey,
+            device.DeviceApiKey,
+            device.DeviceMac,
+            historyRange.startTime,
+            historyRange.endTime
+          );
+        } catch (historyError) {
+          console.warn('Error obteniendo datos históricos:', historyError);
+          // Continuar sin datos históricos
+        }
+      }
+
+      // 6. Preparar datos del dispositivo para el reporte
+      const deviceCharacteristics = {
+        id: deviceInfo.data?.id || 'N/A',
+        name: deviceInfo.data?.name || device.DeviceName,
+        mac: deviceInfo.data?.mac || device.DeviceMac,
+        type: deviceInfo.data?.type || 'N/A',
+        stationType: deviceInfo.data?.stationtype || 'N/A',
+        timezone: deviceInfo.data?.date_zone_id || 'N/A',
+        createdAt: deviceInfo.data?.createtime ? new Date(deviceInfo.data.createtime * 1000).toISOString() : 'N/A',
         location: {
-          latitude: realtimeData.latitude || 0,
-          longitude: realtimeData.longitude || 0,
-          elevation: realtimeData.elevation || 0
+          latitude: deviceInfo.data?.latitude || 0,
+          longitude: deviceInfo.data?.longitude || 0,
+          elevation: 0 // EcoWitt no proporciona elevación por defecto
         },
-        sensors: Object.entries(realtimeData)
-          .filter(([key]) => !['dateutc', 'stationtype', 'freq', 'model', 'latitude', 'longitude', 'elevation'].includes(key))
-          .map(([key, value]) => ({
-            name: key,
-            type: typeof value,
-            unit: this.getSensorUnit(key)
-          }))
+        lastUpdate: deviceInfo.data?.last_update || null
       };
 
-      // 4. Obtener datos meteorológicos para la ubicación del dispositivo
-      const weatherData = await this.weatherService.getCurrentWeather({
-        lat: deviceInfo.location.latitude,
-        lon: deviceInfo.location.longitude,
-        units: 'metric',
-        lang: 'es'
-      });
+      // 7. Preparar datos del clima para el reporte
+      const weatherReport = weatherData ? {
+        current: {
+          temperature: weatherData.current.temp,
+          feelsLike: weatherData.current.feels_like,
+          humidity: weatherData.current.humidity,
+          pressure: weatherData.current.pressure,
+          windSpeed: weatherData.current.wind_speed,
+          windDirection: weatherData.current.wind_deg,
+          visibility: weatherData.current.visibility,
+          weather: weatherData.current.weather,
+          sunrise: weatherData.current.sunrise,
+          sunset: weatherData.current.sunset,
+          uvi: weatherData.current.uvi,
+          clouds: weatherData.current.clouds,
+          dewPoint: weatherData.current.dew_point
+        },
+        forecast: {
+          daily: weatherData.daily || [],
+          hourly: weatherData.hourly || []
+        },
+        location: weatherData.location
+      } : null;
 
-      // 5. Crear el reporte combinado
+      // 8. Preparar datos del dispositivo para el reporte
+      const deviceDataReport = {
+        realtime: realtimeData,
+        historical: historicalData,
+        characteristics: deviceCharacteristics
+      };
+
+      // 9. Crear estructura del reporte
       const report = {
-        reportId: crypto.randomUUID(),
+        device: {
+          id: device.DeviceID,
+          name: device.DeviceName,
+          type: device.DeviceType,
+          characteristics: deviceCharacteristics
+        },
+        weather: weatherReport,
+        deviceData: deviceDataReport,
         generatedAt: new Date().toISOString(),
-        type: 'deviceWeatherReport',
-        data: {
-          deviceId: device.DeviceID,
-          deviceName: device.DeviceName,
-          deviceType: device.DeviceType,
-          location: deviceInfo.location,
-          deviceData,
-          weatherData,
-          timestamp: new Date().toISOString()
+        timeRange: historyRange ? {
+          start: historyRange.startTime,
+          end: historyRange.endTime
+        } : null,
+        metadata: {
+          includeHistory,
+          hasWeatherData: !!weatherData,
+          hasHistoricalData: !!historicalData,
+          deviceOnline: realtimeData.code === 0
         }
       };
 
       return {
-        report,
         device,
-        deviceInfo
+        deviceInfo,
+        report: {
+          data: report,
+          success: true
+        }
       };
+
     } catch (error) {
       console.error('Error generating device report:', error);
       throw error;
@@ -172,39 +225,53 @@ export class DeviceWeatherReportService {
           );
           deviceReports.push(deviceReport);
         } catch (error) {
-          console.error(`Error generating report for device ${device.DeviceName}:`, error);
+          console.error(`Error generating report for device ${device.DeviceID}:`, error);
           errors.push({
             deviceId: device.DeviceID,
             deviceName: device.DeviceName,
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: error instanceof Error ? error.message : 'Error desconocido'
           });
         }
       }
 
-      if (deviceReports.length === 0) {
-        throw new Error('No se pudo generar ningún reporte de dispositivo');
-      }
-
-      // 5. Crear el reporte combinado del grupo
-      const report = {
-        reportId: crypto.randomUUID(),
+      // 5. Crear estructura del reporte de grupo
+      const groupReport = {
+        group: {
+          id: group.DeviceGroupID,
+          name: group.GroupName,
+          description: group.Description,
+          createdAt: group.createdAt,
+          deviceCount: deviceReports.length
+        },
+        devices: deviceReports.map(report => ({
+          device: report.device,
+          deviceInfo: report.deviceInfo,
+          report: report.report.data
+        })),
+        errors,
         generatedAt: new Date().toISOString(),
-        type: 'deviceWeatherReport',
-        data: {
-          groupId: group.DeviceGroupID,
-          groupName: group.GroupName,
-          devices: deviceReports.map(dr => dr.report.data),
-          errors: errors.length > 0 ? errors : undefined,
-          timestamp: new Date().toISOString()
+        timeRange: historyRange ? {
+          start: historyRange.startTime,
+          end: historyRange.endTime
+        } : null,
+        metadata: {
+          includeHistory,
+          totalDevices: groupDevices.length,
+          successfulReports: deviceReports.length,
+          failedReports: errors.length,
+          hasErrors: errors.length > 0
         }
       };
 
       return {
-        report,
         group,
         deviceReports,
-        errors
+        report: {
+          data: groupReport,
+          success: true
+        }
       };
+
     } catch (error) {
       console.error('Error generating group report:', error);
       throw error;

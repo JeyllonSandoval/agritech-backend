@@ -142,6 +142,7 @@ agritech-backend/
 - **[Estructura del Proyecto](DOCUMENTATION_STRUCTURE.md)** - Documentación completa de la estructura del proyecto
 - **[Resumen de Documentación EcoWitt](ECOWITT_DOCUMENTATION_SUMMARY.md)** - Resumen de toda la documentación de la API EcoWitt
 - **[Solución para Tipos de Dispositivos](ECOWITT_DEVICE_TYPES_SOLUTION.md)** - Solución para diferentes tipos de dispositivos EcoWitt
+- **[Reporte Completo de Dispositivo y Clima](REPORTE_COMPLETO_DOCUMENTATION.md)** - Documentación completa del sistema de reportes actualizado
 - **[API de Características de Dispositivos](DEVICE_CHARACTERISTICS_API.md)** - Documentación de la API de características de dispositivos
 - **[API de Reportes Meteorológicos](DEVICE_WEATHER_REPORTS_API.md)** - Documentación de la API de reportes meteorológicos
 - **[API del Clima](WEATHER_API.md)** - Documentación de la API del clima
