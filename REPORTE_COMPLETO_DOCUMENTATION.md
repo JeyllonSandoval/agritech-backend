@@ -398,4 +398,320 @@ const groupReport = await generateGroupReport(groupId, userId, true, {
 
 ## ✅ **Conclusión**
 
-El nuevo sistema de reportes proporciona una solución completa e integral para el monitoreo de dispositivos EcoWitt, combinando datos del dispositivo, información meteorológica, y análisis visual en un formato profesional y fácil de usar. La arquitectura modular permite fácil extensión y personalización según las necesidades específicas del proyecto. 
+El nuevo sistema de reportes proporciona una solución completa e integral para el monitoreo de dispositivos EcoWitt, combinando datos del dispositivo, información meteorológica, y análisis visual en un formato profesional y fácil de usar. La arquitectura modular permite fácil extensión y personalización según las necesidades específicas del proyecto.
+
+# Sistema de Reportes Mejorado - Integración Completa con EcoWitt History
+
+## Resumen de Mejoras Implementadas
+
+El sistema de reportes ha sido completamente actualizado para integrar todas las mejoras del historial de datos de EcoWitt, incluyendo diagnóstico automático, soporte para todos los rangos de tiempo y mejor manejo de errores.
+
+## 🚀 Nuevas Funcionalidades
+
+### 1. Diagnóstico Automático de Datos Históricos
+
+El sistema ahora incluye diagnóstico automático que se ejecuta cuando:
+- Los datos históricos están vacíos
+- Ocurre un error al obtener datos históricos
+- Se necesita optimizar la recuperación de datos
+
+#### Configuraciones Probadas Automáticamente:
+- **Indoor Auto**: `call_back = indoor`, `cycle_type = auto`
+- **Outdoor Auto**: `call_back = outdoor`, `cycle_type = auto`
+- **Indoor 5min**: `call_back = indoor`, `cycle_type = 5min`
+- **Outdoor 5min**: `call_back = outdoor`, `cycle_type = 5min`
+- **Indoor Metric**: `call_back = indoor` con unidades métricas
+- **Outdoor Metric**: `call_back = outdoor` con unidades métricas
+
+### 2. Soporte Completo para Rangos de Tiempo
+
+Ahora se soportan todos los rangos de tiempo disponibles:
+
+| Tipo | Descripción | Duración |
+|------|-------------|----------|
+| `hour` | Última hora | 1 hora |
+| `day` | Último día | 24 horas |
+| `week` | Última semana | 7 días |
+| `month` | Último mes | 30 días |
+| `3months` | Últimos 3 meses | 90 días |
+
+### 3. Información Detallada de Diagnóstico
+
+Los reportes ahora incluyen información detallada sobre:
+- Si se realizó diagnóstico automático
+- Qué configuración funcionó mejor
+- Cuántos tipos de datos se encontraron
+- Tasa de éxito del diagnóstico
+
+## 📊 Estructura de Reportes Mejorada
+
+### Reporte de Dispositivo Individual
+
+```json
+{
+  "success": true,
+  "message": "Reporte de dispositivo y clima generado exitosamente en formato PDF. Datos históricos incluidos (5 tipos de datos). Se realizó diagnóstico automático para optimizar la recuperación de datos.",
+  "data": {
+    "fileID": "uuid",
+    "fileName": "weather-report-device-Estacion-Jardin-2024-01-15-14-30.pdf",
+    "fileURL": "https://cloudinary.com/...",
+    "format": "pdf",
+    "report": {
+      "deviceId": "uuid",
+      "deviceName": "Estación del Jardín",
+      "location": { "latitude": 40.4168, "longitude": -3.7038 },
+      "timestamp": "2024-01-15T14:30:25.123Z",
+      "includeHistory": true,
+      "hasHistoricalData": true,
+      "historicalDataKeys": ["indoor", "outdoor", "solar_and_uvi", "rainfall", "wind"],
+      "diagnosticPerformed": true,
+      "timeRange": {
+        "start": "2024-01-14T14:30:25.123Z",
+        "end": "2024-01-15T14:30:25.123Z",
+        "description": "Último día"
+      }
+    }
+  }
+}
+```
+
+### Reporte de Grupo de Dispositivos
+
+```json
+{
+  "success": true,
+  "message": "Reporte de grupo de dispositivos generado exitosamente en formato PDF. 3/5 dispositivos con datos históricos (60% de éxito). Se realizó diagnóstico automático en 2 dispositivos.",
+  "data": {
+    "fileID": "uuid",
+    "fileName": "weather-report-group-Grupo-Principal-2024-01-15-14-30.pdf",
+    "fileURL": "https://cloudinary.com/...",
+    "format": "pdf",
+    "report": {
+      "groupId": "uuid",
+      "groupName": "Grupo Principal",
+      "timestamp": "2024-01-15T14:30:25.123Z",
+      "includeHistory": true,
+      "totalDevices": 5,
+      "devicesWithHistoricalData": 3,
+      "devicesWithDiagnostic": 2,
+      "historicalDataSuccessRate": 60,
+      "diagnosticSuccessRate": 100,
+      "timeRange": {
+        "start": "2024-01-14T14:30:25.123Z",
+        "end": "2024-01-15T14:30:25.123Z",
+        "description": "Último día"
+      }
+    }
+  }
+}
+```
+
+## 🔧 API Endpoints Actualizados
+
+### Generar Reporte de Dispositivo
+
+**POST** `/api/reports/device`
+
+```json
+{
+  "deviceId": "550e8400-e29b-41d4-a716-446655440000",
+  "userId": "user-uuid",
+  "includeHistory": true,
+  "historyRange": {
+    "type": "day"
+  },
+  "format": "pdf"
+}
+```
+
+### Generar Reporte de Grupo
+
+**POST** `/api/reports/group`
+
+```json
+{
+  "groupId": "group-uuid",
+  "userId": "user-uuid",
+  "includeHistory": true,
+  "historyRange": {
+    "type": "week"
+  },
+  "format": "json"
+}
+```
+
+## 📈 Métricas y Diagnóstico
+
+### Información de Diagnóstico en Reportes
+
+Los reportes ahora incluyen sección de diagnóstico:
+
+```json
+{
+  "deviceData": {
+    "diagnostic": {
+      "performed": true,
+      "summary": {
+        "totalTests": 6,
+        "successfulTests": 2,
+        "bestConfiguration": {
+          "test": "Indoor Auto",
+          "dataKeys": ["indoor", "solar_and_uvi"],
+          "hasData": true
+        },
+        "allConfigurations": [
+          {
+            "test": "Indoor Auto",
+            "hasData": true,
+            "dataCount": 2,
+            "error": null
+          },
+          {
+            "test": "Outdoor Auto",
+            "hasData": false,
+            "dataCount": 0,
+            "error": null
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+### Métricas de Grupo
+
+Para reportes de grupo, se incluyen métricas agregadas:
+
+```json
+{
+  "metadata": {
+    "devicesWithHistoricalData": 3,
+    "devicesWithDiagnostic": 2,
+    "historicalDataSuccessRate": 60,
+    "diagnosticSuccessRate": 100
+  },
+  "groupDiagnostic": {
+    "totalDevices": 5,
+    "devicesWithHistoricalData": 3,
+    "devicesWithDiagnostic": 2,
+    "diagnosticResults": [
+      {
+        "deviceId": "device-uuid",
+        "deviceName": "Estación 1",
+        "deviceMac": "AA:BB:CC:DD:EE:FF",
+        "diagnostic": { /* información de diagnóstico */ }
+      }
+    ]
+  }
+}
+```
+
+## 🛠️ Mejoras Técnicas
+
+### 1. Manejo Robusto de Errores
+
+- **Fallback automático**: Si falla la obtención de datos históricos, se intenta diagnóstico automático
+- **Continuación graciosa**: Los reportes se generan incluso si algunos componentes fallan
+- **Logging detallado**: Información completa para debugging
+
+### 2. Optimización de Rendimiento
+
+- **Diagnóstico inteligente**: Solo se ejecuta cuando es necesario
+- **Configuración óptima**: Se usa la configuración que devuelve más datos
+- **Paralelización**: Para grupos, se procesan dispositivos en paralelo
+
+### 3. Validación Mejorada
+
+- **Rangos de tiempo**: Validación completa de tipos de rango
+- **Mensajes descriptivos**: Errores claros con opciones válidas
+- **Documentación integrada**: Schemas con descripciones
+
+## 📋 Casos de Uso
+
+### 1. Dispositivo con Datos Históricos Disponibles
+
+```bash
+curl -X POST /api/reports/device \
+  -H "Content-Type: application/json" \
+  -d '{
+    "deviceId": "device-uuid",
+    "userId": "user-uuid",
+    "includeHistory": true,
+    "historyRange": { "type": "day" },
+    "format": "pdf"
+  }'
+```
+
+**Resultado**: Reporte con datos históricos completos, sin necesidad de diagnóstico.
+
+### 2. Dispositivo sin Datos Históricos Iniciales
+
+```bash
+curl -X POST /api/reports/device \
+  -H "Content-Type: application/json" \
+  -d '{
+    "deviceId": "device-uuid",
+    "userId": "user-uuid",
+    "includeHistory": true,
+    "historyRange": { "type": "week" },
+    "format": "json"
+  }'
+```
+
+**Resultado**: Reporte con diagnóstico automático que encuentra la configuración óptima.
+
+### 3. Grupo con Dispositivos Mixtos
+
+```bash
+curl -X POST /api/reports/group \
+  -H "Content-Type: application/json" \
+  -d '{
+    "groupId": "group-uuid",
+    "userId": "user-uuid",
+    "includeHistory": true,
+    "historyRange": { "type": "month" },
+    "format": "pdf"
+  }'
+```
+
+**Resultado**: Reporte con métricas agregadas y diagnóstico individual por dispositivo.
+
+## 🔍 Monitoreo y Debugging
+
+### Logs del Sistema
+
+El sistema genera logs detallados para monitoreo:
+
+```
+[DeviceReport] Generando reporte con historial: day (2024-01-14T14:30:25.123Z - 2024-01-15T14:30:25.123Z)
+[DeviceWeatherReport] Obteniendo historial para dispositivo AA:BB:CC:DD:EE:FF desde 2024-01-14T14:30:25.123Z hasta 2024-01-15T14:30:25.123Z
+[DeviceWeatherReport] Datos históricos vacíos para dispositivo AA:BB:CC:DD:EE:FF, realizando diagnóstico automático...
+[HistoricalDiagnostic] Probando configuración: Indoor Auto
+[HistoricalDiagnostic] Indoor Auto: ÉXITO (2 claves)
+[DeviceWeatherReport] Diagnóstico exitoso, usando configuración: Indoor Auto
+```
+
+### Información de Diagnóstico
+
+Cada reporte incluye información completa sobre el proceso de diagnóstico:
+
+- Configuraciones probadas
+- Resultados de cada prueba
+- Configuración óptima encontrada
+- Métricas de éxito
+
+## 🎯 Beneficios de las Mejoras
+
+1. **Mayor Tasa de Éxito**: Diagnóstico automático mejora la recuperación de datos
+2. **Información Detallada**: Reportes más completos con métricas y diagnóstico
+3. **Flexibilidad**: Soporte para todos los rangos de tiempo disponibles
+4. **Robustez**: Manejo gracioso de errores y fallbacks automáticos
+5. **Transparencia**: Información completa sobre el proceso de generación
+6. **Escalabilidad**: Funciona eficientemente con grupos grandes de dispositivos
+
+## 📚 Referencias
+
+- [ECOWITT_HISTORY_DATA_SOLUTION.md](./ECOWITT_HISTORY_DATA_SOLUTION.md) - Solución original para datos históricos
+- [ECOWITT_API.md](./ECOWITT_API.md) - Documentación completa de la API de EcoWitt
+- [DEVICE_WEATHER_REPORTS_API.md](./DEVICE_WEATHER_REPORTS_API.md) - API de reportes de dispositivos 

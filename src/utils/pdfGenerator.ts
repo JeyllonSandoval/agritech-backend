@@ -55,17 +55,31 @@ interface DeviceWeatherData {
     characteristics: DeviceCharacteristics;
   };
   weather: WeatherData | null;
-  deviceData: DeviceDataReport;
+  deviceData: DeviceDataReport & {
+    diagnostic?: {
+      performed: boolean;
+      summary: any;
+      bestConfiguration?: {
+        test: string;
+        dataKeys: string[];
+        hasData: boolean;
+      } | null;
+    } | null;
+  };
   generatedAt: string;
   timeRange?: {
     start: string;
     end: string;
+    description: string;
   } | null;
   metadata: {
     includeHistory: boolean;
     hasWeatherData: boolean;
     hasHistoricalData: boolean;
     deviceOnline: boolean;
+    diagnosticPerformed: boolean;
+    historicalDataKeys: string[];
+    diagnosticSummary?: any;
   };
 }
 
@@ -247,13 +261,45 @@ export class PDFGenerator {
           .forecast-card .description { font-size: 0.85em; opacity: 0.9; font-weight: 400; }
           .chart-section { border-color: #6366f1; }
           .chart-section h2 { color: #6366f1; }
-          .chart-container { background: rgba(255,255,255,0.04); padding: 25px; border-radius: 16px; margin-top: 20px; border: 1.5px solid #6366f1; }
+          .chart-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+          }
           .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 25px; margin-top: 20px; }
           .footer { background: #18181b; padding: 30px; text-align: center; color: rgba(255,255,255,0.7); border-top: 1px solid #10b98122; }
           .timestamp { font-style: italic; color: rgba(255,255,255,0.6); margin-top: 15px; font-size: 0.9em; }
           .status-indicator { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 10px; box-shadow: 0 0 10px currentColor; }
           .status-online { background-color: #10b981; color: #10b981; }
           .status-offline { background-color: #ef4444; color: #ef4444; }
+          .diagnostic-info {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+          }
+          .diagnostic-info h3 {
+            color: #ffc107;
+            margin: 0 0 10px 0;
+            font-size: 16px;
+          }
+          .diagnostic-info p {
+            margin: 0 0 10px 0;
+            color: #ffffff;
+          }
+          .diagnostic-result {
+            background: rgba(40, 167, 69, 0.1);
+            border: 1px solid rgba(40, 167, 69, 0.3);
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+          }
+          .diagnostic-result strong {
+            color: #28a745;
+          }
           @media (max-width: 768px) { .container { margin: 0; border-radius: 0; } .header h1 { font-size: 2.2em; } .content { padding: 20px; } .section { padding: 20px; margin-bottom: 25px; } .info-grid { grid-template-columns: 1fr; gap: 15px; } .weather-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; } .chart-grid { grid-template-columns: 1fr; gap: 20px; } .forecast-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; } }
         </style>
       </head>
@@ -317,11 +363,20 @@ export class PDFGenerator {
             ${report.metadata.hasHistoricalData && deviceData.historical ? `
             <div class="section chart-section">
               <h2>${svgHistory} Histórico</h2>
+              ${deviceData.diagnostic && deviceData.diagnostic.performed ? `
+              <div class="diagnostic-info">
+                <h3>Información de Diagnóstico</h3>
+                <p>Se realizó diagnóstico automático para optimizar la recuperación de datos.</p>
+                ${deviceData.diagnostic.bestConfiguration ? `
+                <div class="diagnostic-result">
+                  <strong>Configuración óptima encontrada:</strong> ${deviceData.diagnostic.bestConfiguration.test}<br>
+                  <strong>Tipos de datos recuperados:</strong> ${deviceData.diagnostic.bestConfiguration.dataKeys.join(', ')}
+                </div>
+                ` : ''}
+              </div>
+              ` : ''}
               <div class="chart-grid">
-                <div class="chart-container"><canvas id="temperatureChart" width="400" height="200"></canvas></div>
-                <div class="chart-container"><canvas id="humidityChart" width="400" height="200"></canvas></div>
-                <div class="chart-container"><canvas id="pressureChart" width="400" height="200"></canvas></div>
-                <div class="chart-container"><canvas id="windChart" width="400" height="200"></canvas></div>
+                ${this.generateChartContainers(deviceData.historical)}
               </div>
             </div>
             ` : ''}
@@ -346,143 +401,478 @@ export class PDFGenerator {
   }
 
   /**
+   * Genera contenedores HTML para los gráficos basados en los datos disponibles
+   */
+  private static generateChartContainers(historicalData: any): string {
+    // La nueva estructura de EcoWitt tiene datos organizados por categorías
+    const indoorData = historicalData.indoor || {};
+    const outdoorData = historicalData.outdoor || {};
+    const solarData = historicalData.solar_and_uvi || {};
+    const rainfallData = historicalData.rainfall || {};
+    const windData = historicalData.wind || {};
+    const pressureData = historicalData.pressure || {};
+
+    // Función helper para verificar si hay datos disponibles
+    const hasData = (dataObj: any, key: string) => {
+      if (!dataObj || !dataObj[key]) return false;
+      const series = dataObj[key];
+      return Array.isArray(series) && series.length > 0;
+    };
+
+    // Determinar qué gráficos mostrar basado en los datos disponibles
+    const availableCharts = [];
+    
+    if (hasData(indoorData, 'temperature') || hasData(outdoorData, 'temperature')) {
+      availableCharts.push('temperature');
+    }
+    if (hasData(indoorData, 'humidity') || hasData(outdoorData, 'humidity')) {
+      availableCharts.push('humidity');
+    }
+    if (hasData(pressureData, 'baromrelin')) {
+      availableCharts.push('pressure');
+    }
+    if (hasData(windData, 'windspeedmph')) {
+      availableCharts.push('wind');
+    }
+    if (hasData(solarData, 'solar')) {
+      availableCharts.push('solar');
+    }
+    if (hasData(rainfallData, 'rain_rate')) {
+      availableCharts.push('rainfall');
+    }
+
+    // Generar HTML para los contenedores de gráficos disponibles
+    return availableCharts.map((chartType) => {
+      const chartId = `${chartType}Chart`;
+      return `<div class="chart-container"><canvas id="${chartId}" width="400" height="200"></canvas></div>`;
+    }).join('');
+  }
+
+  /**
    * Genera scripts para los gráficos de Chart.js
+   * Actualizado para manejar la nueva estructura de datos históricos de EcoWitt
    */
   private static generateChartScripts(historicalData: any): string {
-    // Extraer datos para los gráficos
-    const data = historicalData.data || [];
-    const timestamps = data.map((item: any) => new Date(item.dateutc).toLocaleString('es-ES', { month: 'short', day: 'numeric', hour: '2-digit' }));
-    
-    // Temperatura
-    const temperatures = data.map((item: any) => item.temp1f || item.temp1c || null).filter((t: any) => t !== null);
-    
-    // Humedad
-    const humidity = data.map((item: any) => item.humidity1 || null).filter((h: any) => h !== null);
-    
-    // Presión
-    const pressure = data.map((item: any) => item.baromrelin || null).filter((p: any) => p !== null);
-    
-    // Viento
-    const windSpeed = data.map((item: any) => item.windspeedmph || null).filter((w: any) => w !== null);
+    // La nueva estructura de EcoWitt tiene datos organizados por categorías
+    const indoorData = historicalData.indoor || {};
+    const outdoorData = historicalData.outdoor || {};
+    const solarData = historicalData.solar_and_uvi || {};
+    const rainfallData = historicalData.rainfall || {};
+    const windData = historicalData.wind || {};
+    const pressureData = historicalData.pressure || {};
 
-    return `
-      // Gráfico de Temperatura
-      new Chart(document.getElementById('temperatureChart'), {
-        type: 'line',
-        data: {
-          labels: ${JSON.stringify(timestamps.slice(0, temperatures.length))},
-          datasets: [{
-            label: 'Temperatura (°F)',
-            data: ${JSON.stringify(temperatures)},
-            borderColor: 'rgb(255, 99, 132)',
-            backgroundColor: 'rgba(255, 99, 132, 0.1)',
-            tension: 0.1
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            title: {
-              display: true,
-              text: 'Evolución de la Temperatura'
-            }
+    // Función helper para extraer datos de series temporales
+    const extractTimeSeriesData = (dataObj: any, key: string) => {
+      if (!dataObj || !dataObj[key]) return { timestamps: [], values: [] };
+      
+      const series = dataObj[key];
+      if (Array.isArray(series)) {
+        return {
+          timestamps: series.map((item: any) => new Date(item.time * 1000).toLocaleString('es-ES', { 
+            month: 'short', 
+            day: 'numeric', 
+            hour: '2-digit',
+            minute: '2-digit'
+          })),
+          values: series.map((item: any) => item.value || item.val || null).filter((v: any) => v !== null)
+        };
+      }
+      return { timestamps: [], values: [] };
+    };
+
+    // Extraer datos de temperatura (priorizar indoor, luego outdoor)
+    const tempIndoor = extractTimeSeriesData(indoorData, 'temperature');
+    const tempOutdoor = extractTimeSeriesData(outdoorData, 'temperature');
+    const temperatureData = tempIndoor.values.length > 0 ? tempIndoor : tempOutdoor;
+
+    // Extraer datos de humedad (priorizar indoor, luego outdoor)
+    const humIndoor = extractTimeSeriesData(indoorData, 'humidity');
+    const humOutdoor = extractTimeSeriesData(outdoorData, 'humidity');
+    const humidityData = humIndoor.values.length > 0 ? humIndoor : humOutdoor;
+
+    // Extraer datos de presión
+    const pressureSeries = extractTimeSeriesData(pressureData, 'baromrelin');
+
+    // Extraer datos de viento
+    const windSpeedSeries = extractTimeSeriesData(windData, 'windspeedmph');
+    const windDirectionSeries = extractTimeSeriesData(windData, 'winddir');
+
+    // Extraer datos solares
+    const solarSeries = extractTimeSeriesData(solarData, 'solar');
+    const uviSeries = extractTimeSeriesData(solarData, 'uvi');
+
+    // Extraer datos de lluvia
+    const rainRateSeries = extractTimeSeriesData(rainfallData, 'rain_rate');
+    const dailyRainSeries = extractTimeSeriesData(rainfallData, 'daily');
+
+    // Determinar qué gráficos mostrar basado en los datos disponibles
+    const availableCharts = [];
+    
+    if (temperatureData.values.length > 0) {
+      availableCharts.push('temperature');
+    }
+    if (humidityData.values.length > 0) {
+      availableCharts.push('humidity');
+    }
+    if (pressureSeries.values.length > 0) {
+      availableCharts.push('pressure');
+    }
+    if (windSpeedSeries.values.length > 0) {
+      availableCharts.push('wind');
+    }
+    if (solarSeries.values.length > 0) {
+      availableCharts.push('solar');
+    }
+    if (rainRateSeries.values.length > 0) {
+      availableCharts.push('rainfall');
+    }
+
+    // Generar HTML dinámico para los gráficos disponibles
+    const chartHTML = availableCharts.map((chartType, index) => {
+      const chartId = `${chartType}Chart`;
+      return `<div class="chart-container"><canvas id="${chartId}" width="400" height="200"></canvas></div>`;
+    }).join('');
+
+    // Generar scripts para cada gráfico disponible
+    const chartScripts = [];
+
+    if (temperatureData.values.length > 0) {
+      chartScripts.push(`
+        // Gráfico de Temperatura
+        new Chart(document.getElementById('temperatureChart'), {
+          type: 'line',
+          data: {
+            labels: ${JSON.stringify(temperatureData.timestamps)},
+            datasets: [{
+              label: 'Temperatura (°F)',
+              data: ${JSON.stringify(temperatureData.values)},
+              borderColor: 'rgb(255, 99, 132)',
+              backgroundColor: 'rgba(255, 99, 132, 0.1)',
+              tension: 0.1,
+              fill: false
+            }]
           },
-          scales: {
-            y: {
-              beginAtZero: false
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              title: {
+                display: true,
+                text: 'Evolución de la Temperatura',
+                color: '#ffffff'
+              },
+              legend: {
+                labels: {
+                  color: '#ffffff'
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: {
+                  color: '#ffffff',
+                  maxTicksLimit: 10
+                },
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.1)'
+                }
+              },
+              y: {
+                beginAtZero: false,
+                ticks: {
+                  color: '#ffffff'
+                },
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.1)'
+                }
+              }
             }
           }
-        }
-      });
+        });
+      `);
+    }
 
-      // Gráfico de Humedad
-      new Chart(document.getElementById('humidityChart'), {
-        type: 'line',
-        data: {
-          labels: ${JSON.stringify(timestamps.slice(0, humidity.length))},
-          datasets: [{
-            label: 'Humedad (%)',
-            data: ${JSON.stringify(humidity)},
-            borderColor: 'rgb(54, 162, 235)',
-            backgroundColor: 'rgba(54, 162, 235, 0.1)',
-            tension: 0.1
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            title: {
-              display: true,
-              text: 'Evolución de la Humedad'
-            }
+    if (humidityData.values.length > 0) {
+      chartScripts.push(`
+        // Gráfico de Humedad
+        new Chart(document.getElementById('humidityChart'), {
+          type: 'line',
+          data: {
+            labels: ${JSON.stringify(humidityData.timestamps)},
+            datasets: [{
+              label: 'Humedad (%)',
+              data: ${JSON.stringify(humidityData.values)},
+              borderColor: 'rgb(54, 162, 235)',
+              backgroundColor: 'rgba(54, 162, 235, 0.1)',
+              tension: 0.1,
+              fill: false
+            }]
           },
-          scales: {
-            y: {
-              beginAtZero: true,
-              max: 100
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              title: {
+                display: true,
+                text: 'Evolución de la Humedad',
+                color: '#ffffff'
+              },
+              legend: {
+                labels: {
+                  color: '#ffffff'
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: {
+                  color: '#ffffff',
+                  maxTicksLimit: 10
+                },
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.1)'
+                }
+              },
+              y: {
+                beginAtZero: true,
+                max: 100,
+                ticks: {
+                  color: '#ffffff'
+                },
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.1)'
+                }
+              }
             }
           }
-        }
-      });
+        });
+      `);
+    }
 
-      // Gráfico de Presión
-      new Chart(document.getElementById('pressureChart'), {
-        type: 'line',
-        data: {
-          labels: ${JSON.stringify(timestamps.slice(0, pressure.length))},
-          datasets: [{
-            label: 'Presión (inHg)',
-            data: ${JSON.stringify(pressure)},
-            borderColor: 'rgb(75, 192, 192)',
-            backgroundColor: 'rgba(75, 192, 192, 0.1)',
-            tension: 0.1
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            title: {
-              display: true,
-              text: 'Evolución de la Presión'
-            }
+    if (pressureSeries.values.length > 0) {
+      chartScripts.push(`
+        // Gráfico de Presión
+        new Chart(document.getElementById('pressureChart'), {
+          type: 'line',
+          data: {
+            labels: ${JSON.stringify(pressureSeries.timestamps)},
+            datasets: [{
+              label: 'Presión (inHg)',
+              data: ${JSON.stringify(pressureSeries.values)},
+              borderColor: 'rgb(75, 192, 192)',
+              backgroundColor: 'rgba(75, 192, 192, 0.1)',
+              tension: 0.1,
+              fill: false
+            }]
           },
-          scales: {
-            y: {
-              beginAtZero: false
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              title: {
+                display: true,
+                text: 'Evolución de la Presión',
+                color: '#ffffff'
+              },
+              legend: {
+                labels: {
+                  color: '#ffffff'
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: {
+                  color: '#ffffff',
+                  maxTicksLimit: 10
+                },
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.1)'
+                }
+              },
+              y: {
+                beginAtZero: false,
+                ticks: {
+                  color: '#ffffff'
+                },
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.1)'
+                }
+              }
             }
           }
-        }
-      });
+        });
+      `);
+    }
 
-      // Gráfico de Viento
-      new Chart(document.getElementById('windChart'), {
-        type: 'line',
-        data: {
-          labels: ${JSON.stringify(timestamps.slice(0, windSpeed.length))},
-          datasets: [{
-            label: 'Velocidad del Viento (mph)',
-            data: ${JSON.stringify(windSpeed)},
-            borderColor: 'rgb(255, 205, 86)',
-            backgroundColor: 'rgba(255, 205, 86, 0.1)',
-            tension: 0.1
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            title: {
-              display: true,
-              text: 'Evolución de la Velocidad del Viento'
-            }
+    if (windSpeedSeries.values.length > 0) {
+      chartScripts.push(`
+        // Gráfico de Viento
+        new Chart(document.getElementById('windChart'), {
+          type: 'line',
+          data: {
+            labels: ${JSON.stringify(windSpeedSeries.timestamps)},
+            datasets: [{
+              label: 'Velocidad del Viento (mph)',
+              data: ${JSON.stringify(windSpeedSeries.values)},
+              borderColor: 'rgb(255, 205, 86)',
+              backgroundColor: 'rgba(255, 205, 86, 0.1)',
+              tension: 0.1,
+              fill: false
+            }]
           },
-          scales: {
-            y: {
-              beginAtZero: true
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              title: {
+                display: true,
+                text: 'Evolución de la Velocidad del Viento',
+                color: '#ffffff'
+              },
+              legend: {
+                labels: {
+                  color: '#ffffff'
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: {
+                  color: '#ffffff',
+                  maxTicksLimit: 10
+                },
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.1)'
+                }
+              },
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  color: '#ffffff'
+                },
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.1)'
+                }
+              }
             }
           }
-        }
-      });
-    `;
+        });
+      `);
+    }
+
+    if (solarSeries.values.length > 0) {
+      chartScripts.push(`
+        // Gráfico Solar
+        new Chart(document.getElementById('solarChart'), {
+          type: 'line',
+          data: {
+            labels: ${JSON.stringify(solarSeries.timestamps)},
+            datasets: [{
+              label: 'Radiación Solar (W/m²)',
+              data: ${JSON.stringify(solarSeries.values)},
+              borderColor: 'rgb(255, 159, 64)',
+              backgroundColor: 'rgba(255, 159, 64, 0.1)',
+              tension: 0.1,
+              fill: false
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              title: {
+                display: true,
+                text: 'Evolución de la Radiación Solar',
+                color: '#ffffff'
+              },
+              legend: {
+                labels: {
+                  color: '#ffffff'
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: {
+                  color: '#ffffff',
+                  maxTicksLimit: 10
+                },
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.1)'
+                }
+              },
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  color: '#ffffff'
+                },
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.1)'
+                }
+              }
+            }
+          }
+        });
+      `);
+    }
+
+    if (rainRateSeries.values.length > 0) {
+      chartScripts.push(`
+        // Gráfico de Lluvia
+        new Chart(document.getElementById('rainfallChart'), {
+          type: 'bar',
+          data: {
+            labels: ${JSON.stringify(rainRateSeries.timestamps)},
+            datasets: [{
+              label: 'Tasa de Lluvia (in/hr)',
+              data: ${JSON.stringify(rainRateSeries.values)},
+              backgroundColor: 'rgba(54, 162, 235, 0.8)',
+              borderColor: 'rgb(54, 162, 235)',
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              title: {
+                display: true,
+                text: 'Evolución de la Tasa de Lluvia',
+                color: '#ffffff'
+              },
+              legend: {
+                labels: {
+                  color: '#ffffff'
+                }
+              }
+            },
+            scales: {
+              x: {
+                ticks: {
+                  color: '#ffffff',
+                  maxTicksLimit: 10
+                },
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.1)'
+                }
+              },
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  color: '#ffffff'
+                },
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.1)'
+                }
+              }
+            }
+          }
+        });
+      `);
+    }
+
+    return chartScripts.join('\n');
   }
 
   /**
