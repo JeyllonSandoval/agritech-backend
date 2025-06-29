@@ -183,7 +183,7 @@ export class DeviceWeatherReportService {
       // 8. Preparar datos del dispositivo para el reporte
       const deviceDataReport = {
         realtime: realtimeData,
-        historical: historicalData,
+        historical: (historicalData && historicalData.data) ? historicalData.data : {},
         characteristics: deviceCharacteristics,
         // Incluir información de diagnóstico si está disponible
         diagnostic: historicalDiagnostic ? {
