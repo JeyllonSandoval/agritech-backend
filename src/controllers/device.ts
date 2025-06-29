@@ -110,30 +110,12 @@ export class DeviceController {
   }
 
   /**
-   * Obtener un dispositivo por DeviceID (NUEVO MÉTODO PRINCIPAL)
+   * Obtener un dispositivo por DeviceID (MÉTODO PRINCIPAL)
    */
   static async getDeviceByDeviceId(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { deviceId } = request.params as { deviceId: string };
       const device = await EcowittService.getDeviceByDeviceId(deviceId);
-      
-      if (!device) {
-        return reply.code(404).send({ error: 'Device not found' });
-      }
-      
-      return reply.send(device);
-    } catch (error) {
-      return reply.code(500).send({ error: 'Error retrieving device' });
-    }
-  }
-
-  /**
-   * Obtener un dispositivo por Application Key (MANTENER PARA COMPATIBILIDAD)
-   */
-  static async getDeviceByApplicationKey(request: FastifyRequest, reply: FastifyReply) {
-    try {
-      const { applicationKey } = request.params as { applicationKey: string };
-      const device = await EcowittService.getDeviceByApplicationKey(applicationKey);
       
       if (!device) {
         return reply.code(404).send({ error: 'Device not found' });
@@ -214,7 +196,7 @@ export class DeviceController {
   static async getDeviceRealtime(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { deviceId } = request.params as { deviceId: string };
-      
+
       const device = await EcowittService.getDeviceByDeviceId(deviceId);
       if (!device) {
         return reply.code(404).send({ error: 'Device not found' });
@@ -260,77 +242,6 @@ export class DeviceController {
       return reply.send(historyData);
     } catch (error) {
       return reply.code(500).send({ error: 'Error retrieving historical data' });
-    }
-  }
-
-  /**
-   * Obtener estado de un dispositivo
-   */
-  static async getDeviceStatus(request: FastifyRequest, reply: FastifyReply) {
-    try {
-      const { deviceId } = request.params as { deviceId: string };
-      
-      const device = await EcowittService.getDeviceByDeviceId(deviceId);
-      if (!device) {
-        return reply.code(404).send({ error: 'Device not found' });
-      }
-
-      const statusData = await EcowittService.getDeviceStatus(
-        device.DeviceApplicationKey,
-        device.DeviceApiKey,
-        device.DeviceMac
-      );
-      return reply.send(statusData);
-    } catch (error) {
-      return reply.code(500).send({ error: 'Error retrieving device status' });
-    }
-  }
-
-  /**
-   * Obtener configuración de un dispositivo
-   */
-  static async getDeviceConfig(request: FastifyRequest, reply: FastifyReply) {
-    try {
-      const { deviceId } = request.params as { deviceId: string };
-
-      const device = await EcowittService.getDeviceByDeviceId(deviceId);
-      if (!device) {
-        return reply.code(404).send({ error: 'Device not found' });
-      }
-
-      const configData = await EcowittService.getDeviceConfig(
-        device.DeviceApplicationKey,
-        device.DeviceApiKey,
-        device.DeviceMac
-      );
-      return reply.send(configData);
-    } catch (error) {
-      return reply.code(500).send({ error: 'Error retrieving device configuration' });
-    }
-  }
-
-  /**
-   * Actualizar configuración de un dispositivo
-   */
-  static async updateDeviceConfig(request: FastifyRequest, reply: FastifyReply) {
-    try {
-      const { deviceId } = request.params as { deviceId: string };
-      const config = request.body as Record<string, unknown>;
-
-      const device = await EcowittService.getDeviceByDeviceId(deviceId);
-      if (!device) {
-        return reply.code(404).send({ error: 'Device not found' });
-      }
-
-      const updatedConfig = await EcowittService.updateDeviceConfig(
-        device.DeviceApplicationKey,
-        device.DeviceApiKey,
-        device.DeviceMac,
-        config
-      );
-      return reply.send(updatedConfig);
-    } catch (error) {
-      return reply.code(500).send({ error: 'Error updating device configuration' });
     }
   }
 
@@ -393,29 +304,6 @@ export class DeviceController {
         error: 'Error retrieving device information',
         details: error instanceof Error ? error.message : 'Unknown error'
       });
-    }
-  }
-
-  /**
-   * Obtener información detallada de un dispositivo (MANTENER PARA COMPATIBILIDAD)
-   */
-  static async getDeviceDetailedInfo(request: FastifyRequest, reply: FastifyReply) {
-    try {
-      const { deviceId } = request.params as { deviceId: string };
-
-      const device = await EcowittService.getDeviceByDeviceId(deviceId);
-      if (!device) {
-        return reply.code(404).send({ error: 'Device not found' });
-      }
-
-      const detailedInfo = await EcowittService.getDeviceDetailedInfo(
-        device.DeviceApplicationKey,
-        device.DeviceApiKey,
-        device.DeviceMac
-      );
-      return reply.send(detailedInfo);
-    } catch (error) {
-      return reply.code(500).send({ error: 'Error retrieving detailed device information' });
     }
   }
 
@@ -500,38 +388,6 @@ export class DeviceController {
       return reply.send(realtimeData);
     } catch (error) {
       return reply.code(500).send({ error: 'Error retrieving multiple devices real-time data' });
-    }
-  }
-
-  /**
-   * Probar diferentes endpoints de EcoWitt para encontrar información de ubicación (TEMPORAL)
-   */
-  static async testEcoWittEndpoints(request: FastifyRequest, reply: FastifyReply) {
-    try {
-      const { deviceId } = request.params as { deviceId: string };
-
-      const device = await EcowittService.getDeviceByDeviceId(deviceId);
-      if (!device) {
-        return reply.code(404).send({ error: 'Device not found' });
-      }
-
-      const endpointResults = await EcowittService.getDeviceLocationInfo(
-        device.DeviceApplicationKey,
-        device.DeviceApiKey,
-        device.DeviceMac
-      );
-
-      return reply.send({
-        deviceId: device.DeviceID,
-        deviceName: device.DeviceName,
-        endpointResults
-      });
-    } catch (error) {
-      console.error('Error in testEcoWittEndpoints:', error);
-      return reply.code(500).send({ 
-        error: 'Error testing EcoWitt endpoints',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      });
     }
   }
 

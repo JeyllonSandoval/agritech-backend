@@ -115,37 +115,6 @@ export class EcowittService {
   }
 
   /**
-   * Eliminar un dispositivo por Application Key (MANTENER PARA COMPATIBILIDAD)
-   */
-  static async deleteDeviceByApplicationKey(applicationKey: string): Promise<void> {
-    await db.delete(devices).where(
-      eq(devices.DeviceApplicationKey, applicationKey)
-    );
-  }
-
-  /**
-   * Obtener estado de un dispositivo
-   */
-  static async getDeviceStatus(applicationKey: string, apiKey: string, mac: string) {
-    try {
-      const response = await axios.get(`${ECOWITT_API_BASE}/device/real_time`, {
-        params: {
-          application_key: applicationKey,
-          api_key: apiKey,
-          mac: mac,
-          call_back: 'all'
-        }
-      });
-      return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        throw new Error(`Ecowitt API Error: ${error.response?.data?.message || error.message}`);
-      }
-      throw error;
-    }
-  }
-
-  /**
    * Obtener datos en tiempo real de un dispositivo
    */
   static async getDeviceRealtime(applicationKey: string, apiKey: string, mac: string) {
@@ -155,7 +124,7 @@ export class EcowittService {
           application_key: applicationKey,
           api_key: apiKey,
           mac: mac,
-          call_back: 'all'
+          call_back: 'outdoor'
         }
       });
       return response.data;
@@ -177,53 +146,10 @@ export class EcowittService {
           application_key: applicationKey,
           api_key: apiKey,
           mac: mac,
-          start_time: startTime,
-          end_time: endTime,
-          call_back: 'all'
+          start_date: startTime,
+          end_date: endTime,
+          call_back: 'outdoor'
         }
-      });
-      return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        throw new Error(`Ecowitt API Error: ${error.response?.data?.message || error.message}`);
-      }
-      throw error;
-    }
-  }
-
-  /**
-   * Obtener configuración de un dispositivo
-   */
-  static async getDeviceConfig(applicationKey: string, apiKey: string, mac: string) {
-    try {
-      const response = await axios.get(`${ECOWITT_API_BASE}/device/config`, {
-        params: {
-          application_key: applicationKey,
-          api_key: apiKey,
-          mac: mac,
-          call_back: 'all'
-        }
-      });
-      return response.data;
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        throw new Error(`Ecowitt API Error: ${error.response?.data?.message || error.message}`);
-      }
-      throw error;
-    }
-  }
-
-  /**
-   * Actualizar configuración de un dispositivo
-   */
-  static async updateDeviceConfig(applicationKey: string, apiKey: string, mac: string, config: Record<string, any>) {
-    try {
-      const response = await axios.put(`${ECOWITT_API_BASE}/device/config`, {
-        application_key: applicationKey,
-        api_key: apiKey,
-        mac: mac,
-        call_back: 'all',
-        ...config
       });
       return response.data;
     } catch (error) {
@@ -292,52 +218,6 @@ export class EcowittService {
       if (axios.isAxiosError(error)) {
         throw new Error(`Ecowitt API Error: ${error.response?.data?.message || error.message}`);
       }
-      throw error;
-    }
-  }
-
-  /**
-   * Probar diferentes endpoints de EcoWitt para obtener información de ubicación
-   */
-  static async getDeviceLocationInfo(applicationKey: string, apiKey: string, mac: string) {
-    try {
-      // Probar diferentes endpoints que podrían tener información de ubicación
-      const endpoints = [
-        `${ECOWITT_API_BASE}/device/info`,
-        `${ECOWITT_API_BASE}/device/details`,
-        `${ECOWITT_API_BASE}/device/profile`,
-        `${ECOWITT_API_BASE}/device/settings`,
-        `${ECOWITT_API_BASE}/device/status`
-      ];
-
-      const promises = endpoints.map(async (endpoint) => {
-        try {
-          const response = await axios.get(endpoint, {
-            params: {
-              application_key: applicationKey,
-              api_key: apiKey,
-              mac: mac,
-              call_back: 'all'
-            }
-          });
-          return { endpoint, data: response.data, success: true };
-        } catch (error) {
-          return { 
-            endpoint, 
-            error: error instanceof Error ? error.message : 'Unknown error', 
-            success: false 
-          };
-        }
-      });
-
-      const results = await Promise.all(promises);
-      
-      // Log para depuración
-      console.log('[EcowittService.getDeviceLocationInfo] Endpoint results:', JSON.stringify(results, null, 2));
-      
-      return results;
-    } catch (error) {
-      console.error('[EcowittService.getDeviceLocationInfo] Error:', error);
       throw error;
     }
   }
@@ -432,7 +312,7 @@ export class EcowittService {
           application_key: applicationKey,
           api_key: apiKey,
           mac: mac,
-          call_back: 'all'
+          call_back: 'outdoor'
         }
       });
       return response.data;

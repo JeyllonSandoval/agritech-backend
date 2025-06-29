@@ -12,29 +12,19 @@ export default async function deviceRoutes(fastify: FastifyInstance) {
   // Rutas para datos del dispositivo
   fastify.get('/devices/:deviceId/realtime', DeviceController.getDeviceRealtime);
   fastify.get('/devices/:deviceId/history', DeviceController.getDeviceHistory);
-  fastify.get('/devices/:deviceId/status', DeviceController.getDeviceStatus);
-  fastify.get('/devices/:deviceId/config', DeviceController.getDeviceConfig);
-  fastify.put('/devices/:deviceId/config', DeviceController.updateDeviceConfig);
 
   // Rutas para información del dispositivo
   fastify.get('/devices/:deviceId/info', DeviceController.getDeviceInfo);
-  fastify.get(
-    '/devices/:deviceId/detailed-info',
-    DeviceController.getDeviceDetailedInfo
-  );
   fastify.get(
     '/devices/:deviceId/characteristics',
     DeviceController.getDeviceCharacteristics
   );
 
-  // Ruta temporal para probar endpoints de EcoWitt
-  fastify.get('/devices/:deviceId/test-endpoints', DeviceController.testEcoWittEndpoints);
-
+  // Rutas para múltiples dispositivos
   fastify.get(
     '/devices/history',
     DeviceController.getMultipleDevicesHistory
   );
-
   fastify.get(
     '/devices/realtime',
     DeviceController.getMultipleDevicesRealtime

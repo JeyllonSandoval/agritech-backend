@@ -135,7 +135,60 @@ Recupera información completa del dispositivo incluyendo posición geográfica,
 }
 ```
 
-### 5. Actualizar un Dispositivo
+### 5. Obtener Características del Dispositivo
+
+**GET** `/api/devices/:deviceId/characteristics`
+
+Obtiene las características específicas del dispositivo desde la API de EcoWitt, incluyendo información como MAC, ID, coordenadas, zona horaria, región y otras características del dispositivo.
+
+#### Respuesta
+
+```json
+{
+  "deviceId": "550e8400-e29b-41d4-a716-446655440000",
+  "deviceName": "Estación del Jardín",
+  "deviceType": "Outdoor",
+  "deviceMac": "AA:BB:CC:DD:EE:FF",
+  "status": "active",
+  "createdAt": "2024-01-15T14:30:25.123Z",
+  "ecowittInfo": {
+    "mac": "AA:BB:CC:DD:EE:FF",
+    "device_id": "WH2600",
+    "model": "WH2600",
+    "name": "Estación del Jardín",
+    "location": {
+      "latitude": 40.4168,
+      "longitude": -3.7038,
+      "elevation": 667
+    },
+    "timezone": "Europe/Madrid",
+    "region": "ES",
+    "country": "Spain",
+    "city": "Madrid",
+    "firmware_version": "1.2.3",
+    "hardware_version": "1.0",
+    "last_seen": "2024-01-15T14:30:25.123Z",
+    "battery_level": 85,
+    "signal_strength": -45,
+    "sensors": [
+      {
+        "name": "temperature",
+        "type": "number",
+        "unit": "°C",
+        "enabled": true
+      },
+      {
+        "name": "humidity",
+        "type": "number",
+        "unit": "%",
+        "enabled": true
+      }
+    ]
+  }
+}
+```
+
+### 6. Actualizar un Dispositivo
 
 **PUT** `/api/devices/:deviceId`
 
@@ -149,7 +202,7 @@ Actualiza los datos de un dispositivo existente. Solo se deben enviar los campos
 }
 ```
 
-### 6. Eliminar un Dispositivo
+### 7. Eliminar un Dispositivo
 
 **DELETE** `/api/devices/:deviceId`
 
@@ -180,31 +233,63 @@ Consulta el historial de datos de un dispositivo para un rango de fechas especí
 | `startTime` | string | ✅        | Fecha de inicio en formato ISO 8601.   |
 | `endTime`   | string | ✅        | Fecha de fin en formato ISO 8601.      |
 
-### 3. Obtener Estado del Dispositivo
+**Nota**: Los parámetros `startTime` y `endTime` se convierten internamente a `start_date` y `end_date` para la API de EcoWitt.
 
-**GET** `/api/devices/:deviceId/status`
-
-Obtiene el estado actual del dispositivo.
-
-### 4. Obtener Configuración del Dispositivo
-
-**GET** `/api/devices/:deviceId/config`
-
-Obtiene la configuración actual del dispositivo.
-
-### 5. Actualizar Configuración del Dispositivo
-
-**PUT** `/api/devices/:deviceId/config`
-
-Actualiza la configuración del dispositivo.
-
-### 6. Obtener Información Detallada (Legacy)
-
-**GET** `/api/devices/:deviceId/detailed-info`
-
-Combina los datos de configuración y de tiempo real para ofrecer una vista completa del estado y sensores del dispositivo (mantenido para compatibilidad).
+**Parámetros Internos de EcoWitt**:
+- `application_key`: Clave de aplicación de EcoWitt
+- `api_key`: Clave de API de EcoWitt  
+- `mac`: Dirección MAC del dispositivo
+- `start_date`: Fecha de inicio en formato ISO 8601
+- `end_date`: Fecha de fin en formato ISO 8601
+- `call_back`: Tipo de campos a retornar (valor: `'outdoor'` para estaciones meteorológicas)
 
 ---
+
+## Endpoints para Múltiples Dispositivos
+
+### 1. Obtener Datos Históricos de Múltiples Dispositivos
+
+**GET** `/api/devices/history`
+
+Obtiene datos históricos de múltiples dispositivos en paralelo.
+
+#### Parámetros de Consulta
+
+| Parámetro    | Tipo   | Requerido | Descripción                                    |
+| ------------ | ------ | --------- | ---------------------------------------------- |
+| `deviceIds`  | string | ✅        | Lista de DeviceIDs separados por comas.       |
+| `rangeType`  | string | ✅        | Tipo de rango de tiempo predefinido.          |
+
+### 2. Obtener Datos en Tiempo Real de Múltiples Dispositivos
+
+**GET** `/api/devices/realtime`
+
+Obtiene datos en tiempo real de múltiples dispositivos en paralelo.
+
+#### Parámetros de Consulta
+
+| Parámetro   | Tipo   | Requerido | Descripción                              |
+| ----------- | ------ | --------- | ---------------------------------------- |
+| `deviceIds` | string | ✅        | Lista de DeviceIDs separados por comas. |
+
+---
+
+## Diferencias entre Endpoints
+
+### `/devices/:deviceId/info`
+- **Propósito**: Información completa + datos actuales del sensor
+- **Datos**: Combina información del dispositivo con lecturas actuales
+- **Uso**: Para mostrar estado actual y lecturas
+
+### `/devices/:deviceId/characteristics`
+- **Propósito**: Solo características del dispositivo desde EcoWitt
+- **Datos**: MAC, ID, ubicación, zona horaria, región, configuración
+- **Uso**: Para mostrar información de configuración del dispositivo
+
+### `/devices/:deviceId/realtime`
+- **Propósito**: Solo datos en tiempo real del sensor
+- **Datos**: Últimas lecturas de todos los sensores
+- **Uso**: Para obtener datos actuales sin información del dispositivo
 
 ## Endpoints de Grupos de Dispositivos
 

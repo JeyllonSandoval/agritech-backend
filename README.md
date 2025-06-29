@@ -139,7 +139,32 @@ agritech-backend/
 
 ## 📚 Documentation
 
+### 📋 Project Structure Documentation
+- [Complete Application Structure](./DOCUMENTATION_STRUCTURE.md) - Comprehensive guide to all folders, files, and their purposes
+- [EcoWitt Documentation Summary](./ECOWITT_DOCUMENTATION_SUMMARY.md) - Complete overview of EcoWitt API integration
+
+### 🔧 API Documentation
 - [EcoWitt API Documentation](./ECOWITT_API.md) - Complete guide for EcoWitt weather station integration
 - [Device Characteristics API](./DEVICE_CHARACTERISTICS_API.md) - New endpoint for device characteristics
 - [Weather API Documentation](./WEATHER_API.md) - Weather data endpoints
 - [Device Weather Reports API](./DEVICE_WEATHER_REPORTS_API.md) - Weather report generation
+- [EcoWitt Error Codes](./ECOWITT_ERRORS.md) - Error handling and troubleshooting
+- [Device Optimization Summary](./DEVICE_OPTIMIZATION_SUMMARY.md) - Performance improvements and route optimization
+
+### 📁 Technical Documentation (src/docs/)
+- [EcoWitt Parameters Documentation](./src/docs/ecowitt-parameters/README.md) - Complete parameter reference for all EcoWitt endpoints
+- **Realtime Data**: Request/Response parameters and TypeScript interfaces
+- **History Data**: Historical data parameters and validation
+- **Device Info**: Device information parameters and helpers
+
+### 🎯 Quick Start Guides
+1. **For Developers**: Start with [DOCUMENTATION_STRUCTURE.md](./DOCUMENTATION_STRUCTURE.md)
+2. **For EcoWitt Integration**: Use [ECOWITT_DOCUMENTATION_SUMMARY.md](./ECOWITT_DOCUMENTATION_SUMMARY.md)
+3. **For API Reference**: Check [src/docs/ecowitt-parameters/](./src/docs/ecowitt-parameters/)
+
+### 📊 Documentation Statistics
+- **Total Documentation Files**: 25+ files
+- **Lines of Documentation**: 5,000+ lines
+- **TypeScript Interfaces**: 12 files with complete type definitions
+- **API Endpoints Documented**: 3 main EcoWitt endpoints with full parameter coverage
+- **Validation Functions**: 20+ helper functions for parameter validation
