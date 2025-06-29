@@ -105,7 +105,6 @@ export class EcowittService {
     }).from(devices).where(
       eq(devices.DeviceID, deviceId)
     );
-    console.log('[getDeviceByDeviceId] Result:', device);
     return device;
   }
 
@@ -168,26 +167,17 @@ export class EcowittService {
         throw new Error(`Validation errors: ${validationErrors.join(', ')}`);
       }
 
-      // Log de parámetros enviados para debugging
-      console.log('[EcowittService.getDeviceRealtime] Params sent:', JSON.stringify(params, null, 2));
-
       const response = await axios.get(`${ECOWITT_API_BASE}/device/real_time`, {
         params
       });
 
-      // Log de respuesta completa para debugging
-      console.log('[EcowittService.getDeviceRealtime] Full response:', JSON.stringify(response.data, null, 2));
-
-      // Verificar si la respuesta tiene el formato esperado
       const responseData = response.data as RealtimeResponseType;
       
       // Si data es un array vacío, intentar diferentes estrategias
       if (Array.isArray(responseData.data) && responseData.data.length === 0) {
-        console.warn('[EcowittService.getDeviceRealtime] Data is empty array, trying alternative approaches...');
         
         // Estrategia 1: Probar sin call_back
         try {
-          console.log('[EcowittService.getDeviceRealtime] Trying without call_back...');
           const paramsWithoutCallback = { ...params };
           delete paramsWithoutCallback.call_back;
           
@@ -195,35 +185,26 @@ export class EcowittService {
             params: paramsWithoutCallback
           });
           
-          console.log('[EcowittService.getDeviceRealtime] Response without call_back:', JSON.stringify(responseWithoutCallback.data, null, 2));
-          
           const responseDataWithoutCallback = responseWithoutCallback.data as RealtimeResponseType;
           if (!Array.isArray(responseDataWithoutCallback.data) || responseDataWithoutCallback.data.length > 0) {
-            console.log('[EcowittService.getDeviceRealtime] Success! Found data without call_back');
             return responseDataWithoutCallback;
           }
         } catch (error) {
-          console.warn('[EcowittService.getDeviceRealtime] Failed without call_back:', error);
         }
         
         // Estrategia 2: Probar con call_back = 'indoor' (para dispositivos sin sensores outdoor)
         try {
-          console.log('[EcowittService.getDeviceRealtime] Trying with call_back = indoor...');
           const paramsIndoor = { ...params, call_back: 'indoor' };
           
           const responseIndoor = await axios.get(`${ECOWITT_API_BASE}/device/real_time`, {
             params: paramsIndoor
           });
           
-          console.log('[EcowittService.getDeviceRealtime] Response with call_back = indoor:', JSON.stringify(responseIndoor.data, null, 2));
-          
           const responseDataIndoor = responseIndoor.data as RealtimeResponseType;
           if (!Array.isArray(responseDataIndoor.data) || responseDataIndoor.data.length > 0) {
-            console.log('[EcowittService.getDeviceRealtime] Success! Found data with call_back = indoor');
             return responseDataIndoor;
           }
         } catch (error) {
-          console.warn('[EcowittService.getDeviceRealtime] Failed with call_back = indoor:', error);
         }
         
         // Estrategia 3: Verificar si los datos están en el nivel raíz
@@ -234,19 +215,11 @@ export class EcowittService {
         delete rootLevelData.data;
         
         if (Object.keys(rootLevelData).length > 0) {
-          console.log('[EcowittService.getDeviceRealtime] Found data at root level:', Object.keys(rootLevelData));
           return rootLevelData as RealtimeResponseType;
         }
         
         // Estrategia 4: Verificar si hay un formato diferente
         if (responseData.code === 0 && responseData.msg === 'success') {
-          console.warn('[EcowittService.getDeviceRealtime] Success response but no data. Possible causes:');
-          console.warn('- Device is offline or not sending data');
-          console.warn('- Wrong call_back parameter');
-          console.warn('- Device has no sensors configured');
-          console.warn('- API credentials are incorrect');
-          
-          // Retornar respuesta con información de diagnóstico
           return {
             ...responseData,
             _diagnostic: {
@@ -266,9 +239,7 @@ export class EcowittService {
 
       return responseData;
     } catch (error) {
-      console.error('[EcowittService.getDeviceRealtime] Error:', error);
       if (axios.isAxiosError(error)) {
-        console.error('[EcowittService.getDeviceRealtime] Axios error response:', error.response?.data);
         throw new Error(`Ecowitt API Error: ${error.response?.data?.message || error.message}`);
       }
       throw error;
@@ -297,22 +268,9 @@ export class EcowittService {
         mac
       );
 
-      // Log de depuración: parámetros enviados
-      console.log('[EcowittService.getDeviceHistory] Params:', JSON.stringify(params));
-
-      // Validar parámetros antes de enviar
-      const validationErrors = validateHistoryRequestParams(params);
-      if (validationErrors.length > 0) {
-        console.error('[EcowittService.getDeviceHistory] Validation errors:', validationErrors);
-        throw new Error(`Validation errors: ${validationErrors.join(', ')}`);
-      }
-
       const response = await axios.get(`${ECOWITT_API_BASE}/device/history`, {
         params
       });
-
-      // Log de depuración: respuesta de la API
-      console.log('[EcowittService.getDeviceHistory] API response:', JSON.stringify(response.data));
 
       const responseData = response.data as HistoryResponseType;
       
@@ -322,51 +280,39 @@ export class EcowittService {
         const hasData = responseData.data && Object.keys(responseData.data).length > 0;
         
         if (!hasData) {
-          console.warn('[EcowittService.getDeviceHistory] No data found, trying alternative approaches...');
           
           // Estrategia 1: Probar con call_back = 'outdoor' (fallback)
           try {
-            console.log('[EcowittService.getDeviceHistory] Trying with call_back = outdoor...');
             const paramsOutdoor = { ...params, call_back: 'outdoor' };
             
             const responseOutdoor = await axios.get(`${ECOWITT_API_BASE}/device/history`, {
               params: paramsOutdoor
             });
             
-            console.log('[EcowittService.getDeviceHistory] Response with call_back = outdoor:', JSON.stringify(responseOutdoor.data, null, 2));
-            
             const responseDataOutdoor = responseOutdoor.data as HistoryResponseType;
             if (responseDataOutdoor.data && Object.keys(responseDataOutdoor.data).length > 0) {
-              console.log('[EcowittService.getDeviceHistory] Success! Found data with call_back = outdoor');
               return responseDataOutdoor;
             }
           } catch (error) {
-            console.warn('[EcowittService.getDeviceHistory] Failed with call_back = outdoor:', error);
           }
           
           // Estrategia 2: Probar con diferentes resoluciones de tiempo
           try {
-            console.log('[EcowittService.getDeviceHistory] Trying with 5min resolution...');
             const params5min = { ...params, cycle_type: '5min' };
             
             const response5min = await axios.get(`${ECOWITT_API_BASE}/device/history`, {
               params: params5min
             });
             
-            console.log('[EcowittService.getDeviceHistory] Response with 5min resolution:', JSON.stringify(response5min.data, null, 2));
-            
             const responseData5min = response5min.data as HistoryResponseType;
             if (responseData5min.data && Object.keys(responseData5min.data).length > 0) {
-              console.log('[EcowittService.getDeviceHistory] Success! Found data with 5min resolution');
               return responseData5min;
             }
           } catch (error) {
-            console.warn('[EcowittService.getDeviceHistory] Failed with 5min resolution:', error);
           }
           
           // Estrategia 3: Probar con unidades métricas
           try {
-            console.log('[EcowittService.getDeviceHistory] Trying with metric units...');
             const paramsMetric = { 
               ...params, 
               temp_unitid: 1, // Celsius
@@ -379,26 +325,14 @@ export class EcowittService {
               params: paramsMetric
             });
             
-            console.log('[EcowittService.getDeviceHistory] Response with metric units:', JSON.stringify(responseMetric.data, null, 2));
-            
             const responseDataMetric = responseMetric.data as HistoryResponseType;
             if (responseDataMetric.data && Object.keys(responseDataMetric.data).length > 0) {
-              console.log('[EcowittService.getDeviceHistory] Success! Found data with metric units');
               return responseDataMetric;
             }
           } catch (error) {
-            console.warn('[EcowittService.getDeviceHistory] Failed with metric units:', error);
           }
           
           // Si ninguna estrategia funcionó, retornar respuesta con información de diagnóstico
-          console.warn('[EcowittService.getDeviceHistory] No data found with any strategy. Possible causes:');
-          console.warn('- No historical data available for the specified time range');
-          console.warn('- Device is offline or not sending data');
-          console.warn('- Wrong call_back parameter for this device type');
-          console.warn('- Device has no sensors configured');
-          console.warn('- API credentials are incorrect');
-          console.warn('- Time range is too large or invalid');
-          
           return {
             ...responseData,
             _diagnostic: {
@@ -426,9 +360,7 @@ export class EcowittService {
 
       return responseData;
     } catch (error) {
-      console.error('[EcowittService.getDeviceHistory] Error:', error);
       if (axios.isAxiosError(error)) {
-        console.error('[EcowittService.getDeviceHistory] Axios error response:', error.response?.data);
         throw new Error(`Ecowitt API Error: ${error.response?.data?.message || error.message}`);
       }
       throw error;
@@ -547,8 +479,6 @@ export class EcowittService {
           }))
       };
     } catch (error) {
-      // Log interno para depuración
-      console.error('[EcowittService.getDeviceDetailedInfo] Params sent:', JSON.stringify({ applicationKey, apiKey, mac }));
       if (axios.isAxiosError(error)) {
         throw new Error(`Ecowitt API Error: ${error.response?.data?.message || error.message}`);
       }

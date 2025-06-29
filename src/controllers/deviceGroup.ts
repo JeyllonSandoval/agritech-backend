@@ -59,7 +59,6 @@ export class DeviceGroupController {
 
       return reply.status(201).send(group);
     } catch (error) {
-      console.error('Error al crear grupo:', error);
       return reply.status(500).send({
         error: 'Error creating device group'
       });
@@ -89,7 +88,6 @@ export class DeviceGroupController {
 
       return reply.send(group);
     } catch (error) {
-      console.error('Error al obtener grupo:', error);
       return reply.status(500).send({
         error: 'Error retrieving group'
       });
@@ -112,7 +110,6 @@ export class DeviceGroupController {
       const groups = await DeviceGroupService.getUserGroups(userId);
       return reply.send(groups);
     } catch (error) {
-      console.error('Error al obtener grupos del usuario:', error);
       return reply.status(500).send({
         error: 'Error retrieving user groups'
       });
@@ -135,7 +132,6 @@ export class DeviceGroupController {
       const devices = await DeviceGroupService.getGroupDevices(id);
       return reply.send(devices);
     } catch (error) {
-      console.error('Error al obtener dispositivos del grupo:', error);
       return reply.status(500).send({
         error: 'Error al obtener dispositivos del grupo'
       });
@@ -199,7 +195,6 @@ export class DeviceGroupController {
       await DeviceGroupService.deleteGroup(id);
       return reply.status(204).send();
     } catch (error) {
-      console.error('Error al eliminar grupo:', error);
       return reply.status(500).send({
         error: 'Error deleting group'
       });

@@ -43,7 +43,6 @@ export class DeviceWeatherReportService {
           device.DeviceMac
         );
       } catch (infoError) {
-        console.warn('Error obteniendo información del dispositivo:', infoError);
         // Continuar sin información detallada del dispositivo
       }
 
@@ -56,7 +55,6 @@ export class DeviceWeatherReportService {
           device.DeviceMac
         );
       } catch (realtimeError) {
-        console.warn('Error obteniendo datos en tiempo real:', realtimeError);
         // Continuar sin datos en tiempo real
       }
 
@@ -71,7 +69,6 @@ export class DeviceWeatherReportService {
             lang: 'es'
           });
         } catch (weatherError) {
-          console.warn('Error obteniendo datos del clima:', weatherError);
           // Continuar sin datos del clima
         }
       }
@@ -82,8 +79,6 @@ export class DeviceWeatherReportService {
       
       if (includeHistory && historyRange) {
         try {
-          console.log(`[DeviceWeatherReport] Obteniendo historial para dispositivo ${device.DeviceMac} desde ${historyRange.startTime} hasta ${historyRange.endTime}`);
-          
           historicalData = await EcowittService.getDeviceHistory(
             device.DeviceApplicationKey,
             device.DeviceApiKey,
@@ -97,8 +92,6 @@ export class DeviceWeatherReportService {
             const hasData = historicalData.data && Object.keys(historicalData.data).length > 0;
             
             if (!hasData) {
-              console.warn(`[DeviceWeatherReport] Datos históricos vacíos para dispositivo ${device.DeviceMac}, realizando diagnóstico automático...`);
-              
               // Realizar diagnóstico automático con diferentes configuraciones
               historicalDiagnostic = await this.performHistoricalDiagnostic(
                 device.DeviceApplicationKey,
@@ -107,20 +100,15 @@ export class DeviceWeatherReportService {
                 historyRange.startTime,
                 historyRange.endTime
               );
-              
               // Si el diagnóstico encuentra datos, usarlos
               if (historicalDiagnostic.summary.bestConfiguration) {
-                console.log(`[DeviceWeatherReport] Diagnóstico exitoso, usando configuración: ${historicalDiagnostic.summary.bestConfiguration.test}`);
                 historicalData = historicalDiagnostic.summary.bestConfiguration.response;
               }
             }
           }
         } catch (historyError) {
-          console.warn('Error obteniendo datos históricos:', historyError);
-          
           // Intentar diagnóstico automático en caso de error
           try {
-            console.log(`[DeviceWeatherReport] Error en historial, realizando diagnóstico automático...`);
             historicalDiagnostic = await this.performHistoricalDiagnostic(
               device.DeviceApplicationKey,
               device.DeviceApiKey,
@@ -128,13 +116,11 @@ export class DeviceWeatherReportService {
               historyRange.startTime,
               historyRange.endTime
             );
-            
             if (historicalDiagnostic.summary.bestConfiguration) {
-              console.log(`[DeviceWeatherReport] Diagnóstico exitoso después de error, usando configuración: ${historicalDiagnostic.summary.bestConfiguration.test}`);
               historicalData = historicalDiagnostic.summary.bestConfiguration.response;
             }
           } catch (diagnosticError) {
-            console.warn('Error en diagnóstico automático:', diagnosticError);
+            // Silenciar errores de diagnóstico
           }
         }
       }
@@ -236,7 +222,6 @@ export class DeviceWeatherReportService {
       };
 
     } catch (error) {
-      console.error('Error generating device report:', error);
       throw error;
     }
   }
@@ -285,17 +270,6 @@ export class DeviceWeatherReportService {
 
     for (const config of configurations) {
       try {
-        console.log(`[HistoricalDiagnostic] Probando configuración: ${config.name}`);
-        
-        const params = {
-          application_key: applicationKey,
-          api_key: apiKey,
-          mac: mac,
-          start_date: startTime,
-          end_date: endTime,
-          ...config
-        };
-
         const response = await EcowittService.getDeviceHistory(
           applicationKey,
           apiKey,
@@ -315,11 +289,7 @@ export class DeviceWeatherReportService {
           dataKeys,
           dataCount: dataKeys.length
         });
-
-        console.log(`[HistoricalDiagnostic] ${config.name}: ${hasData ? 'ÉXITO' : 'SIN DATOS'} (${dataKeys.length} claves)`);
-
       } catch (error) {
-        console.warn(`[HistoricalDiagnostic] Error en configuración ${config.name}:`, error);
         results.tests.push({
           test: config.name,
           params: config,
@@ -435,8 +405,6 @@ export class DeviceWeatherReportService {
 
       for (const device of groupDevices) {
         try {
-          console.log(`[GroupReport] Generando reporte para dispositivo ${device.DeviceName} (${device.DeviceMac})`);
-          
           const deviceReport = await this.generateDeviceReport(
             device.DeviceID,
             userId,
@@ -466,10 +434,7 @@ export class DeviceWeatherReportService {
           
           deviceReports.push(deviceReport);
           
-          console.log(`[GroupReport] Reporte exitoso para ${device.DeviceName}: ${deviceReport.report.data.metadata.hasHistoricalData ? 'CON' : 'SIN'} datos históricos`);
-          
         } catch (error) {
-          console.error(`[GroupReport] Error generando reporte para dispositivo ${device.DeviceID}:`, error);
           errors.push({
             deviceId: device.DeviceID,
             deviceName: device.DeviceName,
@@ -531,7 +496,6 @@ export class DeviceWeatherReportService {
       };
 
     } catch (error) {
-      console.error('Error generating group report:', error);
       throw error;
     }
   }

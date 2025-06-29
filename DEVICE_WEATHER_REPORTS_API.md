@@ -1,6 +1,6 @@
 # API de Reportes Combinados de Dispositivos y Clima
 
-Esta API permite generar reportes que combinan datos de dispositivos EcoWitt con información meteorológica de OpenWeather, guardándolos como archivos **PDF legibles** o JSON en Cloudinary y registrándolos en la base de datos.
+Esta API permite generar reportes que combinan datos de dispositivos EcoWitt con información meteorológica de OpenWeather, guardándolos como archivos PDF o JSON en Cloudinary y registrándolos en la base de datos.
 
 ## Características
 
@@ -52,7 +52,7 @@ Genera un reporte combinado para un dispositivo específico en formato PDF (por 
 {
   "deviceId": "550e8400-e29b-41d4-a716-446655440002",
   "userId": "550e8400-e29b-41d4-a716-446655440000",
-  "includeHistory": false,
+  "includeHistory": true,
   "historyRange": {
     "startTime": "2024-01-01T00:00:00.000Z",
     "endTime": "2024-01-02T00:00:00.000Z"
@@ -151,7 +151,7 @@ Genera un reporte combinado para todos los dispositivos en un grupo en formato P
 {
   "groupId": "550e8400-e29b-41d4-a716-446655440003",
   "userId": "550e8400-e29b-41d4-a716-446655440000",
-  "includeHistory": false,
+  "includeHistory": true,
   "historyRange": {
     "startTime": "2024-01-01T00:00:00.000Z",
     "endTime": "2024-01-02T00:00:00.000Z"

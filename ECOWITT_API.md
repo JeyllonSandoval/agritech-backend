@@ -1,6 +1,58 @@
-# Documentación de la API de EcoWitt
+# API de EcoWitt
 
-Esta API sirve como una capa de gestión y un proxy para interactuar con los datos de las estaciones meteorológicas de EcoWitt. Permite registrar dispositivos individuales, agruparlos y consultar sus datos históricos y en tiempo real.
+Esta API permite registrar y gestionar dispositivos EcoWitt, obtener datos en tiempo real e históricos, y consultar características avanzadas del dispositivo.
+
+## Registro de Dispositivos
+**POST** `/api/devices`
+
+```json
+{
+  "DeviceName": "Estación del Jardín",
+  "DeviceMac": "AA:BB:CC:DD:EE:FF",
+  "DeviceApplicationKey": "...",
+  "DeviceApiKey": "...",
+  "DeviceType": "Outdoor",
+  "UserID": "..."
+}
+```
+
+## Endpoints Principales
+- `GET /api/devices` - Lista todos los dispositivos
+- `GET /api/devices/:deviceId` - Información básica de un dispositivo
+- `GET /api/devices/:deviceId/realtime` - Datos en tiempo real
+- `GET /api/devices/:deviceId/history` - Datos históricos (con rango de fechas)
+- `GET /api/devices/:deviceId/characteristics` - Características avanzadas del dispositivo
+- `PUT /api/devices/:deviceId` - Actualiza un dispositivo
+- `DELETE /api/devices/:deviceId` - Elimina un dispositivo
+
+## Validaciones
+- Todos los IDs deben ser UUID válidos
+- Las credenciales de EcoWitt se almacenan de forma segura
+- Los endpoints de datos históricos soportan rangos predefinidos y personalizados
+
+## Ejemplo de Respuesta (Realtime)
+```json
+{
+  "temperature": 22.5,
+  "humidity": 65,
+  "pressure": 1014,
+  ...
+}
+```
+
+## Ejemplo de Respuesta (Histórico)
+```json
+{
+  "indoor": {
+    "temperature": { "unit": "ºC", "list": { "...": "..." } },
+    "humidity": { "unit": "%", "list": { "...": "..." } }
+  }
+}
+```
+
+## Notas
+- El sistema selecciona automáticamente la mejor configuración para obtener datos históricos
+- Los datos históricos pueden incluir diagnóstico automático si hay problemas de disponibilidad
 
 ## Configuración
 

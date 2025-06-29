@@ -57,8 +57,6 @@ export class DeviceWeatherReportController {
         try {
           const range = getTimeRange(mapTypeToTimeRange(historyRange.type));
           computedHistoryRange = { startTime: range.startTime, endTime: range.endTime };
-          
-          console.log(`[DeviceReport] Generando reporte con historial: ${historyRange.type} (${range.startTime} - ${range.endTime})`);
         } catch (rangeError) {
           return reply.code(400).send({
             success: false,
@@ -202,8 +200,6 @@ export class DeviceWeatherReportController {
         try {
           const range = getTimeRange(mapTypeToTimeRange(historyRange.type));
           computedHistoryRange = { startTime: range.startTime, endTime: range.endTime };
-          
-          console.log(`[GroupReport] Generando reporte de grupo con historial: ${historyRange.type} (${range.startTime} - ${range.endTime})`);
         } catch (rangeError) {
           return reply.code(400).send({
             success: false,
@@ -421,8 +417,6 @@ export class DeviceWeatherReportController {
         try {
           const range = getTimeRange(mapTypeToTimeRange(historyRange));
           computedHistoryRange = { startTime: range.startTime, endTime: range.endTime };
-          
-          console.log(`[TestReport] Generando reporte de prueba con historial: ${historyRange} (${range.startTime} - ${range.endTime})`);
         } catch (rangeError) {
           return reply.code(400).send({
             success: false,

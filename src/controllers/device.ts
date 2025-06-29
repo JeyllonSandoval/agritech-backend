@@ -255,7 +255,6 @@ export class DeviceController {
         return reply.code(404).send({ error: 'Device not found' });
       }
       if (!device.DeviceMac) {
-        console.error('[getDeviceHistory] Device object:', device);
         return reply.code(400).send({ error: 'Device MAC address is missing' });
       }
 
@@ -343,7 +342,6 @@ export class DeviceController {
 
       return reply.send(deviceInfo);
     } catch (error) {
-      console.error('Error in getDeviceInfo:', error);
       return reply.code(500).send({ 
         error: 'Error retrieving device information',
         details: error instanceof Error ? error.message : 'Unknown error'
@@ -485,7 +483,6 @@ export class DeviceController {
 
       return reply.send(deviceCharacteristics);
     } catch (error) {
-      console.error('Error in getDeviceCharacteristics:', error);
       return reply.code(500).send({ 
         error: 'Error retrieving device characteristics',
         details: error instanceof Error ? error.message : 'Unknown error'
@@ -519,7 +516,6 @@ export class DeviceController {
 
       // Test 1: Sin call_back
       try {
-        console.log('[Diagnose] Test 1: Without call_back');
         const response1 = await axios.get('https://api.ecowitt.net/api/v3/device/real_time', {
           params: {
             application_key: device.DeviceApplicationKey,
@@ -546,7 +542,6 @@ export class DeviceController {
 
       // Test 2: Con call_back = 'outdoor'
       try {
-        console.log('[Diagnose] Test 2: With call_back = outdoor');
         const response2 = await axios.get('https://api.ecowitt.net/api/v3/device/real_time', {
           params: {
             application_key: device.DeviceApplicationKey,
@@ -575,7 +570,6 @@ export class DeviceController {
 
       // Test 3: Con call_back = 'all'
       try {
-        console.log('[Diagnose] Test 3: With call_back = all');
         const response3 = await axios.get('https://api.ecowitt.net/api/v3/device/real_time', {
           params: {
             application_key: device.DeviceApplicationKey,
@@ -604,7 +598,6 @@ export class DeviceController {
 
       // Test 4: Con diferentes unidades
       try {
-        console.log('[Diagnose] Test 4: With metric units');
         const response4 = await axios.get('https://api.ecowitt.net/api/v3/device/real_time', {
           params: {
             application_key: device.DeviceApplicationKey,
@@ -641,7 +634,6 @@ export class DeviceController {
 
       // Test 5: Verificar device info
       try {
-        console.log('[Diagnose] Test 5: Device info');
         const response5 = await axios.get('https://api.ecowitt.net/api/v3/device/info', {
           params: {
             application_key: device.DeviceApplicationKey,
@@ -668,7 +660,6 @@ export class DeviceController {
 
       return reply.send(results);
     } catch (error) {
-      console.error('Error in diagnoseDeviceRealtime:', error);
       return reply.code(500).send({ 
         error: 'Error diagnosing device',
         details: error instanceof Error ? error.message : 'Unknown error'
@@ -700,8 +691,6 @@ export class DeviceController {
       // Agregar call_back si se especifica
       const params = call_back ? { ...baseParams, call_back } : baseParams;
 
-      console.log(`[TestDeviceRealtime] Testing with params:`, JSON.stringify(params, null, 2));
-
       const response = await axios.get('https://api.ecowitt.net/api/v3/device/real_time', {
         params
       });
@@ -723,7 +712,6 @@ export class DeviceController {
 
       return reply.send(result);
     } catch (error) {
-      console.error('Error in testDeviceRealtime:', error);
       return reply.code(500).send({ 
         error: 'Error testing device',
         details: error instanceof Error ? error.message : 'Unknown error'
@@ -786,7 +774,6 @@ export class DeviceController {
       // Test 1: call_back = outdoor (default) con todos los rangos
       for (const rangeType of timeRangeTypes) {
         try {
-          console.log(`[DiagnoseHistory] Test 1: call_back = outdoor with ${rangeType}`);
           const timeRange = getTimeRange(rangeType);
           
           const response1 = await axios.get('https://api.ecowitt.net/api/v3/device/history', {
@@ -828,7 +815,6 @@ export class DeviceController {
       // Test 2: call_back = all con todos los rangos
       for (const rangeType of timeRangeTypes) {
         try {
-          console.log(`[DiagnoseHistory] Test 2: call_back = all with ${rangeType}`);
           const timeRange = getTimeRange(rangeType);
           
           const response2 = await axios.get('https://api.ecowitt.net/api/v3/device/history', {
@@ -870,7 +856,6 @@ export class DeviceController {
       // Test 3: call_back = indoor con todos los rangos
       for (const rangeType of timeRangeTypes) {
         try {
-          console.log(`[DiagnoseHistory] Test 3: call_back = indoor with ${rangeType}`);
           const timeRange = getTimeRange(rangeType);
           
           const response3 = await axios.get('https://api.ecowitt.net/api/v3/device/history', {
@@ -911,7 +896,6 @@ export class DeviceController {
 
       // Test 4: cycle_type = 5min con one_day (más probable que tenga datos)
       try {
-        console.log('[DiagnoseHistory] Test 4: cycle_type = 5min with one_day');
         const timeRange = getTimeRange(TimeRangeType.ONE_DAY);
         
         const response4 = await axios.get('https://api.ecowitt.net/api/v3/device/history', {
@@ -951,7 +935,6 @@ export class DeviceController {
 
       // Test 5: metric units con one_day
       try {
-        console.log('[DiagnoseHistory] Test 5: metric units with one_day');
         const timeRange = getTimeRange(TimeRangeType.ONE_DAY);
         
         const response5 = await axios.get('https://api.ecowitt.net/api/v3/device/history', {
@@ -1015,7 +998,6 @@ export class DeviceController {
 
       return reply.send(results);
     } catch (error) {
-      console.error('Error in diagnoseDeviceHistory:', error);
       return reply.code(500).send({ 
         error: 'Error diagnosing device history',
         details: error instanceof Error ? error.message : 'Unknown error'
@@ -1070,8 +1052,6 @@ export class DeviceController {
         cycle_type: cycle_type || 'auto'
       };
 
-      console.log(`[TestDeviceHistory] Testing with params:`, JSON.stringify(params, null, 2));
-
       const response = await axios.get('https://api.ecowitt.net/api/v3/device/history', {
         params
       });
@@ -1099,7 +1079,6 @@ export class DeviceController {
 
       return reply.send(result);
     } catch (error) {
-      console.error('Error in testDeviceHistory:', error);
       return reply.code(500).send({ 
         error: 'Error testing device history',
         details: error instanceof Error ? error.message : 'Unknown error'
