@@ -114,20 +114,20 @@ export const DEFAULT_REALTIME_PARAMS: Partial<RealtimeRequestParams> = {
 export function createRealtimeRequestParams(
   applicationKey: string,
   apiKey: string,
-  mac?: string,
-  imei?: string,
+  mac: string,
   customParams?: Partial<RealtimeRequestParams>
 ): RealtimeRequestParams {
-  if (!mac && !imei) {
-    throw new Error('Either mac or imei must be provided');
-  }
-
   return {
     application_key: applicationKey,
     api_key: apiKey,
-    mac,
-    imei,
-    ...DEFAULT_REALTIME_PARAMS,
+    mac: mac,
+    call_back: 'all',
+    temp_unitid: TEMPERATURE_UNITS.FAHRENHEIT,
+    pressure_unitid: PRESSURE_UNITS.INHG,
+    wind_speed_unitid: WIND_SPEED_UNITS.MPH,
+    rainfall_unitid: RAINFALL_UNITS.IN,
+    solar_irradiance_unitid: SOLAR_IRRADIANCE_UNITS.WM2,
+    capacity_unitid: CAPACITY_UNITS.L,
     ...customParams
   };
 }

@@ -4,6 +4,12 @@ import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { TimeRangeType, getTimeRange } from '@/utils/timeRanges';
 import devices from '@/db/schemas/deviceSchema';
+import axios from 'axios';
+
+// Importar funciones helper de la documentación para validaciones adicionales
+import { validateRealtimeRequestParams } from '@/docs/ecowitt-parameters/realtime-request.types';
+import { validateHistoryRequestParams } from '@/docs/ecowitt-parameters/history-request.types';
+import { validateDeviceInfoRequestParams } from '@/docs/ecowitt-parameters/device-info-request.types';
 
 // Schemas para validación
 const macAddressRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
@@ -192,6 +198,7 @@ export class DeviceController {
 
   /**
    * Obtener datos en tiempo real de un dispositivo
+   * Usa validaciones adicionales de la documentación
    */
   static async getDeviceRealtime(request: FastifyRequest, reply: FastifyReply) {
     try {
@@ -200,6 +207,21 @@ export class DeviceController {
       const device = await EcowittService.getDeviceByDeviceId(deviceId);
       if (!device) {
         return reply.code(404).send({ error: 'Device not found' });
+      }
+
+      // Validación adicional usando las funciones helper de la documentación
+      const validationErrors = validateRealtimeRequestParams({
+        application_key: device.DeviceApplicationKey,
+        api_key: device.DeviceApiKey,
+        mac: device.DeviceMac,
+        call_back: 'outdoor'
+      });
+
+      if (validationErrors.length > 0) {
+        return reply.code(400).send({ 
+          error: 'Invalid device parameters', 
+          details: validationErrors 
+        });
       }
 
       const realtimeData = await EcowittService.getDeviceRealtime(
@@ -215,6 +237,7 @@ export class DeviceController {
 
   /**
    * Obtener datos históricos de un dispositivo
+   * Usa validaciones adicionales de la documentación
    */
   static async getDeviceHistory(request: FastifyRequest, reply: FastifyReply) {
     try {
@@ -230,6 +253,23 @@ export class DeviceController {
       const device = await EcowittService.getDeviceByDeviceId(deviceId);
       if (!device) {
         return reply.code(404).send({ error: 'Device not found' });
+      }
+
+      // Validación adicional usando las funciones helper de la documentación
+      const validationErrors = validateHistoryRequestParams({
+        application_key: device.DeviceApplicationKey,
+        api_key: device.DeviceApiKey,
+        mac: device.DeviceMac,
+        start_date: startTime,
+        end_date: endTime,
+        call_back: 'outdoor'
+      });
+
+      if (validationErrors.length > 0) {
+        return reply.code(400).send({ 
+          error: 'Invalid history parameters', 
+          details: validationErrors 
+        });
       }
 
       const historyData = await EcowittService.getDeviceHistory(
@@ -394,6 +434,7 @@ export class DeviceController {
   /**
    * Obtener características del dispositivo desde EcoWitt API
    * Esta ruta obtiene información específica del dispositivo como MAC, ID, coordenadas, zona horaria, etc.
+   * Usa validaciones adicionales de la documentación
    */
   static async getDeviceCharacteristics(request: FastifyRequest, reply: FastifyReply) {
     try {
@@ -403,6 +444,20 @@ export class DeviceController {
       const device = await EcowittService.getDeviceByDeviceId(deviceId);
       if (!device) {
         return reply.code(404).send({ error: 'Device not found' });
+      }
+
+      // Validación adicional usando las funciones helper de la documentación
+      const validationErrors = validateDeviceInfoRequestParams({
+        application_key: device.DeviceApplicationKey,
+        api_key: device.DeviceApiKey,
+        mac: device.DeviceMac
+      });
+
+      if (validationErrors.length > 0) {
+        return reply.code(400).send({ 
+          error: 'Invalid device info parameters', 
+          details: validationErrors 
+        });
       }
 
       // Obtener información del dispositivo desde EcoWitt API
@@ -429,6 +484,244 @@ export class DeviceController {
       console.error('Error in getDeviceCharacteristics:', error);
       return reply.code(500).send({ 
         error: 'Error retrieving device characteristics',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Endpoint de diagnóstico para probar diferentes configuraciones de EcoWitt
+   * Útil para debugging cuando los datos están vacíos
+   */
+  static async diagnoseDeviceRealtime(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { deviceId } = request.params as { deviceId: string };
+
+      const device = await EcowittService.getDeviceByDeviceId(deviceId);
+      if (!device) {
+        return reply.code(404).send({ error: 'Device not found' });
+      }
+
+      const results = {
+        device: {
+          deviceId: device.DeviceID,
+          deviceName: device.DeviceName,
+          deviceMac: device.DeviceMac,
+          applicationKey: device.DeviceApplicationKey,
+          apiKey: device.DeviceApiKey
+        },
+        tests: [] as any[]
+      };
+
+      // Test 1: Sin call_back
+      try {
+        console.log('[Diagnose] Test 1: Without call_back');
+        const response1 = await axios.get('https://api.ecowitt.net/api/v3/device/real_time', {
+          params: {
+            application_key: device.DeviceApplicationKey,
+            api_key: device.DeviceApiKey,
+            mac: device.DeviceMac
+          }
+        });
+        results.tests.push({
+          test: 'Without call_back',
+          params: {
+            application_key: device.DeviceApplicationKey,
+            api_key: device.DeviceApiKey,
+            mac: device.DeviceMac
+          },
+          response: response1.data,
+          hasData: !Array.isArray(response1.data.data) || response1.data.data.length > 0
+        });
+      } catch (error) {
+        results.tests.push({
+          test: 'Without call_back',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+
+      // Test 2: Con call_back = 'outdoor'
+      try {
+        console.log('[Diagnose] Test 2: With call_back = outdoor');
+        const response2 = await axios.get('https://api.ecowitt.net/api/v3/device/real_time', {
+          params: {
+            application_key: device.DeviceApplicationKey,
+            api_key: device.DeviceApiKey,
+            mac: device.DeviceMac,
+            call_back: 'outdoor'
+          }
+        });
+        results.tests.push({
+          test: 'With call_back = outdoor',
+          params: {
+            application_key: device.DeviceApplicationKey,
+            api_key: device.DeviceApiKey,
+            mac: device.DeviceMac,
+            call_back: 'outdoor'
+          },
+          response: response2.data,
+          hasData: !Array.isArray(response2.data.data) || response2.data.data.length > 0
+        });
+      } catch (error) {
+        results.tests.push({
+          test: 'With call_back = outdoor',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+
+      // Test 3: Con call_back = 'all'
+      try {
+        console.log('[Diagnose] Test 3: With call_back = all');
+        const response3 = await axios.get('https://api.ecowitt.net/api/v3/device/real_time', {
+          params: {
+            application_key: device.DeviceApplicationKey,
+            api_key: device.DeviceApiKey,
+            mac: device.DeviceMac,
+            call_back: 'all'
+          }
+        });
+        results.tests.push({
+          test: 'With call_back = all',
+          params: {
+            application_key: device.DeviceApplicationKey,
+            api_key: device.DeviceApiKey,
+            mac: device.DeviceMac,
+            call_back: 'all'
+          },
+          response: response3.data,
+          hasData: !Array.isArray(response3.data.data) || response3.data.data.length > 0
+        });
+      } catch (error) {
+        results.tests.push({
+          test: 'With call_back = all',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+
+      // Test 4: Con diferentes unidades
+      try {
+        console.log('[Diagnose] Test 4: With metric units');
+        const response4 = await axios.get('https://api.ecowitt.net/api/v3/device/real_time', {
+          params: {
+            application_key: device.DeviceApplicationKey,
+            api_key: device.DeviceApiKey,
+            mac: device.DeviceMac,
+            call_back: 'outdoor',
+            temp_unitid: 1, // Celsius
+            pressure_unitid: 3, // hPa
+            wind_speed_unitid: 6, // m/s
+            rainfall_unitid: 12 // mm
+          }
+        });
+        results.tests.push({
+          test: 'With metric units',
+          params: {
+            application_key: device.DeviceApplicationKey,
+            api_key: device.DeviceApiKey,
+            mac: device.DeviceMac,
+            call_back: 'outdoor',
+            temp_unitid: 1,
+            pressure_unitid: 3,
+            wind_speed_unitid: 6,
+            rainfall_unitid: 12
+          },
+          response: response4.data,
+          hasData: !Array.isArray(response4.data.data) || response4.data.data.length > 0
+        });
+      } catch (error) {
+        results.tests.push({
+          test: 'With metric units',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+
+      // Test 5: Verificar device info
+      try {
+        console.log('[Diagnose] Test 5: Device info');
+        const response5 = await axios.get('https://api.ecowitt.net/api/v3/device/info', {
+          params: {
+            application_key: device.DeviceApplicationKey,
+            api_key: device.DeviceApiKey,
+            mac: device.DeviceMac
+          }
+        });
+        results.tests.push({
+          test: 'Device info',
+          params: {
+            application_key: device.DeviceApplicationKey,
+            api_key: device.DeviceApiKey,
+            mac: device.DeviceMac
+          },
+          response: response5.data,
+          hasData: response5.data && Object.keys(response5.data).length > 0
+        });
+      } catch (error) {
+        results.tests.push({
+          test: 'Device info',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+
+      return reply.send(results);
+    } catch (error) {
+      console.error('Error in diagnoseDeviceRealtime:', error);
+      return reply.code(500).send({ 
+        error: 'Error diagnosing device',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Endpoint de prueba rápida para probar diferentes configuraciones de call_back
+   * Más simple que el diagnóstico completo
+   */
+  static async testDeviceRealtime(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { deviceId } = request.params as { deviceId: string };
+      const { call_back } = request.query as { call_back?: string };
+
+      const device = await EcowittService.getDeviceByDeviceId(deviceId);
+      if (!device) {
+        return reply.code(404).send({ error: 'Device not found' });
+      }
+
+      // Construir parámetros base
+      const baseParams = {
+        application_key: device.DeviceApplicationKey,
+        api_key: device.DeviceApiKey,
+        mac: device.DeviceMac
+      };
+
+      // Agregar call_back si se especifica
+      const params = call_back ? { ...baseParams, call_back } : baseParams;
+
+      console.log(`[TestDeviceRealtime] Testing with params:`, JSON.stringify(params, null, 2));
+
+      const response = await axios.get('https://api.ecowitt.net/api/v3/device/real_time', {
+        params
+      });
+
+      const result = {
+        device: {
+          deviceId: device.DeviceID,
+          deviceName: device.DeviceName,
+          deviceMac: device.DeviceMac
+        },
+        test: {
+          call_back: call_back || 'none',
+          params,
+          response: response.data,
+          hasData: !Array.isArray(response.data.data) || response.data.data.length > 0,
+          dataKeys: Array.isArray(response.data.data) ? [] : Object.keys(response.data.data || {})
+        }
+      };
+
+      return reply.send(result);
+    } catch (error) {
+      console.error('Error in testDeviceRealtime:', error);
+      return reply.code(500).send({ 
+        error: 'Error testing device',
         details: error instanceof Error ? error.message : 'Unknown error'
       });
     }

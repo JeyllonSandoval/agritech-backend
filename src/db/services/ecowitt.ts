@@ -3,9 +3,33 @@ import devices from '@/db/schemas/deviceSchema';
 import { eq, and, inArray } from 'drizzle-orm';
 import axios from 'axios';
 
+// Importar tipos y funciones helper de la documentación
+import {
+  RealtimeRequestParams,
+  createRealtimeRequestParams,
+  validateRealtimeRequestParams
+} from '@/docs/ecowitt-parameters/realtime-request.types';
+
+import {
+  HistoryRequestParams,
+  createHistoryRequestParams,
+  validateHistoryRequestParams
+} from '@/docs/ecowitt-parameters/history-request.types';
+
+import {
+  DeviceInfoRequestParams,
+  createDeviceInfoRequestParams,
+  validateDeviceInfoRequestParams
+} from '@/docs/ecowitt-parameters/device-info-request.types';
+
 const ECOWITT_API_BASE = 'https://api.ecowitt.net/api/v3';
 
-// Tipos de datos para la API
+// Tipos flexibles para las respuestas de EcoWitt
+type RealtimeResponseType = Record<string, any>;
+type HistoryResponseType = Record<string, any>;
+type DeviceInfoResponseType = Record<string, any>;
+
+// Tipos de datos para la API (mantener para compatibilidad)
 interface DeviceInfo {
   device_id: string;
   model: string;
@@ -116,20 +140,124 @@ export class EcowittService {
 
   /**
    * Obtener datos en tiempo real de un dispositivo
+   * Usa los tipos y validaciones de la documentación
    */
-  static async getDeviceRealtime(applicationKey: string, apiKey: string, mac: string) {
+  static async getDeviceRealtime(applicationKey: string, apiKey: string, mac: string): Promise<RealtimeResponseType> {
     try {
+      // Crear parámetros usando las funciones helper
+      const params: RealtimeRequestParams = createRealtimeRequestParams(
+        applicationKey,
+        apiKey,
+        mac
+      );
+
+      // Validar parámetros antes de enviar
+      const validationErrors = validateRealtimeRequestParams(params);
+      if (validationErrors.length > 0) {
+        throw new Error(`Validation errors: ${validationErrors.join(', ')}`);
+      }
+
+      // Log de parámetros enviados para debugging
+      console.log('[EcowittService.getDeviceRealtime] Params sent:', JSON.stringify(params, null, 2));
+
       const response = await axios.get(`${ECOWITT_API_BASE}/device/real_time`, {
-        params: {
-          application_key: applicationKey,
-          api_key: apiKey,
-          mac: mac,
-          call_back: 'outdoor'
-        }
+        params
       });
-      return response.data;
+
+      // Log de respuesta completa para debugging
+      console.log('[EcowittService.getDeviceRealtime] Full response:', JSON.stringify(response.data, null, 2));
+
+      // Verificar si la respuesta tiene el formato esperado
+      const responseData = response.data as RealtimeResponseType;
+      
+      // Si data es un array vacío, intentar diferentes estrategias
+      if (Array.isArray(responseData.data) && responseData.data.length === 0) {
+        console.warn('[EcowittService.getDeviceRealtime] Data is empty array, trying alternative approaches...');
+        
+        // Estrategia 1: Probar sin call_back
+        try {
+          console.log('[EcowittService.getDeviceRealtime] Trying without call_back...');
+          const paramsWithoutCallback = { ...params };
+          delete paramsWithoutCallback.call_back;
+          
+          const responseWithoutCallback = await axios.get(`${ECOWITT_API_BASE}/device/real_time`, {
+            params: paramsWithoutCallback
+          });
+          
+          console.log('[EcowittService.getDeviceRealtime] Response without call_back:', JSON.stringify(responseWithoutCallback.data, null, 2));
+          
+          const responseDataWithoutCallback = responseWithoutCallback.data as RealtimeResponseType;
+          if (!Array.isArray(responseDataWithoutCallback.data) || responseDataWithoutCallback.data.length > 0) {
+            console.log('[EcowittService.getDeviceRealtime] Success! Found data without call_back');
+            return responseDataWithoutCallback;
+          }
+        } catch (error) {
+          console.warn('[EcowittService.getDeviceRealtime] Failed without call_back:', error);
+        }
+        
+        // Estrategia 2: Probar con call_back = 'indoor' (para dispositivos sin sensores outdoor)
+        try {
+          console.log('[EcowittService.getDeviceRealtime] Trying with call_back = indoor...');
+          const paramsIndoor = { ...params, call_back: 'indoor' };
+          
+          const responseIndoor = await axios.get(`${ECOWITT_API_BASE}/device/real_time`, {
+            params: paramsIndoor
+          });
+          
+          console.log('[EcowittService.getDeviceRealtime] Response with call_back = indoor:', JSON.stringify(responseIndoor.data, null, 2));
+          
+          const responseDataIndoor = responseIndoor.data as RealtimeResponseType;
+          if (!Array.isArray(responseDataIndoor.data) || responseDataIndoor.data.length > 0) {
+            console.log('[EcowittService.getDeviceRealtime] Success! Found data with call_back = indoor');
+            return responseDataIndoor;
+          }
+        } catch (error) {
+          console.warn('[EcowittService.getDeviceRealtime] Failed with call_back = indoor:', error);
+        }
+        
+        // Estrategia 3: Verificar si los datos están en el nivel raíz
+        const rootLevelData = { ...responseData };
+        delete rootLevelData.code;
+        delete rootLevelData.msg;
+        delete rootLevelData.time;
+        delete rootLevelData.data;
+        
+        if (Object.keys(rootLevelData).length > 0) {
+          console.log('[EcowittService.getDeviceRealtime] Found data at root level:', Object.keys(rootLevelData));
+          return rootLevelData as RealtimeResponseType;
+        }
+        
+        // Estrategia 4: Verificar si hay un formato diferente
+        if (responseData.code === 0 && responseData.msg === 'success') {
+          console.warn('[EcowittService.getDeviceRealtime] Success response but no data. Possible causes:');
+          console.warn('- Device is offline or not sending data');
+          console.warn('- Wrong call_back parameter');
+          console.warn('- Device has no sensors configured');
+          console.warn('- API credentials are incorrect');
+          
+          // Retornar respuesta con información de diagnóstico
+          return {
+            ...responseData,
+            _diagnostic: {
+              message: 'Device returned empty data array',
+              possibleCauses: [
+                'Device is offline or not sending data',
+                'Wrong call_back parameter',
+                'Device has no sensors configured',
+                'API credentials are incorrect'
+              ],
+              paramsSent: params,
+              timestamp: new Date().toISOString()
+            }
+          } as RealtimeResponseType;
+        }
+      }
+
+      return responseData;
     } catch (error) {
+      console.error('[EcowittService.getDeviceRealtime] Error:', error);
       if (axios.isAxiosError(error)) {
+        console.error('[EcowittService.getDeviceRealtime] Axios error response:', error.response?.data);
         throw new Error(`Ecowitt API Error: ${error.response?.data?.message || error.message}`);
       }
       throw error;
@@ -138,20 +266,36 @@ export class EcowittService {
 
   /**
    * Obtener datos históricos de un dispositivo
+   * Usa los tipos y validaciones de la documentación
    */
-  static async getDeviceHistory(applicationKey: string, apiKey: string, mac: string, startTime: string, endTime: string) {
+  static async getDeviceHistory(
+    applicationKey: string, 
+    apiKey: string, 
+    mac: string, 
+    startTime: string, 
+    endTime: string
+  ): Promise<HistoryResponseType> {
     try {
+      // Crear parámetros usando las funciones helper
+      const params: HistoryRequestParams = createHistoryRequestParams(
+        applicationKey,
+        apiKey,
+        mac,
+        startTime,
+        endTime
+      );
+
+      // Validar parámetros antes de enviar
+      const validationErrors = validateHistoryRequestParams(params);
+      if (validationErrors.length > 0) {
+        throw new Error(`Validation errors: ${validationErrors.join(', ')}`);
+      }
+
       const response = await axios.get(`${ECOWITT_API_BASE}/device/history`, {
-        params: {
-          application_key: applicationKey,
-          api_key: apiKey,
-          mac: mac,
-          start_date: startTime,
-          end_date: endTime,
-          call_back: 'outdoor'
-        }
+        params
       });
-      return response.data;
+
+      return response.data as HistoryResponseType;
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(`Ecowitt API Error: ${error.response?.data?.message || error.message}`);
@@ -168,14 +312,26 @@ export class EcowittService {
     devices: Array<{ applicationKey: string; apiKey: string; mac: string }>,
     startTime: string,
     endTime: string
-  ): Promise<Record<string, any>> {
+  ): Promise<Record<string, HistoryResponseType | { error: string }>> {
     try {
       // Realizar llamadas en paralelo para cada dispositivo
-      const promises = devices.map(device => 
-        this.getDeviceHistory(device.applicationKey, device.apiKey, device.mac, startTime, endTime)
-          .then(data => ({ mac: device.mac, data } as DeviceResponse))
-          .catch(error => ({ mac: device.mac, error: error.message } as DeviceResponse))
-      );
+      const promises = devices.map(async device => {
+        try {
+          const data = await this.getDeviceHistory(
+            device.applicationKey, 
+            device.apiKey, 
+            device.mac, 
+            startTime, 
+            endTime
+          );
+          return { mac: device.mac, data } as DeviceResponse;
+        } catch (error) {
+          return { 
+            mac: device.mac, 
+            error: error instanceof Error ? error.message : 'Unknown error' 
+          } as DeviceResponse;
+        }
+      });
       
       const results = await Promise.all(promises);
       
@@ -183,7 +339,7 @@ export class EcowittService {
       return results.reduce((acc, result) => {
         acc[result.mac] = result.data || { error: result.error };
         return acc;
-      }, {} as Record<string, any>);
+      }, {} as Record<string, HistoryResponseType | { error: string }>);
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(`Ecowitt API Error: ${error.response?.data?.message || error.message}`);
@@ -198,14 +354,24 @@ export class EcowittService {
    */
   static async getMultipleDevicesRealtime(
     devices: Array<{ applicationKey: string; apiKey: string; mac: string }>
-  ): Promise<Record<string, any>> {
+  ): Promise<Record<string, RealtimeResponseType | { error: string }>> {
     try {
       // Realizar llamadas en paralelo para cada dispositivo
-      const promises = devices.map(device => 
-        this.getDeviceRealtime(device.applicationKey, device.apiKey, device.mac)
-          .then(data => ({ mac: device.mac, data } as DeviceResponse))
-          .catch(error => ({ mac: device.mac, error: error.message } as DeviceResponse))
-      );
+      const promises = devices.map(async device => {
+        try {
+          const data = await this.getDeviceRealtime(
+            device.applicationKey, 
+            device.apiKey, 
+            device.mac
+          );
+          return { mac: device.mac, data } as DeviceResponse;
+        } catch (error) {
+          return { 
+            mac: device.mac, 
+            error: error instanceof Error ? error.message : 'Unknown error' 
+          } as DeviceResponse;
+        }
+      });
       
       const results = await Promise.all(promises);
       
@@ -213,7 +379,7 @@ export class EcowittService {
       return results.reduce((acc, result) => {
         acc[result.mac] = result.data || { error: result.error };
         return acc;
-      }, {} as Record<string, any>);
+      }, {} as Record<string, RealtimeResponseType | { error: string }>);
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(`Ecowitt API Error: ${error.response?.data?.message || error.message}`);
@@ -224,10 +390,11 @@ export class EcowittService {
 
   /**
    * Obtener información detallada de un dispositivo
+   * Usa los datos en tiempo real para extraer información del dispositivo
    */
   static async getDeviceDetailedInfo(applicationKey: string, apiKey: string, mac: string) {
     try {
-      // Solo usamos real_time ya que config no está disponible
+      // Usar el método getDeviceRealtime que ya tiene validaciones
       const realtimeData = await this.getDeviceRealtime(applicationKey, apiKey, mac);
 
       // Extraer información del dispositivo desde los datos en tiempo real
@@ -304,18 +471,28 @@ export class EcowittService {
   /**
    * Obtener información del dispositivo desde EcoWitt API
    * Usa el endpoint /device/info para obtener características del dispositivo
+   * Usa los tipos y validaciones de la documentación
    */
-  static async getDeviceInfo(applicationKey: string, apiKey: string, mac: string) {
+  static async getDeviceInfo(applicationKey: string, apiKey: string, mac: string): Promise<DeviceInfoResponseType> {
     try {
+      // Crear parámetros usando las funciones helper
+      const params: DeviceInfoRequestParams = createDeviceInfoRequestParams(
+        applicationKey,
+        apiKey,
+        mac
+      );
+
+      // Validar parámetros antes de enviar
+      const validationErrors = validateDeviceInfoRequestParams(params);
+      if (validationErrors.length > 0) {
+        throw new Error(`Validation errors: ${validationErrors.join(', ')}`);
+      }
+
       const response = await axios.get(`${ECOWITT_API_BASE}/device/info`, {
-        params: {
-          application_key: applicationKey,
-          api_key: apiKey,
-          mac: mac,
-          call_back: 'outdoor'
-        }
+        params
       });
-      return response.data;
+
+      return response.data as DeviceInfoResponseType;
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(`Ecowitt API Error: ${error.response?.data?.message || error.message}`);
