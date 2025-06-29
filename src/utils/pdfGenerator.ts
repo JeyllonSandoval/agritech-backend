@@ -152,6 +152,11 @@ export class PDFGenerator {
     const timestamp = new Date(report.generatedAt).toLocaleString('es-ES');
     const lastUpdate = device.characteristics.lastUpdate ? new Date(device.characteristics.lastUpdate).toLocaleString('es-ES') : 'N/A';
 
+    // Robustez: si recibimos el objeto completo, extraer 'data'
+    if (deviceData.realtime && typeof deviceData.realtime === 'object' && 'data' in deviceData.realtime && 'code' in deviceData.realtime) {
+      deviceData.realtime = deviceData.realtime.data;
+    }
+
     // SVGs para secciones (alineados verticalmente y tamaño fijo)
     const svgDevice = `<span style="display:inline-flex;align-items:center;vertical-align:middle;"><svg width='22' height='22' fill='none' stroke='#10b981' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24' style='margin-right:8px;'><rect x='3' y='7' width='18' height='13' rx='2'/><path d='M8 7V5a4 4 0 1 1 8 0v2'/></svg></span>`;
     const svgWeather = `<span style="display:inline-flex;align-items:center;vertical-align:middle;"><svg width='22' height='22' fill='none' stroke='#10b981' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24' style='margin-right:8px;'><circle cx='12' cy='12' r='5'/><path d='M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42'/></svg></span>`;
@@ -159,24 +164,49 @@ export class PDFGenerator {
     const svgSensor = `<span style="display:inline-flex;align-items:center;vertical-align:middle;"><svg width='22' height='22' fill='none' stroke='#10b981' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24' style='margin-right:8px;'><rect x='2' y='7' width='20' height='14' rx='2'/><path d='M16 3v4M8 3v4'/></svg></span>`;
     const svgHistory = `<span style="display:inline-flex;align-items:center;vertical-align:middle;"><svg width='22' height='22' fill='none' stroke='#6366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24' style='margin-right:8px;'><path d='M3 3v6h6'/><path d='M21 21v-6h-6'/><path d='M3 21l18-18'/></svg></span>`;
 
-    // Utilidades para mostrar solo los datos clave
+    // Utilidades para mostrar dinámicamente los sensores relevantes
     const { realtime } = deviceData;
-    const sensors = [
-      { label: 'Temp. Exterior', value: realtime?.outdoor?.temperature?.value ?? realtime?.tempf ?? realtime?.tempc, unit: '°C' },
-      { label: 'Humedad Exterior', value: realtime?.outdoor?.humidity?.value ?? realtime?.humidity, unit: '%' },
-      { label: 'Temp. Interior', value: realtime?.indoor?.temperature?.value, unit: '°C' },
-      { label: 'Humedad Interior', value: realtime?.indoor?.humidity?.value, unit: '%' },
-      { label: 'Humedad Tierra', value: realtime?.soilmoisture1, unit: '%' },
-      { label: 'Lluvia Actual', value: realtime?.rainratein ?? realtime?.rainfall?.rain_rate?.value, unit: 'mm/h' },
-      { label: 'Lluvia Diaria', value: realtime?.rainfall?.daily?.value, unit: 'mm' },
-      { label: 'Radiación Solar', value: realtime?.solarradiation, unit: 'W/m²' },
-      { label: 'UV', value: realtime?.uv, unit: '' },
-      { label: 'PM2.5', value: realtime?.pm25, unit: 'µg/m³' },
-      { label: 'PM10', value: realtime?.pm10, unit: 'µg/m³' },
-      { label: 'CO₂', value: realtime?.co2, unit: 'ppm' },
-      { label: 'Batería', value: realtime?.batt, unit: 'V' },
-      { label: 'Señal', value: realtime?.signal, unit: 'dBm' }
-    ].filter(s => s.value !== undefined && s.value !== null);
+    const sensorCards: string[] = [];
+
+    // Exterior/Interior
+    if (realtime?.outdoor?.temperature?.value !== undefined) sensorCards.push(`<div class="info-card"><h3>Temp. Exterior</h3><div class="value">${realtime.outdoor.temperature.value} ${realtime.outdoor.temperature.unit || ''}</div></div>`);
+    if (realtime?.outdoor?.humidity?.value !== undefined) sensorCards.push(`<div class="info-card"><h3>Humedad Exterior</h3><div class="value">${realtime.outdoor.humidity.value} ${realtime.outdoor.humidity.unit || ''}</div></div>`);
+    if (realtime?.indoor?.temperature?.value !== undefined) sensorCards.push(`<div class="info-card"><h3>Temp. Interior</h3><div class="value">${realtime.indoor.temperature.value} ${realtime.indoor.temperature.unit || ''}</div></div>`);
+    if (realtime?.indoor?.humidity?.value !== undefined) sensorCards.push(`<div class="info-card"><h3>Humedad Interior</h3><div class="value">${realtime.indoor.humidity.value} ${realtime.indoor.humidity.unit || ''}</div></div>`);
+
+    // Presión
+    if (realtime?.pressure?.relative?.value !== undefined) sensorCards.push(`<div class="info-card"><h3>Presión Relativa</h3><div class="value">${realtime.pressure.relative.value} ${realtime.pressure.relative.unit || ''}</div></div>`);
+    if (realtime?.pressure?.absolute?.value !== undefined) sensorCards.push(`<div class="info-card"><h3>Presión Absoluta</h3><div class="value">${realtime.pressure.absolute.value} ${realtime.pressure.absolute.unit || ''}</div></div>`);
+
+    // Canales de temperatura y humedad (temp_and_humidity_chX)
+    for (let i = 1; i <= 8; i++) {
+      const th = realtime[`temp_and_humidity_ch${i}`];
+      if (th?.temperature !== undefined) sensorCards.push(`<div class="info-card"><h3>Temp. CH${i}</h3><div class="value">${th.temperature} ${th.unit || ''}</div></div>`);
+      if (th?.humidity !== undefined) sensorCards.push(`<div class="info-card"><h3>Humedad CH${i}</h3><div class="value">${th.humidity} ${th.unit || ''}</div></div>`);
+    }
+
+    // Suelo (soil_chX)
+    for (let i = 1; i <= 8; i++) {
+      const soil = realtime[`soil_ch${i}`];
+      if (soil?.soilmoisture !== undefined) sensorCards.push(`<div class="info-card"><h3>Humedad Suelo CH${i}</h3><div class="value">${soil.soilmoisture} ${soil.unit || '%'}</div></div>`);
+    }
+
+    // Lluvia
+    if (realtime?.rainfall?.rain_rate?.value !== undefined) sensorCards.push(`<div class="info-card"><h3>Lluvia Actual</h3><div class="value">${realtime.rainfall.rain_rate.value} ${realtime.rainfall.rain_rate.unit || 'mm/h'}</div></div>`);
+    if (realtime?.rainfall?.daily?.value !== undefined) sensorCards.push(`<div class="info-card"><h3>Lluvia Diaria</h3><div class="value">${realtime.rainfall.daily.value} ${realtime.rainfall.daily.unit || 'mm'}</div></div>`);
+
+    // Radiación solar y UV
+    if (realtime?.solar_and_uvi?.solar !== undefined) sensorCards.push(`<div class="info-card"><h3>Radiación Solar</h3><div class="value">${realtime.solar_and_uvi.solar} ${realtime.solar_and_uvi.unit || 'W/m²'}</div></div>`);
+    if (realtime?.solar_and_uvi?.uvi !== undefined) sensorCards.push(`<div class="info-card"><h3>UV</h3><div class="value">${realtime.solar_and_uvi.uvi}</div></div>`);
+
+    // Calidad del aire
+    if (realtime?.pm25_ch1?.pm25 !== undefined) sensorCards.push(`<div class="info-card"><h3>PM2.5 CH1</h3><div class="value">${realtime.pm25_ch1.pm25} ${realtime.pm25_ch1.unit || 'µg/m³'}</div></div>`);
+    if (realtime?.pm10_aqi_combo?.pm10 !== undefined) sensorCards.push(`<div class="info-card"><h3>PM10</h3><div class="value">${realtime.pm10_aqi_combo.pm10} ${realtime.pm10_aqi_combo.unit || 'µg/m³'}</div></div>`);
+    if (realtime?.co2_aqi_combo?.co2 !== undefined) sensorCards.push(`<div class="info-card"><h3>CO₂</h3><div class="value">${realtime.co2_aqi_combo.co2} ${realtime.co2_aqi_combo.unit || 'ppm'}</div></div>`);
+
+    // Batería y señal (si existen)
+    if (realtime?.battery?.console !== undefined) sensorCards.push(`<div class="info-card"><h3>Batería Consola</h3><div class="value">${realtime.battery.console} V</div></div>`);
+    if (realtime?.signal !== undefined) sensorCards.push(`<div class="info-card"><h3>Señal</h3><div class="value">${realtime.signal} dBm</div></div>`);
 
     return `
       <!DOCTYPE html>
@@ -280,7 +310,7 @@ export class PDFGenerator {
             <div class="section">
               <h2>${svgSensor} Datos del Sensor</h2>
               <div class="info-grid">
-                ${sensors.map(s => `<div class="info-card"><h3>${s.label}</h3><div class="value">${s.value} ${s.unit}</div></div>`).join('')}
+                ${sensorCards.length > 0 ? sensorCards.join('') : '<div class="info-card"><div class="value">No hay datos de sensores disponibles.</div></div>'}
               </div>
             </div>
             <!-- Histórico (opcional) -->

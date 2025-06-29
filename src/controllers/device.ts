@@ -242,17 +242,21 @@ export class DeviceController {
   static async getDeviceHistory(request: FastifyRequest, reply: FastifyReply) {
     try {
       const { deviceId } = request.params as { deviceId: string };
-      const { startTime, endTime } = request.query as { startTime: string; endTime: string };
+      const { rangeType } = request.query as { rangeType: TimeRangeType };
 
-      if (!startTime || !endTime) {
-        return reply.code(400).send({ 
-          error: 'startTime and endTime are required' 
-        });
+      if (!rangeType) {
+        return reply.code(400).send({ error: 'rangeType is required' });
       }
+
+      const { startTime, endTime } = getTimeRange(rangeType);
 
       const device = await EcowittService.getDeviceByDeviceId(deviceId);
       if (!device) {
         return reply.code(404).send({ error: 'Device not found' });
+      }
+      if (!device.DeviceMac) {
+        console.error('[getDeviceHistory] Device object:', device);
+        return reply.code(400).send({ error: 'Device MAC address is missing' });
       }
 
       // Validación adicional usando las funciones helper de la documentación
@@ -266,9 +270,9 @@ export class DeviceController {
       });
 
       if (validationErrors.length > 0) {
-        return reply.code(400).send({ 
-          error: 'Invalid history parameters', 
-          details: validationErrors 
+        return reply.code(400).send({
+          error: 'Invalid history parameters',
+          details: validationErrors
         });
       }
 

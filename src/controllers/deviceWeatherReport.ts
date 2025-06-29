@@ -7,6 +7,7 @@ import filesTable from '@/db/schemas/filesSchema';
 import { z } from 'zod';
 import { eq, and, like } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
+import { getTimeRange, TimeRangeType } from '@/utils/timeRanges';
 
 // Esquemas de validación
 const deviceReportSchema = z.object({
@@ -14,8 +15,7 @@ const deviceReportSchema = z.object({
   userId: z.string().uuid('User ID debe ser un UUID válido'),
   includeHistory: z.boolean().optional().default(false),
   historyRange: z.object({
-    startTime: z.string().datetime('startTime debe ser una fecha ISO válida'),
-    endTime: z.string().datetime('endTime debe ser una fecha ISO válida')
+    type: z.enum(['day', 'week', 'month', '3months'])
   }).optional(),
   format: z.enum(['pdf', 'json']).optional().default('pdf')
 });
@@ -25,11 +25,20 @@ const groupReportSchema = z.object({
   userId: z.string().uuid('User ID debe ser un UUID válido'),
   includeHistory: z.boolean().optional().default(false),
   historyRange: z.object({
-    startTime: z.string().datetime('startTime debe ser una fecha ISO válida'),
-    endTime: z.string().datetime('endTime debe ser una fecha ISO válida')
+    type: z.enum(['day', 'week', 'month', '3months'])
   }).optional(),
   format: z.enum(['pdf', 'json']).optional().default('pdf')
 });
+
+function mapTypeToTimeRange(type: string): TimeRangeType {
+  switch (type) {
+    case 'day': return TimeRangeType.ONE_DAY;
+    case 'week': return TimeRangeType.ONE_WEEK;
+    case 'month': return TimeRangeType.ONE_MONTH;
+    case '3months': return TimeRangeType.THREE_MONTHS;
+    default: throw new Error('Tipo de rango de tiempo no válido');
+  }
+}
 
 export class DeviceWeatherReportController {
   /**
@@ -41,12 +50,18 @@ export class DeviceWeatherReportController {
       const validatedData = deviceReportSchema.parse(request.body);
       const { deviceId, userId, includeHistory, historyRange, format } = validatedData;
 
+      let computedHistoryRange = undefined;
+      if (includeHistory && historyRange && historyRange.type) {
+        const range = getTimeRange(mapTypeToTimeRange(historyRange.type));
+        computedHistoryRange = { startTime: range.startTime, endTime: range.endTime };
+      }
+
       // Generar el reporte
       const result = await DeviceWeatherReportService.generateDeviceReport(
         deviceId,
         userId,
         includeHistory,
-        historyRange
+        computedHistoryRange
       );
 
       // Preparar el contenido del archivo
@@ -144,12 +159,18 @@ export class DeviceWeatherReportController {
       const validatedData = groupReportSchema.parse(request.body);
       const { groupId, userId, includeHistory, historyRange, format } = validatedData;
 
+      let computedHistoryRange = undefined;
+      if (includeHistory && historyRange && historyRange.type) {
+        const range = getTimeRange(mapTypeToTimeRange(historyRange.type));
+        computedHistoryRange = { startTime: range.startTime, endTime: range.endTime };
+      }
+
       // Generar el reporte
       const result = await DeviceWeatherReportService.generateGroupReport(
         groupId,
         userId,
         includeHistory,
-        historyRange
+        computedHistoryRange
       );
 
       // Preparar el contenido del archivo

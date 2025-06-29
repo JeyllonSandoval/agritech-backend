@@ -92,9 +92,20 @@ export class EcowittService {
    * Obtener un dispositivo por DeviceID (NUEVO MÉTODO PRINCIPAL)
    */
   static async getDeviceByDeviceId(deviceId: string): Promise<DeviceSelect | undefined> {
-    const [device] = await db.select().from(devices).where(
+    const [device] = await db.select({
+      DeviceID: devices.DeviceID,
+      UserID: devices.UserID,
+      DeviceName: devices.DeviceName,
+      DeviceMac: devices.DeviceMac,
+      DeviceApplicationKey: devices.DeviceApplicationKey,
+      DeviceApiKey: devices.DeviceApiKey,
+      DeviceType: devices.DeviceType,
+      createdAt: devices.createdAt,
+      status: devices.status
+    }).from(devices).where(
       eq(devices.DeviceID, deviceId)
     );
+    console.log('[getDeviceByDeviceId] Result:', device);
     return device;
   }
 
@@ -280,14 +291,19 @@ export class EcowittService {
       const params: HistoryRequestParams = createHistoryRequestParams(
         applicationKey,
         apiKey,
-        mac,
         startTime,
-        endTime
+        endTime,
+        'outdoor',
+        mac
       );
+
+      // Log de depuración: parámetros enviados
+      console.log('[EcowittService.getDeviceHistory] Params:', JSON.stringify(params));
 
       // Validar parámetros antes de enviar
       const validationErrors = validateHistoryRequestParams(params);
       if (validationErrors.length > 0) {
+        console.error('[EcowittService.getDeviceHistory] Validation errors:', validationErrors);
         throw new Error(`Validation errors: ${validationErrors.join(', ')}`);
       }
 
@@ -295,8 +311,12 @@ export class EcowittService {
         params
       });
 
+      // Log de depuración: respuesta de la API
+      console.log('[EcowittService.getDeviceHistory] API response:', JSON.stringify(response.data));
+
       return response.data as HistoryResponseType;
     } catch (error) {
+      console.error('[EcowittService.getDeviceHistory] Error:', error);
       if (axios.isAxiosError(error)) {
         throw new Error(`Ecowitt API Error: ${error.response?.data?.message || error.message}`);
       }
