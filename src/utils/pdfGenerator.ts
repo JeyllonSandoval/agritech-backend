@@ -132,12 +132,7 @@ export class PDFGenerator {
       
       const pdf = await page.pdf({
         format: 'A4',
-        margin: {
-          top: '20mm',
-          right: '20mm',
-          bottom: '20mm',
-          left: '20mm'
-        },
+        margin: { top: 0, right: 0, bottom: 0, left: 0 },
         printBackground: true
       });
 
@@ -155,6 +150,33 @@ export class PDFGenerator {
     const weather = report.weather;
     const deviceData = report.deviceData;
     const timestamp = new Date(report.generatedAt).toLocaleString('es-ES');
+    const lastUpdate = device.characteristics.lastUpdate ? new Date(device.characteristics.lastUpdate).toLocaleString('es-ES') : 'N/A';
+
+    // SVGs para secciones (alineados verticalmente y tamaño fijo)
+    const svgDevice = `<span style="display:inline-flex;align-items:center;vertical-align:middle;"><svg width='22' height='22' fill='none' stroke='#10b981' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24' style='margin-right:8px;'><rect x='3' y='7' width='18' height='13' rx='2'/><path d='M8 7V5a4 4 0 1 1 8 0v2'/></svg></span>`;
+    const svgWeather = `<span style="display:inline-flex;align-items:center;vertical-align:middle;"><svg width='22' height='22' fill='none' stroke='#10b981' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24' style='margin-right:8px;'><circle cx='12' cy='12' r='5'/><path d='M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42'/></svg></span>`;
+    const svgForecast = `<span style="display:inline-flex;align-items:center;vertical-align:middle;"><svg width='22' height='22' fill='none' stroke='#ec4899' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24' style='margin-right:8px;'><path d='M3 16s1-4 9-4 9 4 9 4'/><circle cx='12' cy='8' r='4'/></svg></span>`;
+    const svgSensor = `<span style="display:inline-flex;align-items:center;vertical-align:middle;"><svg width='22' height='22' fill='none' stroke='#10b981' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24' style='margin-right:8px;'><rect x='2' y='7' width='20' height='14' rx='2'/><path d='M16 3v4M8 3v4'/></svg></span>`;
+    const svgHistory = `<span style="display:inline-flex;align-items:center;vertical-align:middle;"><svg width='22' height='22' fill='none' stroke='#6366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24' style='margin-right:8px;'><path d='M3 3v6h6'/><path d='M21 21v-6h-6'/><path d='M3 21l18-18'/></svg></span>`;
+
+    // Utilidades para mostrar solo los datos clave
+    const { realtime } = deviceData;
+    const sensors = [
+      { label: 'Temp. Exterior', value: realtime?.outdoor?.temperature?.value ?? realtime?.tempf ?? realtime?.tempc, unit: '°C' },
+      { label: 'Humedad Exterior', value: realtime?.outdoor?.humidity?.value ?? realtime?.humidity, unit: '%' },
+      { label: 'Temp. Interior', value: realtime?.indoor?.temperature?.value, unit: '°C' },
+      { label: 'Humedad Interior', value: realtime?.indoor?.humidity?.value, unit: '%' },
+      { label: 'Humedad Tierra', value: realtime?.soilmoisture1, unit: '%' },
+      { label: 'Lluvia Actual', value: realtime?.rainratein ?? realtime?.rainfall?.rain_rate?.value, unit: 'mm/h' },
+      { label: 'Lluvia Diaria', value: realtime?.rainfall?.daily?.value, unit: 'mm' },
+      { label: 'Radiación Solar', value: realtime?.solarradiation, unit: 'W/m²' },
+      { label: 'UV', value: realtime?.uv, unit: '' },
+      { label: 'PM2.5', value: realtime?.pm25, unit: 'µg/m³' },
+      { label: 'PM10', value: realtime?.pm10, unit: 'µg/m³' },
+      { label: 'CO₂', value: realtime?.co2, unit: 'ppm' },
+      { label: 'Batería', value: realtime?.batt, unit: 'V' },
+      { label: 'Señal', value: realtime?.signal, unit: 'dBm' }
+    ].filter(s => s.value !== undefined && s.value !== null);
 
     return `
       <!DOCTYPE html>
@@ -162,255 +184,47 @@ export class PDFGenerator {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Reporte Completo de Dispositivo y Clima</title>
+        <title>Reporte Completo de Dispositivo y Clima - AgriTech</title>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet"/>
         <style>
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
-          
-          body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-          }
-          
-          .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            overflow: hidden;
-          }
-          
-          .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-          }
-          
-          .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            font-weight: 300;
-          }
-          
-          .header .subtitle {
-            font-size: 1.2em;
-            opacity: 0.9;
-          }
-          
-          .content {
-            padding: 30px;
-          }
-          
-          .section {
-            margin-bottom: 30px;
-            padding: 20px;
-            border-radius: 10px;
-            background: #f8f9fa;
-            border-left: 5px solid #667eea;
-          }
-          
-          .section h2 {
-            color: #667eea;
-            margin-bottom: 15px;
-            font-size: 1.5em;
-            display: flex;
-            align-items: center;
-          }
-          
-          .section h2::before {
-            content: "📊";
-            margin-right: 10px;
-            font-size: 1.2em;
-          }
-          
-          .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-          }
-          
-          .info-card {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            border-left: 4px solid #28a745;
-          }
-          
-          .info-card h3 {
-            color: #28a745;
-            margin-bottom: 8px;
-            font-size: 1.1em;
-          }
-          
-          .info-card .value {
-            font-size: 1.3em;
-            font-weight: bold;
-            color: #333;
-          }
-          
-          .weather-section {
-            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
-            color: white;
-          }
-          
-          .weather-section h2 {
-            color: white;
-          }
-          
-          .weather-section h2::before {
-            content: "🌤️";
-          }
-          
-          .weather-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
-          }
-          
-          .weather-card {
-            background: rgba(255,255,255,0.1);
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-            backdrop-filter: blur(10px);
-          }
-          
-          .weather-card .value {
-            font-size: 1.5em;
-            font-weight: bold;
-            margin-bottom: 5px;
-          }
-          
-          .weather-card .label {
-            font-size: 0.9em;
-            opacity: 0.9;
-          }
-          
-          .device-section h2::before {
-            content: "📡";
-          }
-          
-          .location-section h2::before {
-            content: "📍";
-          }
-          
-          .characteristics-section h2::before {
-            content: "⚙️";
-          }
-          
-          .chart-section h2::before {
-            content: "📈";
-          }
-          
-          .chart-container {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin-top: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-          }
-          
-          .chart-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 20px;
-            margin-top: 15px;
-          }
-          
-          .forecast-section {
-            background: linear-gradient(135deg, #fd79a8 0%, #e84393 100%);
-            color: white;
-          }
-          
-          .forecast-section h2 {
-            color: white;
-          }
-          
-          .forecast-section h2::before {
-            content: "📅";
-          }
-          
-          .forecast-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 10px;
-            margin-top: 15px;
-          }
-          
-          .forecast-card {
-            background: rgba(255,255,255,0.1);
-            padding: 10px;
-            border-radius: 8px;
-            text-align: center;
-            backdrop-filter: blur(10px);
-          }
-          
-          .forecast-card .day {
-            font-weight: bold;
-            margin-bottom: 5px;
-          }
-          
-          .forecast-card .temp {
-            font-size: 1.2em;
-            margin-bottom: 3px;
-          }
-          
-          .forecast-card .description {
-            font-size: 0.8em;
-            opacity: 0.9;
-          }
-          
-          .footer {
-            background: #f8f9fa;
-            padding: 20px;
-            text-align: center;
-            color: #666;
-            border-top: 1px solid #dee2e6;
-          }
-          
-          .timestamp {
-            font-style: italic;
-            color: #888;
-            margin-top: 10px;
-          }
-          
-          .weather-description {
-            text-align: center;
-            font-size: 1.2em;
-            margin: 15px 0;
-            padding: 10px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 8px;
-          }
-          
-          .status-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
-          }
-          
-          .status-online {
-            background-color: #28a745;
-          }
-          
-          .status-offline {
-            background-color: #dc3545;
-          }
+          html, body { width: 100%; height: 100%; margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif !important; background: #18181b; color: #ffffff; }
+          body { min-height: 100vh; width: 100vw; padding: 0; margin: 0; overflow-x: hidden; }
+          .container { width: 100vw; min-height: 100vh; height: 100vh; background: rgba(24,24,27,1); border-radius: 0; border: none; box-shadow: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+          .header { background: #18181b; padding: 40px 30px 30px 30px; text-align: center; position: relative; overflow: hidden; border-radius: 0; }
+          .header h1 { font-family: 'Poppins', sans-serif !important; font-size: 3em; font-weight: 600; margin-bottom: 10px; color: #10b981; text-shadow: 0 2px 10px rgba(0,0,0,0.3); position: relative; z-index: 1; }
+          .header .subtitle { font-size: 1.3em; opacity: 0.95; font-weight: 300; position: relative; z-index: 1; font-family: 'Poppins', sans-serif !important; color: #fff; }
+          .content { flex: 1 1 auto; padding: 40px 30px; width: 100%; box-sizing: border-box; }
+          .section { margin-bottom: 40px; padding: 30px; border-radius: 20px; background: rgba(36,36,40,0.95); border: 2.5px solid #10b981; box-shadow: none; transition: all 0.3s ease; }
+          .section:hover { box-shadow: 0 8px 32px rgba(16,185,129,0.08); }
+          .section h2 { color: #10b981; margin-bottom: 20px; font-size: 1.8em; font-weight: 600; display: flex; align-items: center; font-family: 'Poppins', sans-serif !important; }
+          .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px; }
+          .info-card { background: rgba(255,255,255,0.04); padding: 25px; border-radius: 16px; border: 1.5px solid #10b98122; box-shadow: none; transition: all 0.3s ease; }
+          .info-card:hover { border-color: #10b981; }
+          .info-card h3 { color: #10b981; margin-bottom: 12px; font-size: 1.1em; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif !important; }
+          .info-card .value { font-size: 1.4em; font-weight: 600; color: #fff; font-family: 'Poppins', sans-serif !important; }
+          .weather-section, .forecast-section, .chart-section { background: rgba(36,36,40,0.95); border: 2.5px solid #10b981; }
+          .weather-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-top: 20px; }
+          .weather-card { background: rgba(255,255,255,0.04); padding: 25px; border-radius: 16px; text-align: center; border: 1.5px solid #10b98122; transition: all 0.3s ease; }
+          .weather-card .value { font-size: 2em; font-weight: 700; margin-bottom: 8px; color: #10b981; font-family: 'Poppins', sans-serif !important; }
+          .weather-card .label { font-size: 0.95em; opacity: 0.9; font-weight: 400; text-transform: uppercase; letter-spacing: 0.5px; }
+          .forecast-section h2 { color: #ec4899; }
+          .forecast-section { border-color: #ec4899; }
+          .forecast-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-top: 20px; }
+          .forecast-card { background: rgba(236,72,153,0.08); padding: 20px; border-radius: 16px; text-align: center; border: 1.5px solid #ec4899; transition: all 0.3s ease; }
+          .forecast-card .day { font-weight: 600; margin-bottom: 8px; color: #ec4899; font-size: 1.1em; }
+          .forecast-card .temp { font-size: 1.4em; margin-bottom: 5px; font-weight: 700; color: #fff; font-family: 'Poppins', sans-serif !important; }
+          .forecast-card .description { font-size: 0.85em; opacity: 0.9; font-weight: 400; }
+          .chart-section { border-color: #6366f1; }
+          .chart-section h2 { color: #6366f1; }
+          .chart-container { background: rgba(255,255,255,0.04); padding: 25px; border-radius: 16px; margin-top: 20px; border: 1.5px solid #6366f1; }
+          .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 25px; margin-top: 20px; }
+          .footer { background: #18181b; padding: 30px; text-align: center; color: rgba(255,255,255,0.7); border-top: 1px solid #10b98122; }
+          .timestamp { font-style: italic; color: rgba(255,255,255,0.6); margin-top: 15px; font-size: 0.9em; }
+          .status-indicator { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 10px; box-shadow: 0 0 10px currentColor; }
+          .status-online { background-color: #10b981; color: #10b981; }
+          .status-offline { background-color: #ef4444; color: #ef4444; }
+          @media (max-width: 768px) { .container { margin: 0; border-radius: 0; } .header h1 { font-size: 2.2em; } .content { padding: 20px; } .section { padding: 20px; margin-bottom: 25px; } .info-grid { grid-template-columns: 1fr; gap: 15px; } .weather-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; } .chart-grid { grid-template-columns: 1fr; gap: 20px; } .forecast-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; } }
         </style>
       </head>
       <body>
@@ -421,177 +235,78 @@ export class PDFGenerator {
               ${device.name} - ${new Date().toLocaleDateString('es-ES')}
             </div>
           </div>
-          
           <div class="content">
             <!-- Información del Dispositivo -->
             <div class="section device-section">
-              <h2>Información del Dispositivo</h2>
+              <h2>${svgDevice} Información del Dispositivo</h2>
               <div class="info-grid">
-                <div class="info-card">
-                  <h3>Nombre</h3>
-                  <div class="value">${device.name}</div>
-                </div>
-                <div class="info-card">
-                  <h3>Tipo</h3>
-                  <div class="value">${device.type}</div>
-                </div>
-                <div class="info-card">
-                  <h3>ID del Dispositivo</h3>
-                  <div class="value">${device.id}</div>
-                </div>
-                <div class="info-card">
-                  <h3>Estado</h3>
-                  <div class="value">
-                    <span class="status-indicator ${report.metadata.deviceOnline ? 'status-online' : 'status-offline'}"></span>
-                    ${report.metadata.deviceOnline ? 'En línea' : 'Desconectado'}
-                  </div>
-                </div>
+                <div class="info-card"><h3>Nombre</h3><div class="value">${device.name}</div></div>
+                <div class="info-card"><h3>Tipo/Modelo</h3><div class="value">${device.characteristics.stationType}</div></div>
+                <div class="info-card"><h3>Estado</h3><div class="value"><span class="status-indicator ${report.metadata.deviceOnline ? 'status-online' : 'status-offline'}"></span>${report.metadata.deviceOnline ? 'En línea' : 'Desconectado'}</div></div>
+                <div class="info-card"><h3>Ubicación</h3><div class="value">${device.characteristics.location.latitude}°, ${device.characteristics.location.longitude}°</div></div>
+                <div class="info-card"><h3>Última actualización</h3><div class="value">${lastUpdate}</div></div>
               </div>
             </div>
-            
-            <!-- Características del Dispositivo -->
-            <div class="section characteristics-section">
-              <h2>Características del Dispositivo</h2>
-              <div class="info-grid">
-                <div class="info-card">
-                  <h3>MAC Address</h3>
-                  <div class="value">${device.characteristics.mac}</div>
-                </div>
-                <div class="info-card">
-                  <h3>Modelo</h3>
-                  <div class="value">${device.characteristics.stationType}</div>
-                </div>
-                <div class="info-card">
-                  <h3>Zona Horaria</h3>
-                  <div class="value">${device.characteristics.timezone}</div>
-                </div>
-                <div class="info-card">
-                  <h3>Fecha de Creación</h3>
-                  <div class="value">${new Date(device.characteristics.createdAt).toLocaleDateString('es-ES')}</div>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Ubicación -->
-            <div class="section location-section">
-              <h2>Ubicación</h2>
-              <div class="info-grid">
-                <div class="info-card">
-                  <h3>Latitud</h3>
-                  <div class="value">${device.characteristics.location.latitude}°</div>
-                </div>
-                <div class="info-card">
-                  <h3>Longitud</h3>
-                  <div class="value">${device.characteristics.location.longitude}°</div>
-                </div>
-                <div class="info-card">
-                  <h3>Elevación</h3>
-                  <div class="value">${device.characteristics.location.elevation} m</div>
-                </div>
-              </div>
-            </div>
-            
+            <!-- Clima Actual -->
             ${weather ? `
-            <!-- Datos del Clima Actual -->
             <div class="section weather-section">
-              <h2>Condiciones Meteorológicas Actuales</h2>
-              <div class="weather-description">
-                ${weather.current.weather[0]?.description || 'Información meteorológica disponible'}
-              </div>
+              <h2>${svgWeather} Clima Actual</h2>
               <div class="weather-grid">
-                <div class="weather-card">
-                  <div class="value">${weather.current.temperature}°C</div>
-                  <div class="label">Temperatura</div>
-                </div>
-                <div class="weather-card">
-                  <div class="value">${weather.current.feelsLike}°C</div>
-                  <div class="label">Sensación Térmica</div>
-                </div>
-                <div class="weather-card">
-                  <div class="value">${weather.current.humidity}%</div>
-                  <div class="label">Humedad</div>
-                </div>
-                <div class="weather-card">
-                  <div class="value">${weather.current.pressure} hPa</div>
-                  <div class="label">Presión</div>
-                </div>
-                <div class="weather-card">
-                  <div class="value">${weather.current.windSpeed} m/s</div>
-                  <div class="label">Velocidad del Viento</div>
-                </div>
-                <div class="weather-card">
-                  <div class="value">${weather.current.visibility / 1000} km</div>
-                  <div class="label">Visibilidad</div>
-                </div>
+                <div class="weather-card"><div class="label">Temperatura</div><div class="value">${weather.current.temperature}°C</div></div>
+                <div class="weather-card"><div class="label">Sensación Térmica</div><div class="value">${weather.current.feelsLike}°C</div></div>
+                <div class="weather-card"><div class="label">Humedad</div><div class="value">${weather.current.humidity}%</div></div>
+                <div class="weather-card"><div class="label">Presión</div><div class="value">${weather.current.pressure} hPa</div></div>
+                <div class="weather-card"><div class="label">Viento</div><div class="value">${weather.current.windSpeed} m/s (${weather.current.windDirection}°)</div></div>
+                <div class="weather-card"><div class="label">Descripción</div><div class="value">${weather.current.weather[0]?.description || ''}</div></div>
               </div>
             </div>
-            
-            <!-- Pronóstico de 7 Días -->
+            ` : ''}
+            <!-- Pronóstico 7 días -->
+            ${weather ? `
             <div class="section forecast-section">
-              <h2>Pronóstico de 7 Días</h2>
+              <h2>${svgForecast} Pronóstico de 7 Días</h2>
               <div class="forecast-grid">
                 ${weather.forecast.daily.slice(0, 7).map(day => `
                   <div class="forecast-card">
                     <div class="day">${new Date(day.dt * 1000).toLocaleDateString('es-ES', { weekday: 'short' })}</div>
-                    <div class="temp">${Math.round(day.temp.day)}°C</div>
+                    <div class="temp">${Math.round(day.temp.max)}°C / ${Math.round(day.temp.min)}°C</div>
                     <div class="description">${day.weather[0]?.description || ''}</div>
                   </div>
                 `).join('')}
               </div>
             </div>
-            ` : `
-            <!-- Sin datos del clima -->
-            <div class="section">
-              <h2>Datos del Clima</h2>
-              <div class="info-card">
-                <h3>Estado</h3>
-                <div class="value">No disponible</div>
-              </div>
-            </div>
-            `}
-            
+            ` : ''}
             <!-- Datos del Sensor -->
             <div class="section">
-              <h2>Datos del Sensor</h2>
+              <h2>${svgSensor} Datos del Sensor</h2>
               <div class="info-grid">
-                ${this.formatDeviceData(deviceData.realtime)}
+                ${sensors.map(s => `<div class="info-card"><h3>${s.label}</h3><div class="value">${s.value} ${s.unit}</div></div>`).join('')}
               </div>
             </div>
-            
+            <!-- Histórico (opcional) -->
             ${report.metadata.hasHistoricalData && deviceData.historical ? `
-            <!-- Gráficos de Datos Históricos -->
             <div class="section chart-section">
-              <h2>Análisis de Datos Históricos</h2>
+              <h2>${svgHistory} Histórico</h2>
               <div class="chart-grid">
-                <div class="chart-container">
-                  <canvas id="temperatureChart" width="400" height="200"></canvas>
-                </div>
-                <div class="chart-container">
-                  <canvas id="humidityChart" width="400" height="200"></canvas>
-                </div>
-                <div class="chart-container">
-                  <canvas id="pressureChart" width="400" height="200"></canvas>
-                </div>
-                <div class="chart-container">
-                  <canvas id="windChart" width="400" height="200"></canvas>
-                </div>
+                <div class="chart-container"><canvas id="temperatureChart" width="400" height="200"></canvas></div>
+                <div class="chart-container"><canvas id="humidityChart" width="400" height="200"></canvas></div>
+                <div class="chart-container"><canvas id="pressureChart" width="400" height="200"></canvas></div>
+                <div class="chart-container"><canvas id="windChart" width="400" height="200"></canvas></div>
               </div>
             </div>
             ` : ''}
           </div>
-          
           <div class="footer">
             <div>Reporte generado automáticamente por AgriTech</div>
             <div class="timestamp">Generado el: ${timestamp}</div>
-            ${report.timeRange ? `
-            <div class="timestamp">Período: ${new Date(report.timeRange.start).toLocaleDateString('es-ES')} - ${new Date(report.timeRange.end).toLocaleDateString('es-ES')}</div>
-            ` : ''}
+            ${report.timeRange ? `<div class="timestamp">Período: ${new Date(report.timeRange.start).toLocaleDateString('es-ES')} - ${new Date(report.timeRange.end).toLocaleDateString('es-ES')}</div>` : ''}
           </div>
         </div>
-        
         ${report.metadata.hasHistoricalData && deviceData.historical ? `
         <script>
-          // Generar gráficos con Chart.js
+          Chart.defaults.color = '#ffffff';
+          Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+          Chart.defaults.plugins.legend.labels.color = '#ffffff';
           ${this.generateChartScripts(deviceData.historical)}
         </script>
         ` : ''}
@@ -752,212 +467,350 @@ export class PDFGenerator {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Reporte de Grupo y Clima</title>
+        <title>Reporte de Grupo y Clima - AgriTech</title>
+        <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet"/>
         <style>
-          * {
+          html, body {
+            width: 100%;
+            height: 100%;
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            font-family: 'Poppins', sans-serif !important;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 25%, #0f2e1a 50%, #1a1a1a 75%, #0a0a0a 100%);
+            color: #ffffff;
           }
-          
           body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
+            width: 100vw;
+            padding: 0;
+            margin: 0;
+            overflow-x: hidden;
           }
-          
           .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            overflow: hidden;
+            width: 100vw;
+            min-height: 100vh;
+            height: 100vh;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0;
+            backdrop-filter: blur(20px);
+            border: none;
+            box-shadow: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
           }
-          
           .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.9) 0%, rgba(5, 150, 105, 0.8) 100%);
+            padding: 40px 30px 30px 30px;
             text-align: center;
+            position: relative;
+            overflow: hidden;
+            border-radius: 0;
           }
-          
+          .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="75" cy="75" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="50" cy="10" r="0.5" fill="rgba(255,255,255,0.1)"/><circle cx="10" cy="60" r="0.5" fill="rgba(255,255,255,0.1)"/><circle cx="90" cy="40" r="0.5" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            opacity: 0.3;
+          }
           .header h1 {
-            font-size: 2.5em;
+            font-family: 'Poppins', sans-serif !important;
+            font-size: 3em;
+            font-weight: 600;
             margin-bottom: 10px;
-            font-weight: 300;
+            color: #ffffff;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 1;
           }
-          
           .header .subtitle {
-            font-size: 1.2em;
-            opacity: 0.9;
+            font-size: 1.3em;
+            opacity: 0.95;
+            font-weight: 300;
+            position: relative;
+            z-index: 1;
+            font-family: 'Poppins', sans-serif !important;
           }
-          
           .content {
-            padding: 30px;
+            flex: 1 1 auto;
+            padding: 40px 30px;
+            width: 100%;
+            box-sizing: border-box;
           }
-          
           .section {
-            margin-bottom: 30px;
-            padding: 20px;
-            border-radius: 10px;
-            background: #f8f9fa;
-            border-left: 5px solid #667eea;
+            margin-bottom: 40px;
+            padding: 30px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
           }
-          
+          .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+          }
           .section h2 {
-            color: #667eea;
-            margin-bottom: 15px;
-            font-size: 1.5em;
+            color: #10b981;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            font-weight: 600;
             display: flex;
             align-items: center;
+            font-family: 'Poppins', sans-serif !important;
           }
-          
           .section h2::before {
             content: "📊";
-            margin-right: 10px;
-            font-size: 1.2em;
+            margin-right: 15px;
+            font-size: 1.5em;
+            background: linear-gradient(135deg, #10b981, #059669);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
           }
-          
           .group-info {
-            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
-            color: white;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%);
+            border: 1px solid rgba(16, 185, 129, 0.2);
           }
-          
           .group-info h2 {
-            color: white;
+            color: #10b981;
           }
-          
           .group-info h2::before {
             content: "👥";
           }
-          
           .info-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
           }
-          
           .info-card {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            border-left: 4px solid #28a745;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 25px;
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
           }
-          
+          .info-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+            border-color: rgba(16, 185, 129, 0.3);
+          }
           .info-card h3 {
-            color: #28a745;
-            margin-bottom: 8px;
+            color: #10b981;
+            margin-bottom: 12px;
             font-size: 1.1em;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
           }
-          
           .info-card .value {
-            font-size: 1.3em;
-            font-weight: bold;
-            color: #333;
+            font-size: 1.4em;
+            font-weight: 600;
+            color: #ffffff;
+            font-family: 'Poppins', sans-serif !important;
           }
-          
           .device-card {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            border-left: 5px solid #667eea;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 25px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
           }
-          
+          .device-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+            border-color: rgba(16, 185, 129, 0.2);
+          }
           .device-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #f0f0f0;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
           }
-          
           .device-name {
-            font-size: 1.3em;
-            font-weight: bold;
-            color: #667eea;
+            font-size: 1.4em;
+            font-weight: 600;
+            color: #10b981;
+            font-family: 'Poppins', sans-serif !important;
           }
-          
           .device-type {
-            background: #667eea;
+            background: linear-gradient(135deg, #10b981, #059669);
             color: white;
-            padding: 5px 10px;
-            border-radius: 15px;
+            padding: 8px 16px;
+            border-radius: 20px;
             font-size: 0.9em;
+            font-weight: 500;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
           }
-          
           .device-data-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 10px;
-            margin-bottom: 15px;
+            gap: 15px;
+            margin-bottom: 20px;
           }
-          
           .data-item {
-            background: #f8f9fa;
-            padding: 10px;
-            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 12px;
             text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
           }
-          
+          .data-item:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.15);
+          }
           .data-label {
             font-size: 0.9em;
-            color: #666;
-            margin-bottom: 5px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 8px;
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
           }
-          
           .data-value {
-            font-size: 1.1em;
-            font-weight: bold;
-            color: #333;
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #ffffff;
+            font-family: 'Poppins', sans-serif !important;
           }
-          
           .weather-summary {
-            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%);
             color: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
+            padding: 20px;
+            border-radius: 16px;
+            margin-top: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(16, 185, 129, 0.2);
           }
-          
           .weather-summary h4 {
-            margin-bottom: 10px;
-            font-size: 1.1em;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+            color: #10b981;
+            font-family: 'Poppins', sans-serif !important;
+            font-weight: 600;
           }
-          
           .weather-data {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-            gap: 10px;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
           }
-          
           .weather-item {
             text-align: center;
-            background: rgba(255,255,255,0.1);
-            padding: 8px;
-            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 12px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
           }
-          
+          .weather-item:hover {
+            transform: scale(1.05);
+            background: rgba(255, 255, 255, 0.15);
+          }
           .footer {
-            background: #f8f9fa;
-            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 30px;
             text-align: center;
-            color: #666;
-            border-top: 1px solid #dee2e6;
+            color: rgba(255, 255, 255, 0.7);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
           }
-          
           .timestamp {
             font-style: italic;
-            color: #888;
-            margin-top: 10px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 15px;
+            font-size: 0.9em;
+          }
+          /* Scrollbar personalizado */
+          ::-webkit-scrollbar {
+            width: 8px;
+          }
+          ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+          }
+          ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #10b981, #059669);
+            border-radius: 4px;
+          }
+          ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #059669, #047857);
+          }
+          /* Animaciones */
+          @keyframes fadeInUp {
+            from {
+              opacity: 0;
+              transform: translateY(30px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+          .section {
+            animation: fadeInUp 0.6s ease-out;
+          }
+          .section:nth-child(1) { animation-delay: 0.1s; }
+          .section:nth-child(2) { animation-delay: 0.2s; }
+          .section:nth-child(3) { animation-delay: 0.3s; }
+          .section:nth-child(4) { animation-delay: 0.4s; }
+          .section:nth-child(5) { animation-delay: 0.5s; }
+          .section:nth-child(6) { animation-delay: 0.6s; }
+          .section:nth-child(7) { animation-delay: 0.7s; }
+          /* Responsive */
+          @media (max-width: 768px) {
+            .container {
+              margin: 10px;
+              border-radius: 16px;
+            }
+            .header h1 {
+              font-size: 2.2em;
+            }
+            .content {
+              padding: 20px;
+            }
+            .section {
+              padding: 20px;
+              margin-bottom: 25px;
+            }
+            .info-grid {
+              grid-template-columns: 1fr;
+              gap: 15px;
+            }
+            .device-card {
+              padding: 20px;
+              margin-bottom: 20px;
+            }
+            .device-header {
+              flex-direction: column;
+              gap: 10px;
+              text-align: center;
+            }
+            .device-data-grid {
+              grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+              gap: 10px;
+            }
+            .weather-data {
+              grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+              gap: 10px;
+            }
           }
         </style>
       </head>
@@ -1057,7 +910,10 @@ export class PDFGenerator {
           </div>
           <div class="data-item">
             <div class="data-label">Estado</div>
-            <div class="data-value">${deviceReport.metadata.deviceOnline ? 'En línea' : 'Desconectado'}</div>
+            <div class="data-value">
+              <span class="status-indicator ${deviceReport.metadata.deviceOnline ? 'status-online' : 'status-offline'}"></span>
+              ${deviceReport.metadata.deviceOnline ? 'En línea' : 'Desconectado'}
+            </div>
           </div>
         </div>
         
