@@ -71,7 +71,7 @@ The project follows a modular architecture with clear separation of concerns:
 ### Backend
 - **Node.js**: Runtime environment
 - **TypeScript**: Programming language
-- **Fastify**: Web framework
+- **Fastify**: Backend framework
 - **Drizzle ORM**: Database ORM
 - **Turso**: Database system
 - **JWT**: Authentication

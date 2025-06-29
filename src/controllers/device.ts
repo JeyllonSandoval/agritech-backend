@@ -2,7 +2,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { EcowittService } from '@/db/services/ecowitt';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
-import { TimeRangeType, getTimeRange } from '@/utils/timeRanges';
+import { TimeRangeType, getTimeRange, getTimeRangeDescription } from '@/utils/timeRanges';
 import devices from '@/db/schemas/deviceSchema';
 import axios from 'axios';
 
@@ -726,6 +726,382 @@ export class DeviceController {
       console.error('Error in testDeviceRealtime:', error);
       return reply.code(500).send({ 
         error: 'Error testing device',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Endpoint de diagnóstico para probar diferentes configuraciones de EcoWitt History
+   * Útil para debugging cuando los datos históricos están vacíos
+   * Prueba automáticamente todos los rangos de tiempo disponibles
+   */
+  static async diagnoseDeviceHistory(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { deviceId } = request.params as { deviceId: string };
+
+      const device = await EcowittService.getDeviceByDeviceId(deviceId);
+      if (!device) {
+        return reply.code(404).send({ error: 'Device not found' });
+      }
+
+      const results = {
+        device: {
+          deviceId: device.DeviceID,
+          deviceName: device.DeviceName,
+          deviceMac: device.DeviceMac,
+          applicationKey: device.DeviceApplicationKey,
+          apiKey: device.DeviceApiKey
+        },
+        timeRanges: {} as Record<string, any>,
+        tests: [] as any[],
+        summary: {} as any
+      };
+
+      // Probar todos los rangos de tiempo disponibles
+      const timeRangeTypes = [
+        TimeRangeType.ONE_HOUR,
+        TimeRangeType.ONE_DAY,
+        TimeRangeType.ONE_WEEK,
+        TimeRangeType.ONE_MONTH,
+        TimeRangeType.THREE_MONTHS
+      ];
+
+      // Generar rangos de tiempo para cada tipo
+      for (const rangeType of timeRangeTypes) {
+        try {
+          const timeRange = getTimeRange(rangeType);
+          results.timeRanges[rangeType] = {
+            startTime: timeRange.startTime,
+            endTime: timeRange.endTime,
+            description: getTimeRangeDescription(rangeType)
+          };
+        } catch (error) {
+          results.timeRanges[rangeType] = {
+            error: error instanceof Error ? error.message : 'Unknown error'
+          };
+        }
+      }
+
+      // Test 1: call_back = outdoor (default) con todos los rangos
+      for (const rangeType of timeRangeTypes) {
+        try {
+          console.log(`[DiagnoseHistory] Test 1: call_back = outdoor with ${rangeType}`);
+          const timeRange = getTimeRange(rangeType);
+          
+          const response1 = await axios.get('https://api.ecowitt.net/api/v3/device/history', {
+            params: {
+              application_key: device.DeviceApplicationKey,
+              api_key: device.DeviceApiKey,
+              mac: device.DeviceMac,
+              start_date: timeRange.startTime,
+              end_date: timeRange.endTime,
+              call_back: 'outdoor',
+              cycle_type: 'auto'
+            }
+          });
+          results.tests.push({
+            test: `call_back = outdoor (${rangeType})`,
+            rangeType,
+            params: {
+              application_key: device.DeviceApplicationKey,
+              api_key: device.DeviceApiKey,
+              mac: device.DeviceMac,
+              start_date: timeRange.startTime,
+              end_date: timeRange.endTime,
+              call_back: 'outdoor',
+              cycle_type: 'auto'
+            },
+            response: response1.data,
+            hasData: response1.data.data && Object.keys(response1.data.data).length > 0,
+            dataKeys: response1.data.data ? Object.keys(response1.data.data) : []
+          });
+        } catch (error) {
+          results.tests.push({
+            test: `call_back = outdoor (${rangeType})`,
+            rangeType,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+
+      // Test 2: call_back = all con todos los rangos
+      for (const rangeType of timeRangeTypes) {
+        try {
+          console.log(`[DiagnoseHistory] Test 2: call_back = all with ${rangeType}`);
+          const timeRange = getTimeRange(rangeType);
+          
+          const response2 = await axios.get('https://api.ecowitt.net/api/v3/device/history', {
+            params: {
+              application_key: device.DeviceApplicationKey,
+              api_key: device.DeviceApiKey,
+              mac: device.DeviceMac,
+              start_date: timeRange.startTime,
+              end_date: timeRange.endTime,
+              call_back: 'all',
+              cycle_type: 'auto'
+            }
+          });
+          results.tests.push({
+            test: `call_back = all (${rangeType})`,
+            rangeType,
+            params: {
+              application_key: device.DeviceApplicationKey,
+              api_key: device.DeviceApiKey,
+              mac: device.DeviceMac,
+              start_date: timeRange.startTime,
+              end_date: timeRange.endTime,
+              call_back: 'all',
+              cycle_type: 'auto'
+            },
+            response: response2.data,
+            hasData: response2.data.data && Object.keys(response2.data.data).length > 0,
+            dataKeys: response2.data.data ? Object.keys(response2.data.data) : []
+          });
+        } catch (error) {
+          results.tests.push({
+            test: `call_back = all (${rangeType})`,
+            rangeType,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+
+      // Test 3: call_back = indoor con todos los rangos
+      for (const rangeType of timeRangeTypes) {
+        try {
+          console.log(`[DiagnoseHistory] Test 3: call_back = indoor with ${rangeType}`);
+          const timeRange = getTimeRange(rangeType);
+          
+          const response3 = await axios.get('https://api.ecowitt.net/api/v3/device/history', {
+            params: {
+              application_key: device.DeviceApplicationKey,
+              api_key: device.DeviceApiKey,
+              mac: device.DeviceMac,
+              start_date: timeRange.startTime,
+              end_date: timeRange.endTime,
+              call_back: 'indoor',
+              cycle_type: 'auto'
+            }
+          });
+          results.tests.push({
+            test: `call_back = indoor (${rangeType})`,
+            rangeType,
+            params: {
+              application_key: device.DeviceApplicationKey,
+              api_key: device.DeviceApiKey,
+              mac: device.DeviceMac,
+              start_date: timeRange.startTime,
+              end_date: timeRange.endTime,
+              call_back: 'indoor',
+              cycle_type: 'auto'
+            },
+            response: response3.data,
+            hasData: response3.data.data && Object.keys(response3.data.data).length > 0,
+            dataKeys: response3.data.data ? Object.keys(response3.data.data) : []
+          });
+        } catch (error) {
+          results.tests.push({
+            test: `call_back = indoor (${rangeType})`,
+            rangeType,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
+      }
+
+      // Test 4: cycle_type = 5min con one_day (más probable que tenga datos)
+      try {
+        console.log('[DiagnoseHistory] Test 4: cycle_type = 5min with one_day');
+        const timeRange = getTimeRange(TimeRangeType.ONE_DAY);
+        
+        const response4 = await axios.get('https://api.ecowitt.net/api/v3/device/history', {
+          params: {
+            application_key: device.DeviceApplicationKey,
+            api_key: device.DeviceApiKey,
+            mac: device.DeviceMac,
+            start_date: timeRange.startTime,
+            end_date: timeRange.endTime,
+            call_back: 'outdoor',
+            cycle_type: '5min'
+          }
+        });
+        results.tests.push({
+          test: 'cycle_type = 5min (one_day)',
+          rangeType: TimeRangeType.ONE_DAY,
+          params: {
+            application_key: device.DeviceApplicationKey,
+            api_key: device.DeviceApiKey,
+            mac: device.DeviceMac,
+            start_date: timeRange.startTime,
+            end_date: timeRange.endTime,
+            call_back: 'outdoor',
+            cycle_type: '5min'
+          },
+          response: response4.data,
+          hasData: response4.data.data && Object.keys(response4.data.data).length > 0,
+          dataKeys: response4.data.data ? Object.keys(response4.data.data) : []
+        });
+      } catch (error) {
+        results.tests.push({
+          test: 'cycle_type = 5min (one_day)',
+          rangeType: TimeRangeType.ONE_DAY,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+
+      // Test 5: metric units con one_day
+      try {
+        console.log('[DiagnoseHistory] Test 5: metric units with one_day');
+        const timeRange = getTimeRange(TimeRangeType.ONE_DAY);
+        
+        const response5 = await axios.get('https://api.ecowitt.net/api/v3/device/history', {
+          params: {
+            application_key: device.DeviceApplicationKey,
+            api_key: device.DeviceApiKey,
+            mac: device.DeviceMac,
+            start_date: timeRange.startTime,
+            end_date: timeRange.endTime,
+            call_back: 'outdoor',
+            cycle_type: 'auto',
+            temp_unitid: 1, // Celsius
+            pressure_unitid: 3, // hPa
+            wind_speed_unitid: 6, // m/s
+            rainfall_unitid: 12 // mm
+          }
+        });
+        results.tests.push({
+          test: 'metric units (one_day)',
+          rangeType: TimeRangeType.ONE_DAY,
+          params: {
+            application_key: device.DeviceApplicationKey,
+            api_key: device.DeviceApiKey,
+            mac: device.DeviceMac,
+            start_date: timeRange.startTime,
+            end_date: timeRange.endTime,
+            call_back: 'outdoor',
+            cycle_type: 'auto',
+            temp_unitid: 1,
+            pressure_unitid: 3,
+            wind_speed_unitid: 6,
+            rainfall_unitid: 12
+          },
+          response: response5.data,
+          hasData: response5.data.data && Object.keys(response5.data.data).length > 0,
+          dataKeys: response5.data.data ? Object.keys(response5.data.data) : []
+        });
+      } catch (error) {
+        results.tests.push({
+          test: 'metric units (one_day)',
+          rangeType: TimeRangeType.ONE_DAY,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+
+      // Resumen de resultados
+      const summary = {
+        totalTests: results.tests.length,
+        successfulTests: results.tests.filter(t => t.hasData).length,
+        testsWithData: results.tests.filter(t => t.hasData).map(t => ({
+          test: t.test,
+          rangeType: t.rangeType,
+          dataKeys: t.dataKeys
+        })),
+        bestConfiguration: results.tests
+          .filter(t => t.hasData)
+          .sort((a, b) => (b.dataKeys?.length || 0) - (a.dataKeys?.length || 0))[0]
+      };
+
+      results.summary = summary;
+
+      return reply.send(results);
+    } catch (error) {
+      console.error('Error in diagnoseDeviceHistory:', error);
+      return reply.code(500).send({ 
+        error: 'Error diagnosing device history',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }
+
+  /**
+   * Endpoint de prueba rápida para probar diferentes configuraciones de history
+   * Más simple que el diagnóstico completo
+   */
+  static async testDeviceHistory(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const { deviceId } = request.params as { deviceId: string };
+      const { call_back, cycle_type, rangeType } = request.query as { 
+        call_back?: string; 
+        cycle_type?: string;
+        rangeType?: TimeRangeType;
+      };
+
+      const device = await EcowittService.getDeviceByDeviceId(deviceId);
+      if (!device) {
+        return reply.code(404).send({ error: 'Device not found' });
+      }
+
+      // Usar rangeType si se proporciona, sino usar último día
+      let startTime: string, endTime: string;
+      if (rangeType) {
+        const timeRange = getTimeRange(rangeType);
+        startTime = timeRange.startTime;
+        endTime = timeRange.endTime;
+      } else {
+        const now = new Date();
+        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        startTime = yesterday.toISOString();
+        endTime = now.toISOString();
+      }
+
+      // Construir parámetros base
+      const baseParams = {
+        application_key: device.DeviceApplicationKey,
+        api_key: device.DeviceApiKey,
+        mac: device.DeviceMac,
+        start_date: startTime,
+        end_date: endTime
+      };
+
+      // Agregar parámetros opcionales
+      const params = {
+        ...baseParams,
+        call_back: call_back || 'outdoor',
+        cycle_type: cycle_type || 'auto'
+      };
+
+      console.log(`[TestDeviceHistory] Testing with params:`, JSON.stringify(params, null, 2));
+
+      const response = await axios.get('https://api.ecowitt.net/api/v3/device/history', {
+        params
+      });
+
+      const result = {
+        device: {
+          deviceId: device.DeviceID,
+          deviceName: device.DeviceName,
+          deviceMac: device.DeviceMac
+        },
+        timeRange: {
+          startTime,
+          endTime,
+          rangeType: rangeType || 'last24hours'
+        },
+        test: {
+          call_back: call_back || 'outdoor',
+          cycle_type: cycle_type || 'auto',
+          params,
+          response: response.data,
+          hasData: response.data.data && Object.keys(response.data.data).length > 0,
+          dataKeys: response.data.data ? Object.keys(response.data.data) : []
+        }
+      };
+
+      return reply.send(result);
+    } catch (error) {
+      console.error('Error in testDeviceHistory:', error);
+      return reply.code(500).send({ 
+        error: 'Error testing device history',
         details: error instanceof Error ? error.message : 'Unknown error'
       });
     }

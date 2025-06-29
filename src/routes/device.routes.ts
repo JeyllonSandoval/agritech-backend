@@ -30,6 +30,16 @@ export default async function deviceRoutes(fastify: FastifyInstance) {
     DeviceController.testDeviceRealtime
   );
 
+  // Rutas de diagnóstico para history data
+  fastify.get(
+    '/devices/:deviceId/diagnose-history',
+    DeviceController.diagnoseDeviceHistory
+  );
+  fastify.get(
+    '/devices/:deviceId/test-history',
+    DeviceController.testDeviceHistory
+  );
+
   // Rutas para múltiples dispositivos
   fastify.get(
     '/devices/history',

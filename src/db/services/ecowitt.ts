@@ -293,7 +293,7 @@ export class EcowittService {
         apiKey,
         startTime,
         endTime,
-        'outdoor',
+        'indoor',
         mac
       );
 
@@ -314,10 +314,121 @@ export class EcowittService {
       // Log de depuración: respuesta de la API
       console.log('[EcowittService.getDeviceHistory] API response:', JSON.stringify(response.data));
 
-      return response.data as HistoryResponseType;
+      const responseData = response.data as HistoryResponseType;
+      
+      // Verificar si la respuesta tiene datos
+      if (responseData.code === 0 && responseData.msg === 'success') {
+        // Verificar si hay datos en la respuesta
+        const hasData = responseData.data && Object.keys(responseData.data).length > 0;
+        
+        if (!hasData) {
+          console.warn('[EcowittService.getDeviceHistory] No data found, trying alternative approaches...');
+          
+          // Estrategia 1: Probar con call_back = 'outdoor' (fallback)
+          try {
+            console.log('[EcowittService.getDeviceHistory] Trying with call_back = outdoor...');
+            const paramsOutdoor = { ...params, call_back: 'outdoor' };
+            
+            const responseOutdoor = await axios.get(`${ECOWITT_API_BASE}/device/history`, {
+              params: paramsOutdoor
+            });
+            
+            console.log('[EcowittService.getDeviceHistory] Response with call_back = outdoor:', JSON.stringify(responseOutdoor.data, null, 2));
+            
+            const responseDataOutdoor = responseOutdoor.data as HistoryResponseType;
+            if (responseDataOutdoor.data && Object.keys(responseDataOutdoor.data).length > 0) {
+              console.log('[EcowittService.getDeviceHistory] Success! Found data with call_back = outdoor');
+              return responseDataOutdoor;
+            }
+          } catch (error) {
+            console.warn('[EcowittService.getDeviceHistory] Failed with call_back = outdoor:', error);
+          }
+          
+          // Estrategia 2: Probar con diferentes resoluciones de tiempo
+          try {
+            console.log('[EcowittService.getDeviceHistory] Trying with 5min resolution...');
+            const params5min = { ...params, cycle_type: '5min' };
+            
+            const response5min = await axios.get(`${ECOWITT_API_BASE}/device/history`, {
+              params: params5min
+            });
+            
+            console.log('[EcowittService.getDeviceHistory] Response with 5min resolution:', JSON.stringify(response5min.data, null, 2));
+            
+            const responseData5min = response5min.data as HistoryResponseType;
+            if (responseData5min.data && Object.keys(responseData5min.data).length > 0) {
+              console.log('[EcowittService.getDeviceHistory] Success! Found data with 5min resolution');
+              return responseData5min;
+            }
+          } catch (error) {
+            console.warn('[EcowittService.getDeviceHistory] Failed with 5min resolution:', error);
+          }
+          
+          // Estrategia 3: Probar con unidades métricas
+          try {
+            console.log('[EcowittService.getDeviceHistory] Trying with metric units...');
+            const paramsMetric = { 
+              ...params, 
+              temp_unitid: 1, // Celsius
+              pressure_unitid: 3, // hPa
+              wind_speed_unitid: 6, // m/s
+              rainfall_unitid: 12 // mm
+            };
+            
+            const responseMetric = await axios.get(`${ECOWITT_API_BASE}/device/history`, {
+              params: paramsMetric
+            });
+            
+            console.log('[EcowittService.getDeviceHistory] Response with metric units:', JSON.stringify(responseMetric.data, null, 2));
+            
+            const responseDataMetric = responseMetric.data as HistoryResponseType;
+            if (responseDataMetric.data && Object.keys(responseDataMetric.data).length > 0) {
+              console.log('[EcowittService.getDeviceHistory] Success! Found data with metric units');
+              return responseDataMetric;
+            }
+          } catch (error) {
+            console.warn('[EcowittService.getDeviceHistory] Failed with metric units:', error);
+          }
+          
+          // Si ninguna estrategia funcionó, retornar respuesta con información de diagnóstico
+          console.warn('[EcowittService.getDeviceHistory] No data found with any strategy. Possible causes:');
+          console.warn('- No historical data available for the specified time range');
+          console.warn('- Device is offline or not sending data');
+          console.warn('- Wrong call_back parameter for this device type');
+          console.warn('- Device has no sensors configured');
+          console.warn('- API credentials are incorrect');
+          console.warn('- Time range is too large or invalid');
+          
+          return {
+            ...responseData,
+            _diagnostic: {
+              message: 'No historical data found with any strategy',
+              possibleCauses: [
+                'No historical data available for the specified time range',
+                'Device is offline or not sending data',
+                'Wrong call_back parameter for this device type',
+                'Device has no sensors configured',
+                'API credentials are incorrect',
+                'Time range is too large or invalid'
+              ],
+              strategiesTried: [
+                'call_back = indoor (default)',
+                'call_back = outdoor (fallback)',
+                'cycle_type = 5min',
+                'metric units'
+              ],
+              paramsSent: params,
+              timestamp: new Date().toISOString()
+            }
+          } as HistoryResponseType;
+        }
+      }
+
+      return responseData;
     } catch (error) {
       console.error('[EcowittService.getDeviceHistory] Error:', error);
       if (axios.isAxiosError(error)) {
+        console.error('[EcowittService.getDeviceHistory] Axios error response:', error.response?.data);
         throw new Error(`Ecowitt API Error: ${error.response?.data?.message || error.message}`);
       }
       throw error;
