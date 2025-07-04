@@ -6,12 +6,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteMessage = exports.updateMessage = exports.getAllMessages = exports.getChatMessages = exports.createMessage = void 0;
 const uuid_1 = require("uuid");
 const drizzle_orm_1 = require("drizzle-orm");
-const db_1 = __importDefault(require("../db/db"));
-const messageSchema_1 = __importDefault(require("../db/schemas/messageSchema"));
+const db_1 = __importDefault(require("@/db/db"));
+const messageSchema_1 = __importDefault(require("@/db/schemas/messageSchema"));
 const zod_1 = require("zod");
-const ai_response_1 = __importDefault(require("../controllers/ai_response"));
-const filesSchema_1 = __importDefault(require("../db/schemas/filesSchema"));
-const readPdf_1 = require("../controllers/readPdf");
+const ai_response_1 = __importDefault(require("@/controllers/ai_response"));
+const filesSchema_1 = __importDefault(require("@/db/schemas/filesSchema"));
+const readPdf_1 = require("@/controllers/readPdf");
 const createMessageSchema = zod_1.z.object({
     ChatID: zod_1.z.string().uuid({ message: "Invalid chat ID" }),
     FileID: zod_1.z.string().uuid({ message: "Invalid file ID" }).optional(),

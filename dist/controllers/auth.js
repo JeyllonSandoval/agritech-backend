@@ -37,16 +37,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.loginUser = exports.registerUser = void 0;
-const db_1 = __importDefault(require("../db/db"));
-const usersSchema_1 = __importDefault(require("../db/schemas/usersSchema"));
+const db_1 = __importDefault(require("@/db/db"));
+const usersSchema_1 = __importDefault(require("@/db/schemas/usersSchema"));
 const bcrypt = __importStar(require("bcryptjs"));
 const uuid_1 = require("uuid");
-const token_1 = require("../utils/token");
+const token_1 = require("@/utils/token");
 const drizzle_orm_1 = require("drizzle-orm");
 const zod_1 = require("zod");
-const rolesSchema_1 = __importDefault(require("../db/schemas/rolesSchema"));
+const rolesSchema_1 = __importDefault(require("@/db/schemas/rolesSchema"));
 const cloudinary_1 = require("cloudinary");
-const email_1 = require("../utils/email");
+const email_1 = require("@/utils/email");
 // Validador simplificado
 const registerUserSchema = zod_1.z.object({
     FirstName: zod_1.z.string().min(2, { message: "First name must be at least 2 characters long" }),

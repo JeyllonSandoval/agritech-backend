@@ -1,13 +1,9 @@
 {
     "version": 2,
-    "buildCommand": "npm run vercel-build",
     "builds": [
         {
         "src": "dist/index.js", 
-        "use": "@vercel/node",
-        "config": {
-            "maxDuration": 30
-        }
+        "use": "@vercel/node"
         }
     ],
     "routes": [

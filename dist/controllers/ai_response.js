@@ -5,9 +5,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const openai_1 = __importDefault(require("openai"));
 require("dotenv/config");
-const chat_1 = require("../controllers/chat");
-const db_1 = __importDefault(require("../db/db"));
-const messageSchema_1 = __importDefault(require("../db/schemas/messageSchema"));
+const chat_1 = require("@/controllers/chat");
+const db_1 = __importDefault(require("@/db/db"));
+const messageSchema_1 = __importDefault(require("@/db/schemas/messageSchema"));
 const uuid_1 = require("uuid");
 const openai = new openai_1.default({
     apiKey: process.env.OPENAI_API_KEY,

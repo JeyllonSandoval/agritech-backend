@@ -4,10 +4,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createCountries = exports.createRoles = void 0;
-const db_1 = __importDefault(require("../db/db"));
-const rolesSchema_1 = __importDefault(require("../db/schemas/rolesSchema"));
-const countrySchema_1 = __importDefault(require("../db/schemas/countrySchema"));
-const countries_1 = require("../db/data/countries");
+const db_1 = __importDefault(require("@/db/db"));
+const rolesSchema_1 = __importDefault(require("@/db/schemas/rolesSchema"));
+const countrySchema_1 = __importDefault(require("@/db/schemas/countrySchema"));
+const countries_1 = require("@/db/data/countries");
 const uuid_1 = require("uuid");
 const createRoles = async () => {
     try {
