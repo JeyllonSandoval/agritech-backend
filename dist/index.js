@@ -39,10 +39,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 require("module-alias/register");
 const fastify_1 = __importDefault(require("fastify"));
 require("dotenv/config");
-const db_1 = __importDefault(require("./db/db"));
-const InitialSetup_1 = require("./libs/InitialSetup");
+const db_1 = __importDefault(require("@/db/db"));
+const InitialSetup_1 = require("@/libs/InitialSetup");
 const multipart_1 = __importDefault(require("@fastify/multipart"));
-const cloudinary_1 = require("./db/services/cloudinary");
+const cloudinary_1 = require("@/db/services/cloudinary");
 const cors_1 = __importDefault(require("@fastify/cors"));
 const fastify = (0, fastify_1.default)({
     logger: true,
@@ -63,17 +63,17 @@ fastify.get("/", async (_request) => {
     return { message: "¡Hello, Fastify!. This is a new era 2.0" };
 });
 // Importing routes
-fastify.register(Promise.resolve().then(() => __importStar(require("./routes/auth.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("./routes/user.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("./routes/country.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("./routes/file.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("./routes/chat.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("./routes/message.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("./routes/device.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("./routes/deviceGroup.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("./routes/deviceComparison.routes"))));
-fastify.register(Promise.resolve().then(() => __importStar(require("./routes/weather.routes"))), { prefix: '/api/weather' });
-fastify.register(Promise.resolve().then(() => __importStar(require("./routes/reports.routes"))), { prefix: '/api' });
+fastify.register(Promise.resolve().then(() => __importStar(require("@/routes/auth.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("@/routes/user.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("@/routes/country.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("@/routes/file.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("@/routes/chat.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("@/routes/message.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("@/routes/device.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("@/routes/deviceGroup.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("@/routes/deviceComparison.routes"))));
+fastify.register(Promise.resolve().then(() => __importStar(require("@/routes/weather.routes"))), { prefix: '/api/weather' });
+fastify.register(Promise.resolve().then(() => __importStar(require("@/routes/reports.routes"))), { prefix: '/api' });
 const start = async () => {
     try {
         await (0, cloudinary_1.validateCloudinaryConnection)();
