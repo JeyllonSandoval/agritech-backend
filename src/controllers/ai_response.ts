@@ -59,14 +59,14 @@ const generateAIResponse = async (
         }));
 
         // Construir el prompt con el contexto del PDF si existe
-        let systemPrompt = "Eres un asistente útil que responde preguntas basado en el contexto proporcionado.";
+        let systemPrompt = "Eres un asistente útil que responde preguntas sobre agricultura y jardinería. Se te pasara informacion sobre el contexto del documento y el historial de mensajes del chat. como sensores humedad, temperatura, etc.";
         if (pdfContent) {
             systemPrompt += `\n\nContexto del documento:\n${pdfContent}`;
         }
 
         // Llamar a OpenAI
         const completion = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
+            model: "gpt-4o-mini",
             messages: [
                 { role: "system", content: systemPrompt },
                 ...chatContext,
