@@ -4,7 +4,7 @@
     "builds": [
         {
         "src": "dist/index.js", 
-        "use": "@vercel/node@18",
+        "use": "@vercel/node",
         "config": {
             "maxDuration": 30
         }
