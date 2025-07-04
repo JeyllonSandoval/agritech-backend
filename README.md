@@ -30,6 +30,7 @@ CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
 CLOUDINARY_API_KEY=your_cloudinary_api_key
 CLOUDINARY_API_SECRET=your_cloudinary_api_secret
 OPENAI_API_KEY=your_openai_api_key
+OPENWEATHER_API_KEY=your_openweather_api_key
 ```
 
 4. Run the development server:
@@ -43,67 +44,69 @@ npm run build
 npm start
 ```
 
-## 📝 Description
+## 📚 Description
 
-Agritech Backend is a robust backend service designed to support agricultural technology applications. It provides a comprehensive set of APIs for managing agricultural data, user authentication, and various agricultural operations.
+Agritech Backend is a robust backend service for agricultural technology applications. It provides a comprehensive set of APIs for managing agricultural data, user authentication, device integration (EcoWitt), weather data (OpenWeather), and advanced reporting (PDF/JSON).
 
-## 🎯 Purpose
+## 🎯 Main Features
+- User authentication and authorization (JWT)
+- Device management (EcoWitt weather stations)
+- Real-time and historical weather data (OpenWeather & EcoWitt)
+- Grouping and batch operations for devices
+- File and image management (Cloudinary)
+- PDF and JSON report generation with charts
+- AI-powered agricultural insights (OpenAI)
 
-The project aims to modernize agricultural operations by providing a scalable and efficient backend infrastructure that can handle:
-- User authentication and authorization
-- Agricultural data management
-- Image processing and storage
-- PDF document processing
-- AI-powered agricultural insights
+## 🏗️ Architecture
+- **Controllers**: Business logic and request processing
+- **Routers**: API endpoint definitions
+- **Middlewares**: Authentication and validation
+- **Database**: Drizzle ORM (Turso)
+- **Utils/Libs**: Helper functions, integrations, PDF generation
 
-## 🧠 Base Logic
-
-The project follows a modular architecture with clear separation of concerns:
-- **Controllers**: Handle business logic and request processing
-- **Routers**: Define API endpoints and route handling
-- **Middlewares**: Implement authentication and request validation
-- **Database**: Uses Drizzle ORM for database operations
-- **Utils**: Contains helper functions and utilities
-- **Libs**: Houses third-party integrations and core functionality
-
-## 🛠️ Technologies Used
-
-### Backend
-- **Node.js**: Runtime environment
-- **TypeScript**: Programming language
-- **Fastify**: Web framework
-- **Drizzle ORM**: Database ORM
-- **Turso**: Database system
-- **JWT**: Authentication
-- **Cloudinary**: Image storage and processing
-- **OpenAI**: AI-powered features
-- **Nodemailer**: Email functionality
-
-### Development Tools
-- **ESBuild**: JavaScript bundler
-- **TypeScript**: Type checking and compilation
-- **tsx**: TypeScript execution
-- **tsc-alias**: Path aliases for TypeScript
-
-## 🔐 Security Features
-- JWT-based authentication
-- Password hashing with bcrypt
-- CORS protection
-- Environment variable management
-- Secure file upload handling
+## 🛠️ Technologies
+- Node.js, TypeScript, Fastify
+- Drizzle ORM, Turso
+- Cloudinary, OpenWeather, EcoWitt API
+- OpenAI, Chart.js (for PDF charts)
 
 ## 📦 Project Structure
 ```
 agritech-backend/
 ├── src/
 │   ├── controllers/    # Business logic handlers
-│   ├── routers/        # API route definitions
+│   ├── routes/         # API route definitions
 │   ├── middlewares/    # Request processing middleware
-│   ├── db/            # Database configurations
-│   ├── utils/         # Helper functions
-│   ├── libs/          # Third-party integrations
-│   └── index.ts       # Application entry point
-├── drizzle/           # Database migrations
-├── dist/              # Compiled JavaScript
-└── package.json       # Project dependencies
+│   ├── db/             # Database configurations and services
+│   ├── utils/          # Helper functions
+│   ├── libs/           # Third-party integrations
+│   └── index.ts        # Application entry point
+├── drizzle/            # Database migrations
+├── dist/               # Compiled JavaScript
+└── package.json        # Project dependencies
 ```
+
+## 🔗 Key API Endpoints
+- `/api/devices` - Register, update, and manage EcoWitt devices
+- `/api/devices/:deviceId/realtime` - Get real-time data from a device
+- `/api/devices/:deviceId/history` - Get historical data from a device
+- `/api/devices/:deviceId/characteristics` - Get device characteristics from EcoWitt
+- `/api/reports/device` - Generate device weather reports (PDF/JSON)
+- `/api/reports/group` - Generate group weather reports (PDF/JSON)
+- `/api/weather/current` - Get current weather from OpenWeather
+- `/api/weather/overview` - Get AI-generated weather summary
+
+## 📄 Documentation
+- `DOCUMENTATION_STRUCTURE.md` - Project structure and module documentation
+- `REPORTE_COMPLETO_DOCUMENTATION.md` - Full documentation of the reporting system
+- `DEVICE_WEATHER_REPORTS_API.md` - API documentation for weather reports
+- `ECOWITT_API.md` - EcoWitt API integration
+- `DISEÑO_AGRI_TECH_PDF.md` - PDF report design documentation
+- `DEVICE_CHARACTERISTICS_API.md` - Device characteristics API
+- `WEATHER_API.md` - Weather API documentation
+
+## 🧑‍💻 Contributing
+Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
+
+## 📝 License
+[MIT](LICENSE)
