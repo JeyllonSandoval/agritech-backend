@@ -15,6 +15,10 @@ dist/
 build/
 *.tsbuildinfo
 
+# Keep dist for deployment (uncomment if needed for manual deployment)
+# !dist/
+# !dist/**/*
+
 # Logs
 logs/
 *.log
