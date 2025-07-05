@@ -49,10 +49,6 @@ coverage/
 # Debug
 .debug/
 
-# Documentación
-docs/
-*.md
-
 # Misc
 .cache/
 .local/ 
