@@ -3,7 +3,7 @@ import db from "@/db/db";
 import usersTable from "@/db/schemas/usersSchema";
 import { eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
-import bcrypt from "bcrypt";    
+import bcrypt from "bcryptjs";    
 import { z } from "zod";
 import { generateToken } from "@/utils/token";
 import { sendVerificationEmail, sendPasswordResetEmail } from "@/utils/email";

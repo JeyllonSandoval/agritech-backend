@@ -8,7 +8,7 @@ const db_1 = __importDefault(require("../db/db"));
 const usersSchema_1 = __importDefault(require("../db/schemas/usersSchema"));
 const drizzle_orm_1 = require("drizzle-orm");
 const uuid_1 = require("uuid");
-const bcrypt_1 = __importDefault(require("bcrypt"));
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const zod_1 = require("zod");
 const token_1 = require("../utils/token");
 const email_1 = require("../utils/email");
@@ -169,14 +169,14 @@ const resetPassword = async (req, reply) => {
             });
         }
         // Verificar que la nueva contraseña sea diferente de la actual
-        const isSamePassword = await bcrypt_1.default.compare(password, user.password);
+        const isSamePassword = await bcryptjs_1.default.compare(password, user.password);
         if (isSamePassword) {
             return reply.status(400).send({
                 error: "New password must be different from your current password."
             });
         }
         // Hashear la nueva contraseña
-        const hashedPassword = await bcrypt_1.default.hash(password, 8);
+        const hashedPassword = await bcryptjs_1.default.hash(password, 8);
         // Actualizar la contraseña y limpiar los campos de reset
         const [updatedUser] = await db_1.default
             .update(usersSchema_1.default)
