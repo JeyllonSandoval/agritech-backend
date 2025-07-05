@@ -7,7 +7,7 @@ exports.createCountries = exports.createRoles = void 0;
 const db_1 = __importDefault(require("../db/db"));
 const rolesSchema_1 = __importDefault(require("../db/schemas/rolesSchema"));
 const countrySchema_1 = __importDefault(require("../db/schemas/countrySchema"));
-const countries_json_1 = __importDefault(require("../db/data/countries.json"));
+const countries_1 = require("../db/data/countries");
 const uuid_1 = require("uuid");
 const createRoles = async () => {
     try {
@@ -35,7 +35,7 @@ const createCountries = async () => {
             console.log("Countries already exist in the database ✅");
             return;
         }
-        await db_1.default.insert(countrySchema_1.default).values(countries_json_1.default.countriesData.map(country => ({
+        await db_1.default.insert(countrySchema_1.default).values(countries_1.countriesData.countriesData.map(country => ({
             ...country,
             CountryID: (0, uuid_1.v4)(),
             createdAt: new Date().toISOString(),

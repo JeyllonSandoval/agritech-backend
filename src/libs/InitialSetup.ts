@@ -1,7 +1,7 @@
 import db from "@/db/db";
 import rolesSchema from "@/db/schemas/rolesSchema";
 import countryTable from "@/db/schemas/countrySchema";
-import countriesData from "@/db/data/countries.json";
+import { countriesData } from "@/db/data/countries";
 import { v4 as uuidv4 } from "uuid";
 
 const createRoles = async () => {
