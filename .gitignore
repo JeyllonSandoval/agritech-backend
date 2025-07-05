@@ -1,4 +1,4 @@
-# Dependencies
+# Node modules y lockfiles
 node_modules/
 package-lock.json
 yarn.lock
@@ -9,11 +9,6 @@ yarn.lock
 .env
 .env.*
 !.env.example
-
-# Build
-dist/
-build/
-*.tsbuildinfo
 
 # Logs
 logs/
@@ -53,6 +48,10 @@ coverage/
 
 # Debug
 .debug/
+
+# Documentación
+docs/
+*.md
 
 # Misc
 .cache/
