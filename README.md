@@ -87,10 +87,10 @@ agritech-backend/
 ```
 
 ## 🔗 Key API Endpoints
-- `/api/devices` - Register, update, and manage EcoWitt devices
-- `/api/devices/:deviceId/realtime` - Get real-time data from a device
-- `/api/devices/:deviceId/history` - Get historical data from a device
-- `/api/devices/:deviceId/characteristics` - Get device characteristics from EcoWitt
+- `/devices` - Register, update, and manage EcoWitt devices
+- `/devices/:deviceId/realtime` - Get real-time data from a device
+- `/devices/:deviceId/history` - Get historical data from a device
+- `/devices/:deviceId/characteristics` - Get device characteristics from EcoWitt
 - `/api/reports/device` - Generate device weather reports (PDF/JSON)
 - `/api/reports/group` - Generate group weather reports (PDF/JSON)
 - `/api/weather/current` - Get current weather from OpenWeather

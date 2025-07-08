@@ -6,7 +6,7 @@ Esta documentación describe la nueva funcionalidad para obtener las caracterís
 
 ### Obtener Características del Dispositivo
 
-**GET** `/api/devices/:deviceId/characteristics`
+**GET** `/devices/:deviceId/characteristics`
 
 Obtiene las características específicas del dispositivo desde la API de EcoWitt, incluyendo información como MAC, ID, coordenadas, zona horaria, región y otras características del dispositivo.
 
@@ -96,7 +96,7 @@ Obtiene las características específicas del dispositivo desde la API de EcoWit
 
 ```bash
 # Obtener características del dispositivo
-curl -X GET "https://tu-api.com/api/devices/550e8400-e29b-41d4-a716-446655440000/characteristics" \
+curl -X GET "https://tu-api.com/devices/550e8400-e29b-41d4-a716-446655440000/characteristics" \
   -H "Authorization: Bearer tu-token"
 ```
 
