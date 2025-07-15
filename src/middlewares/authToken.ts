@@ -10,6 +10,7 @@ export const authenticateToken = async (request: FastifyRequest, reply: FastifyR
         }
 
         const token = authHeader.split(' ')[1];
+        
         const decoded = verifyToken(token);
         
         if (!decoded) {

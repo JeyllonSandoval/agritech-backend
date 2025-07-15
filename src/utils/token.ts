@@ -30,7 +30,7 @@ export const generateToken = (user: TokenPayload): string => {
             }
         );
     } catch (error) {
-        console.log(error);
+
         throw new Error("Failed to generate token");
     }
 };
@@ -45,7 +45,7 @@ export const verifyToken = (token: string): TokenPayload | null => {
             emailVerified: decoded.emailVerified
         };
     } catch (error) {
-        console.log (error);
+
         throw new Error("Mision Failed: Token no created");
     }
 };

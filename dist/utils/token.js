@@ -18,7 +18,6 @@ const generateToken = (user) => {
         });
     }
     catch (error) {
-        console.log(error);
         throw new Error("Failed to generate token");
     }
 };
@@ -34,7 +33,6 @@ const verifyToken = (token) => {
         };
     }
     catch (error) {
-        console.log(error);
         throw new Error("Mision Failed: Token no created");
     }
 };

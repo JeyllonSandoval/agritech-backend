@@ -70,18 +70,6 @@ export class DeviceController {
   static async createDevice(request: FastifyRequest, reply: FastifyReply) {
     try {
       const deviceData = createDeviceSchema.parse(request.body);
-      
-      // Check if device with same MAC already exists
-      const existingDevice = await EcowittService.getDeviceByMac(deviceData.DeviceMac);
-      if (existingDevice) {
-        return reply.code(409).send({ error: 'Device with this MAC address already exists' });
-      }
-
-      // Check if device with same Application Key already exists
-      const existingAppKey = await EcowittService.getDeviceByApplicationKey(deviceData.DeviceApplicationKey);
-      if (existingAppKey) {
-        return reply.code(409).send({ error: 'Device with this Application Key already exists' });
-      }
 
       // Generate UUID for the device
       const deviceWithId: CreateDeviceData & { DeviceID: string } = {
@@ -147,22 +135,6 @@ export class DeviceController {
         return reply.code(404).send({ error: 'Device not found' });
       }
 
-      // If updating MAC, check if new MAC already exists
-      if (updateData.DeviceMac && updateData.DeviceMac !== existingDevice.DeviceMac) {
-        const existingMac = await EcowittService.getDeviceByMac(updateData.DeviceMac);
-        if (existingMac) {
-          return reply.code(409).send({ error: 'Device with this MAC address already exists' });
-        }
-      }
-
-      // If updating Application Key, check if new key already exists
-      if (updateData.DeviceApplicationKey && updateData.DeviceApplicationKey !== existingDevice.DeviceApplicationKey) {
-        const existingAppKey = await EcowittService.getDeviceByApplicationKey(updateData.DeviceApplicationKey);
-        if (existingAppKey) {
-          return reply.code(409).send({ error: 'Device with this Application Key already exists' });
-        }
-      }
-
       const device = await EcowittService.updateDevice(deviceId, updateData);
       return reply.send(device);
     } catch (error) {
@@ -185,11 +157,13 @@ export class DeviceController {
       
       // Check if device exists
       const existingDevice = await EcowittService.getDeviceByDeviceId(deviceId);
+      
       if (!existingDevice) {
         return reply.code(404).send({ error: 'Device not found' });
       }
 
       await EcowittService.deleteDevice(deviceId);
+      
       return reply.code(204).send();
     } catch (error) {
       return reply.code(500).send({ error: 'Error deleting device' });
@@ -300,7 +274,7 @@ export class DeviceController {
         return reply.code(404).send({ error: 'Device not found' });
       }
 
-      // Obtener información detallada del dispositivo desde EcoWitt
+      // Obtener información detallada del dispositivo desde EcoWitt (real_time, NO tiene lat/lon)
       const detailedInfo = await EcowittService.getDeviceDetailedInfo(
         device.DeviceApplicationKey,
         device.DeviceApiKey,
@@ -314,6 +288,25 @@ export class DeviceController {
         device.DeviceMac
       );
 
+      // Obtener información de EcoWitt API (sí tiene lat/lon)
+      let deviceInfoEcoWitt = null;
+      try {
+        deviceInfoEcoWitt = await EcowittService.getDeviceInfo(
+          device.DeviceApplicationKey,
+          device.DeviceApiKey,
+          device.DeviceMac
+        );
+      } catch (e) {
+        // Si falla, continuar sin lat/lon extra
+      }
+
+      // Usar lat/lon de detailedInfo si existen, si no, usar los de EcoWitt API
+      const latitude = (detailedInfo.location?.latitude != null ? detailedInfo.location.latitude : (deviceInfoEcoWitt?.data?.latitude ?? null));
+      const longitude = (detailedInfo.location?.longitude != null ? detailedInfo.location.longitude : (deviceInfoEcoWitt?.data?.longitude ?? null));
+      const elevation = (detailedInfo.location?.elevation != null ? detailedInfo.location.elevation : (deviceInfoEcoWitt?.data?.elevation ?? null));
+
+
+
       // Construir respuesta con información completa
       const deviceInfo = {
         deviceId: device.DeviceID,
@@ -322,9 +315,9 @@ export class DeviceController {
         deviceMac: device.DeviceMac,
         status: device.status,
         createdAt: device.createdAt,
-        latitude: detailedInfo.location?.latitude || null,
-        longitude: detailedInfo.location?.longitude || null,
-        elevation: detailedInfo.location?.elevation || null,
+        latitude,
+        longitude,
+        elevation,
         model: detailedInfo.model || null,
         sensors: detailedInfo.sensors || [],
         lastUpdate: realtimeData?.dateutc || null,
@@ -339,6 +332,8 @@ export class DeviceController {
           solarRadiation: realtimeData?.solarradiation || null
         }
       };
+
+
 
       return reply.send(deviceInfo);
     } catch (error) {

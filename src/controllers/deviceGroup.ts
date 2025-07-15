@@ -122,18 +122,44 @@ export class DeviceGroupController {
   static async getGroupDevices(
     request: FastifyRequest<{
       Params: {
-        id: string;
+        groupId: string;
       };
     }>,
     reply: FastifyReply
   ) {
     try {
-      const { id } = request.params;
-      const devices = await DeviceGroupService.getGroupDevices(id);
+      const { groupId } = request.params;
+      const devices = await DeviceGroupService.getGroupDevices(groupId);
       return reply.send(devices);
     } catch (error) {
+      console.error('Error en getGroupDevices:', error);
       return reply.status(500).send({
-        error: 'Error al obtener dispositivos del grupo'
+        error: 'Error al obtener dispositivos del grupo',
+        details: error instanceof Error ? error.message : error
+      });
+    }
+  }
+
+  /**
+   * Obtener el conteo de dispositivos de un grupo
+   */
+  static async getGroupDeviceCount(
+    request: FastifyRequest<{
+      Params: {
+        groupId: string;
+      };
+    }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const { groupId } = request.params;
+      const deviceCount = await DeviceGroupService.getGroupDeviceCount(groupId);
+      return reply.send({ deviceCount });
+    } catch (error) {
+      console.error('Error en getGroupDeviceCount:', error);
+      return reply.status(500).send({
+        error: 'Error al obtener conteo de dispositivos del grupo',
+        details: error instanceof Error ? error.message : error
       });
     }
   }

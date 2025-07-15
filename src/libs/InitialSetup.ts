@@ -9,7 +9,7 @@ const createRoles = async () => {
         const count = await db.select().from(rolesSchema);
 
         if (count.length > 0) {
-            console.log("Roles already exist in the database ✅");
+    
             return;
         }
 
@@ -20,7 +20,7 @@ const createRoles = async () => {
 
         await db.insert(rolesSchema).values(roles);
 
-        console.log("Created roles successfully ✅");
+
     } catch (error) {
         console.error("Missing Falling created roles ❌:", error);
     }
@@ -31,7 +31,7 @@ const createCountries = async () => {
         const count = await db.select().from(countryTable);
 
         if (count.length > 0) {
-            console.log("Countries already exist in the database ✅");
+    
             return;
         }
 
@@ -44,7 +44,7 @@ const createCountries = async () => {
         })));
         
 
-        console.log("Created countries successfully ✅");
+
     } catch (error) {
         console.error("Missing Falling created countries ❌:", error);
     }

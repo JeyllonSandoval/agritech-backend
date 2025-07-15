@@ -13,7 +13,6 @@ const createRoles = async () => {
     try {
         const count = await db_1.default.select().from(rolesSchema_1.default);
         if (count.length > 0) {
-            console.log("Roles already exist in the database ✅");
             return;
         }
         const roles = [
@@ -21,7 +20,6 @@ const createRoles = async () => {
             { rolename: "admin", status: "active" }
         ].map(role => ({ ...role, RoleID: (0, uuid_1.v4)() }));
         await db_1.default.insert(rolesSchema_1.default).values(roles);
-        console.log("Created roles successfully ✅");
     }
     catch (error) {
         console.error("Missing Falling created roles ❌:", error);
@@ -32,7 +30,6 @@ const createCountries = async () => {
     try {
         const count = await db_1.default.select().from(countrySchema_1.default);
         if (count.length > 0) {
-            console.log("Countries already exist in the database ✅");
             return;
         }
         await db_1.default.insert(countrySchema_1.default).values(countries_1.countriesData.countriesData.map(country => ({
@@ -42,7 +39,6 @@ const createCountries = async () => {
             status: "active",
             countryname: country.countryName
         })));
-        console.log("Created countries successfully ✅");
     }
     catch (error) {
         console.error("Missing Falling created countries ❌:", error);

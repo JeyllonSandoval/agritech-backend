@@ -111,13 +111,6 @@ const createMessage = async (
 
             const aiResponse = await generateAIResponse(aiRequest, reply);
             
-            console.log('AI Response sent:', {
-                messageId: aiResponse.message.MessageID,
-                chatId: aiResponse.message.ChatID,
-                content: aiResponse.content,
-                timestamp: new Date().toISOString()
-            });
-            
             return reply.status(201).send({ 
                 success: true,
                 message: {

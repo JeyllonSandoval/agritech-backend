@@ -7,6 +7,7 @@ export default async function deviceGroupRoutes(fastify: FastifyInstance) {
   fastify.get('/groups/:groupId', DeviceGroupController.getGroupById);
   fastify.get('/users/:userId/groups', DeviceGroupController.getUserGroups);
   fastify.get('/groups/:groupId/devices', DeviceGroupController.getGroupDevices);
+  fastify.get('/groups/:groupId/device-count', DeviceGroupController.getGroupDeviceCount);
   fastify.put('/groups/:groupId', DeviceGroupController.updateGroup);
   fastify.delete('/groups/:groupId', DeviceGroupController.deleteGroup);
 

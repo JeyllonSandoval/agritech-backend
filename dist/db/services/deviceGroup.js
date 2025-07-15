@@ -38,23 +38,66 @@ class DeviceGroupService {
         const [group] = await db_1.default.select()
             .from(deviceGroupSchema_1.default)
             .where((0, drizzle_orm_1.eq)(deviceGroupSchema_1.default.DeviceGroupID, id));
-        return group;
+        if (!group) {
+            return null;
+        }
+        // Agregar el conteo de dispositivos
+        const deviceCount = await this.getGroupDeviceCount(id);
+        return {
+            ...group,
+            deviceCount
+        };
     }
     /**
-     * Obtener todos los grupos de un usuario
+     * Contar dispositivos en un grupo específico
+     */
+    static async getGroupDeviceCount(groupId) {
+        try {
+            const result = await db_1.default.select({ count: (0, drizzle_orm_1.count)() })
+                .from(deviceGroupMembers_1.default)
+                .where((0, drizzle_orm_1.eq)(deviceGroupMembers_1.default.DeviceGroupID, groupId));
+            return result[0]?.count || 0;
+        }
+        catch (error) {
+            console.error('Error counting devices in group:', error);
+            return 0;
+        }
+    }
+    /**
+     * Obtener todos los grupos de un usuario con conteo de dispositivos
      */
     static async getUserGroups(userId) {
-        return await db_1.default.select()
+        // Obtener los grupos del usuario
+        const groups = await db_1.default.select()
             .from(deviceGroupSchema_1.default)
             .where((0, drizzle_orm_1.eq)(deviceGroupSchema_1.default.UserID, userId));
+        // Para cada grupo, obtener el conteo de dispositivos
+        const groupsWithDeviceCount = await Promise.all(groups.map(async (group) => {
+            const deviceCount = await this.getGroupDeviceCount(group.DeviceGroupID);
+            return {
+                ...group,
+                deviceCount
+            };
+        }));
+        return groupsWithDeviceCount;
     }
     /**
      * Obtener los dispositivos de un grupo
      */
     static async getGroupDevices(id) {
-        return await db_1.default.select()
-            .from(deviceGroupMembers_1.default)
-            .where((0, drizzle_orm_1.eq)(deviceGroupMembers_1.default.DeviceGroupID, id));
+        try {
+            if (!id || typeof id !== 'string') {
+                throw new Error('ID de grupo inválido');
+            }
+            const result = await db_1.default.select()
+                .from(deviceGroupMembers_1.default)
+                .where((0, drizzle_orm_1.eq)(deviceGroupMembers_1.default.DeviceGroupID, id));
+            return result;
+        }
+        catch (err) {
+            console.error('Error en DeviceGroupService.getGroupDevices:', err);
+            throw err;
+        }
     }
     /**
      * Actualizar un grupo
@@ -109,9 +152,32 @@ class DeviceGroupService {
         const deviceData = deviceResults.map(result => ({
             applicationKey: result.device_table.DeviceApplicationKey,
             apiKey: result.device_table.DeviceApiKey,
-            mac: result.device_table.DeviceMac
+            mac: result.device_table.DeviceMac,
+            deviceName: result.device_table.DeviceName,
+            deviceId: result.device_table.DeviceID
         }));
-        return await ecowitt_1.EcowittService.getMultipleDevicesHistory(deviceData, startTime, endTime);
+        // Obtener datos históricos de Ecowitt
+        const ecowittData = await ecowitt_1.EcowittService.getMultipleDevicesHistory(deviceData.map(device => ({
+            applicationKey: device.applicationKey,
+            apiKey: device.apiKey,
+            mac: device.mac
+        })), startTime, endTime);
+        // Combinar datos de Ecowitt con información del dispositivo
+        const enrichedData = {};
+        for (const device of deviceData) {
+            const deviceKey = device.mac; // Usar MAC como clave para Ecowitt
+            if (ecowittData[deviceKey]) {
+                enrichedData[device.deviceName] = {
+                    ...ecowittData[deviceKey],
+                    deviceInfo: {
+                        deviceId: device.deviceId,
+                        deviceName: device.deviceName,
+                        mac: device.mac
+                    }
+                };
+            }
+        }
+        return enrichedData;
     }
     /**
      * Obtener datos en tiempo real de los dispositivos en un grupo
@@ -128,9 +194,32 @@ class DeviceGroupService {
         const deviceData = deviceResults.map(result => ({
             applicationKey: result.device_table.DeviceApplicationKey,
             apiKey: result.device_table.DeviceApiKey,
-            mac: result.device_table.DeviceMac
+            mac: result.device_table.DeviceMac,
+            deviceName: result.device_table.DeviceName,
+            deviceId: result.device_table.DeviceID
         }));
-        return await ecowitt_1.EcowittService.getMultipleDevicesRealtime(deviceData);
+        // Obtener datos de Ecowitt
+        const ecowittData = await ecowitt_1.EcowittService.getMultipleDevicesRealtime(deviceData.map(device => ({
+            applicationKey: device.applicationKey,
+            apiKey: device.apiKey,
+            mac: device.mac
+        })));
+        // Combinar datos de Ecowitt con información del dispositivo
+        const enrichedData = {};
+        for (const device of deviceData) {
+            const deviceKey = device.mac; // Usar MAC como clave para Ecowitt
+            if (ecowittData[deviceKey]) {
+                enrichedData[device.deviceName] = {
+                    ...ecowittData[deviceKey],
+                    deviceInfo: {
+                        deviceId: device.deviceId,
+                        deviceName: device.deviceName,
+                        mac: device.mac
+                    }
+                };
+            }
+        }
+        return enrichedData;
     }
 }
 exports.DeviceGroupService = DeviceGroupService;

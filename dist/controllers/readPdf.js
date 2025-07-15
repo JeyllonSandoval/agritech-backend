@@ -8,7 +8,6 @@ const pdf_parse_1 = __importDefault(require("pdf-parse"));
 const axios_1 = __importDefault(require("axios"));
 const parsePDF = async (req, reply) => {
     try {
-        console.log('Processing PDF request...');
         const { fileURL } = req.body;
         if (!fileURL) {
             return reply.status(400).send({ error: "File URL is required" });
@@ -16,15 +15,11 @@ const parsePDF = async (req, reply) => {
         if (!isValidURL(fileURL)) {
             return reply.status(400).send({ error: "Invalid URL format" });
         }
-        console.log("Downloading file from Cloudinary...");
         const pdfBuffer = await downloadPDF(fileURL);
-        console.log("Validating PDF format...");
         if (!isPDFFormat(pdfBuffer)) {
             return reply.status(400).send({ error: "Invalid PDF format" });
         }
-        console.log("Extracting text from PDF...");
         const pdfData = await extractPDFText(pdfBuffer);
-        console.log("Processing extracted text...");
         const processedText = processPDFText(pdfData.text);
         return reply.status(200).send({
             message: "PDF processed successfully",

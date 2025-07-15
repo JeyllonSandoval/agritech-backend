@@ -13,7 +13,6 @@ async function validateCloudinaryConnection() {
     try {
         // Intenta obtener la información de la cuenta para verificar la conexión
         const result = await cloudinary_1.v2.api.ping();
-        console.log('Cloudinary connection successful! ✅');
         return true;
     }
     catch (error) {

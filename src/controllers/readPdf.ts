@@ -11,7 +11,7 @@ interface PDFData {
 
 export const parsePDF = async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-        console.log('Processing PDF request...');
+    
 
         const { fileURL } = req.body as { fileURL?: string };
 
@@ -22,18 +22,18 @@ export const parsePDF = async (req: FastifyRequest, reply: FastifyReply) => {
             return reply.status(400).send({ error: "Invalid URL format" });
         }
 
-        console.log("Downloading file from Cloudinary...");
+
         const pdfBuffer = await downloadPDF(fileURL);
 
-        console.log("Validating PDF format...");
+
         if (!isPDFFormat(pdfBuffer)) {
             return reply.status(400).send({ error: "Invalid PDF format" });
         }
 
-        console.log("Extracting text from PDF...");
+
         const pdfData = await extractPDFText(pdfBuffer);
 
-        console.log("Processing extracted text...");
+
         const processedText = processPDFText(pdfData.text);
 
         return reply.status(200).send({ 

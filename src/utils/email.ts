@@ -17,8 +17,7 @@ const transporter = nodemailer.createTransport({
 // Función para enviar correo de verificación
 export const sendVerificationEmail = async (email: string, token: string) => {
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
-    console.log(verificationUrl)
-    console.log(process.env.FRONTEND_URL)
+
     const mailOptions = {
         from: process.env.EMAIL_USER,
         to: email,
@@ -55,12 +54,12 @@ export const sendVerificationEmail = async (email: string, token: string) => {
             `
     };
 
-    console.log(`[Email] Intentando enviar correo de verificación a: ${email}`);
+
     const startTime = Date.now();
     try {
         const info = await transporter.sendMail(mailOptions);
         const duration = Date.now() - startTime;
-        console.log(`[Email] Correo de verificación enviado a ${email} en ${duration}ms. Message ID: ${info.messageId}`);
+
     } catch (error) {
         const duration = Date.now() - startTime;
         console.error(`[Email] Error enviando correo de verificación a ${email} después de ${duration}ms:`, error);
@@ -72,8 +71,7 @@ export const sendVerificationEmail = async (email: string, token: string) => {
 // Función para enviar correo de restablecimiento de contraseña
 export const sendPasswordResetEmail = async (email: string, token: string) => {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-    console.log(resetUrl)
-    console.log(process.env.FRONTEND_URL)
+
     const mailOptions = {
         from: process.env.EMAIL_USER,
         to: email,
@@ -113,12 +111,12 @@ export const sendPasswordResetEmail = async (email: string, token: string) => {
             `
     };
 
-    console.log(`[Email] Intentando enviar correo de reseteo a: ${email}`);
+
     const startTime = Date.now();
     try {
         const info = await transporter.sendMail(mailOptions);
         const duration = Date.now() - startTime;
-        console.log(`[Email] Correo de reseteo enviado a ${email} en ${duration}ms. Message ID: ${info.messageId}`);
+
     } catch (error) {
         const duration = Date.now() - startTime;
         console.error(`[Email] Error enviando correo de reseteo a ${email} después de ${duration}ms:`, error);
