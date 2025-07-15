@@ -71,14 +71,14 @@ export class DeviceGroupController {
   static async getGroupById(
     request: FastifyRequest<{
       Params: {
-        id: string;
+        groupId: string;
       };
     }>,
     reply: FastifyReply
   ) {
     try {
-      const { id } = request.params;
-      const group = await DeviceGroupService.getGroupById(id);
+      const { groupId } = request.params;
+      const group = await DeviceGroupService.getGroupById(groupId);
 
       if (!group) {
         return reply.status(404).send({
@@ -170,7 +170,7 @@ export class DeviceGroupController {
   static async updateGroup(
     request: FastifyRequest<{
       Params: {
-        id: string;
+        groupId: string;
       };
       Body: {
         GroupName?: string;
@@ -181,10 +181,16 @@ export class DeviceGroupController {
     reply: FastifyReply
   ) {
     try {
-      const { id } = request.params;
+      const { groupId } = request.params;
       const { GroupName, Description, deviceIds } = request.body;
 
-      const group = await DeviceGroupService.updateGroup(id, {
+      console.log('🔧 updateGroup - Request details:', {
+        groupId: groupId,
+        body: request.body,
+        headers: request.headers
+      });
+
+      const group = await DeviceGroupService.updateGroup(groupId, {
         GroupName,
         Description,
         deviceIds: deviceIds?.map(deviceId => ({
@@ -193,8 +199,10 @@ export class DeviceGroupController {
         }))
       });
 
+      console.log('🔧 updateGroup - Success:', group);
       return reply.send(group);
     } catch (error) {
+      console.error('🔧 updateGroup - Error:', error);
       if (error instanceof z.ZodError) {
         return reply.code(400).send({ 
           error: 'Validation error', 
@@ -211,16 +219,25 @@ export class DeviceGroupController {
   static async deleteGroup(
     request: FastifyRequest<{
       Params: {
-        id: string;
+        groupId: string;
       };
     }>,
     reply: FastifyReply
   ) {
     try {
-      const { id } = request.params;
-      await DeviceGroupService.deleteGroup(id);
+      const { groupId } = request.params;
+      
+      console.log('🔧 deleteGroup - Request details:', {
+        groupId: groupId,
+        headers: request.headers
+      });
+
+      await DeviceGroupService.deleteGroup(groupId);
+      
+      console.log('🔧 deleteGroup - Success');
       return reply.status(204).send();
     } catch (error) {
+      console.error('🔧 deleteGroup - Error:', error);
       return reply.status(500).send({
         error: 'Error deleting group'
       });

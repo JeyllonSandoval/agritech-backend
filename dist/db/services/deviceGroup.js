@@ -41,10 +41,16 @@ class DeviceGroupService {
         if (!group) {
             return null;
         }
+        // Obtener los IDs de los dispositivos del grupo
+        const groupMembers = await db_1.default.select({ DeviceID: deviceGroupMembers_1.default.DeviceID })
+            .from(deviceGroupMembers_1.default)
+            .where((0, drizzle_orm_1.eq)(deviceGroupMembers_1.default.DeviceGroupID, id));
+        const deviceIds = groupMembers.map(member => member.DeviceID);
         // Agregar el conteo de dispositivos
         const deviceCount = await this.getGroupDeviceCount(id);
         return {
             ...group,
+            deviceIds,
             deviceCount
         };
     }
@@ -71,11 +77,17 @@ class DeviceGroupService {
         const groups = await db_1.default.select()
             .from(deviceGroupSchema_1.default)
             .where((0, drizzle_orm_1.eq)(deviceGroupSchema_1.default.UserID, userId));
-        // Para cada grupo, obtener el conteo de dispositivos
+        // Para cada grupo, obtener el conteo de dispositivos y los IDs de dispositivos
         const groupsWithDeviceCount = await Promise.all(groups.map(async (group) => {
             const deviceCount = await this.getGroupDeviceCount(group.DeviceGroupID);
+            // Obtener los IDs de los dispositivos del grupo
+            const groupMembers = await db_1.default.select({ DeviceID: deviceGroupMembers_1.default.DeviceID })
+                .from(deviceGroupMembers_1.default)
+                .where((0, drizzle_orm_1.eq)(deviceGroupMembers_1.default.DeviceGroupID, group.DeviceGroupID));
+            const deviceIds = groupMembers.map(member => member.DeviceID);
             return {
                 ...group,
+                deviceIds,
                 deviceCount
             };
         }));
@@ -103,9 +115,14 @@ class DeviceGroupService {
      * Actualizar un grupo
      */
     static async updateGroup(DeviceGroupID, updateData) {
+        console.log('🔧 DeviceGroupService.updateGroup - Input:', {
+            DeviceGroupID,
+            updateData
+        });
         const { deviceIds, ...groupInfo } = updateData;
         // Actualizar información del grupo
         if (Object.keys(groupInfo).length > 0) {
+            console.log('🔧 DeviceGroupService.updateGroup - Updating group info:', groupInfo);
             await db_1.default.update(deviceGroupSchema_1.default)
                 .set({
                 ...groupInfo,
@@ -115,6 +132,19 @@ class DeviceGroupService {
         }
         // Actualizar dispositivos del grupo si se proporcionaron
         if (deviceIds) {
+            console.log('🔧 DeviceGroupService.updateGroup - Updating device members:', deviceIds.length);
+            // Verificar que todos los dispositivos existan antes de insertar
+            const deviceIdsToCheck = deviceIds.map(d => d.DeviceID);
+            console.log('🔧 DeviceGroupService.updateGroup - Checking device IDs:', deviceIdsToCheck);
+            const existingDevices = await db_1.default.select()
+                .from(deviceSchema_1.default)
+                .where((0, drizzle_orm_1.inArray)(deviceSchema_1.default.DeviceID, deviceIdsToCheck));
+            console.log('🔧 DeviceGroupService.updateGroup - Existing devices found:', existingDevices.length);
+            if (existingDevices.length !== deviceIdsToCheck.length) {
+                const foundIds = existingDevices.map(d => d.DeviceID);
+                const missingIds = deviceIdsToCheck.filter(id => !foundIds.includes(id));
+                throw new Error(`Los siguientes dispositivos no existen: ${missingIds.join(', ')}`);
+            }
             // Eliminar miembros actuales
             await db_1.default.delete(deviceGroupMembers_1.default)
                 .where((0, drizzle_orm_1.eq)(deviceGroupMembers_1.default.DeviceGroupID, DeviceGroupID));
@@ -128,14 +158,18 @@ class DeviceGroupService {
                 })));
             }
         }
-        return await this.getGroupById(DeviceGroupID);
+        const result = await this.getGroupById(DeviceGroupID);
+        console.log('🔧 DeviceGroupService.updateGroup - Result:', result);
+        return result;
     }
     /**
      * Eliminar un grupo
      */
     static async deleteGroup(DeviceGroupID) {
+        console.log('🔧 DeviceGroupService.deleteGroup - Input:', DeviceGroupID);
         await db_1.default.delete(deviceGroupSchema_1.default)
             .where((0, drizzle_orm_1.eq)(deviceGroupSchema_1.default.DeviceGroupID, DeviceGroupID));
+        console.log('🔧 DeviceGroupService.deleteGroup - Success');
     }
     /**
      * Obtener datos históricos de los dispositivos en un grupo
