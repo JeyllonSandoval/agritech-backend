@@ -278,8 +278,13 @@ export class DeviceGroupService {
    * Obtener datos en tiempo real de los dispositivos en un grupo
    */
   static async getGroupDevicesRealtime(DeviceGroupID: string) {
+    console.log('🔍 [SERVICE] getGroupDevicesRealtime - Input:', DeviceGroupID);
+    
     const groupDevices = await this.getGroupDevices(DeviceGroupID);
+    console.log('🔍 [SERVICE] getGroupDevicesRealtime - Group devices:', groupDevices);
+    
     if (groupDevices.length === 0) {
+      console.log('🔍 [SERVICE] getGroupDevicesRealtime - No devices in group');
       return {};
     }
 
@@ -287,6 +292,8 @@ export class DeviceGroupService {
       .from(deviceGroupMembers)
       .innerJoin(devices, eq(deviceGroupMembers.DeviceID, devices.DeviceID))
       .where(eq(deviceGroupMembers.DeviceGroupID, DeviceGroupID));
+
+    console.log('🔍 [SERVICE] getGroupDevicesRealtime - Device results:', deviceResults);
 
     const deviceData = deviceResults.map(result => ({
       applicationKey: result.device_table.DeviceApplicationKey,
@@ -296,6 +303,8 @@ export class DeviceGroupService {
       deviceId: result.device_table.DeviceID
     }));
 
+    console.log('🔍 [SERVICE] getGroupDevicesRealtime - Device data:', deviceData);
+
     // Obtener datos de Ecowitt
     const ecowittData = await EcowittService.getMultipleDevicesRealtime(
       deviceData.map(device => ({
@@ -304,6 +313,8 @@ export class DeviceGroupService {
         mac: device.mac
       }))
     );
+
+    console.log('🔍 [SERVICE] getGroupDevicesRealtime - Ecowitt data:', ecowittData);
 
     // Combinar datos de Ecowitt con información del dispositivo
     const enrichedData: Record<string, any> = {};
@@ -322,6 +333,7 @@ export class DeviceGroupService {
       }
     }
 
+    console.log('🔍 [SERVICE] getGroupDevicesRealtime - Enriched data:', enrichedData);
     return enrichedData;
   }
 } 

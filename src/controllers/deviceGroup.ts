@@ -286,15 +286,27 @@ export class DeviceGroupController {
     try {
       const { groupId } = request.params as { groupId: string };
       
+      console.log('🔍 [CONTROLLER] getGroupDevicesRealtime - Request:', {
+        groupId,
+        headers: request.headers,
+        user: request.user
+      });
+      
       // Check if group exists
       const existingGroup = await DeviceGroupService.getGroupById(groupId);
+      console.log('🔍 [CONTROLLER] getGroupDevicesRealtime - Existing group:', existingGroup);
+      
       if (!existingGroup) {
+        console.log('❌ [CONTROLLER] getGroupDevicesRealtime - Group not found');
         return reply.code(404).send({ error: 'Group not found' });
       }
 
       const realtimeData = await DeviceGroupService.getGroupDevicesRealtime(groupId);
+      console.log('🔍 [CONTROLLER] getGroupDevicesRealtime - Realtime data:', realtimeData);
+      
       return reply.send(realtimeData);
     } catch (error) {
+      console.error('❌ [CONTROLLER] getGroupDevicesRealtime - Error:', error);
       return reply.code(500).send({ error: 'Error retrieving group real-time data' });
     }
   }

@@ -154,6 +154,8 @@ export class EcowittService {
    */
   static async getDeviceRealtime(applicationKey: string, apiKey: string, mac: string): Promise<RealtimeResponseType> {
     try {
+      console.log('🔍 [ECOWITT] getDeviceRealtime - Input:', { applicationKey, apiKey, mac });
+      
       // Crear parámetros usando las funciones helper
       const params: RealtimeRequestParams = createRealtimeRequestParams(
         applicationKey,
@@ -161,17 +163,22 @@ export class EcowittService {
         mac
       );
 
+      console.log('🔍 [ECOWITT] getDeviceRealtime - Params:', params);
+
       // Validar parámetros antes de enviar
       const validationErrors = validateRealtimeRequestParams(params);
       if (validationErrors.length > 0) {
+        console.error('❌ [ECOWITT] getDeviceRealtime - Validation errors:', validationErrors);
         throw new Error(`Validation errors: ${validationErrors.join(', ')}`);
       }
 
+      console.log('🔍 [ECOWITT] getDeviceRealtime - Making request to:', `${ECOWITT_API_BASE}/device/real_time`);
       const response = await axios.get(`${ECOWITT_API_BASE}/device/real_time`, {
         params
       });
 
       const responseData = response.data as RealtimeResponseType;
+      console.log('🔍 [ECOWITT] getDeviceRealtime - Response data:', responseData);
       
       // Si data es un array vacío, intentar diferentes estrategias
       if (Array.isArray(responseData.data) && responseData.data.length === 0) {
@@ -446,16 +453,21 @@ export class EcowittService {
     devices: Array<{ applicationKey: string; apiKey: string; mac: string }>
   ): Promise<Record<string, RealtimeResponseType | { error: string }>> {
     try {
+      console.log('🔍 [ECOWITT] getMultipleDevicesRealtime - Input devices:', devices);
+      
       // Realizar llamadas en paralelo para cada dispositivo
       const promises = devices.map(async device => {
         try {
+          console.log('🔍 [ECOWITT] getMultipleDevicesRealtime - Fetching device:', device.mac);
           const data = await this.getDeviceRealtime(
             device.applicationKey, 
             device.apiKey, 
             device.mac
           );
+          console.log('🔍 [ECOWITT] getMultipleDevicesRealtime - Success for device:', device.mac, data);
           return { mac: device.mac, data } as DeviceResponse;
         } catch (error) {
+          console.error('❌ [ECOWITT] getMultipleDevicesRealtime - Error for device:', device.mac, error);
           return { 
             mac: device.mac, 
             error: error instanceof Error ? error.message : 'Unknown error' 
@@ -464,13 +476,18 @@ export class EcowittService {
       });
       
       const results = await Promise.all(promises);
+      console.log('🔍 [ECOWITT] getMultipleDevicesRealtime - All results:', results);
       
       // Agrupar resultados por MAC address
-      return results.reduce((acc, result) => {
+      const groupedResults = results.reduce((acc, result) => {
         acc[result.mac] = result.data || { error: result.error };
         return acc;
       }, {} as Record<string, RealtimeResponseType | { error: string }>);
+      
+      console.log('🔍 [ECOWITT] getMultipleDevicesRealtime - Grouped results:', groupedResults);
+      return groupedResults;
     } catch (error) {
+      console.error('❌ [ECOWITT] getMultipleDevicesRealtime - Error:', error);
       if (axios.isAxiosError(error)) {
         throw new Error(`Ecowitt API Error: ${error.response?.data?.message || error.message}`);
       }

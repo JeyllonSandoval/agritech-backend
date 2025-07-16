@@ -217,14 +217,18 @@ class DeviceGroupService {
      * Obtener datos en tiempo real de los dispositivos en un grupo
      */
     static async getGroupDevicesRealtime(DeviceGroupID) {
+        console.log('🔍 [SERVICE] getGroupDevicesRealtime - Input:', DeviceGroupID);
         const groupDevices = await this.getGroupDevices(DeviceGroupID);
+        console.log('🔍 [SERVICE] getGroupDevicesRealtime - Group devices:', groupDevices);
         if (groupDevices.length === 0) {
+            console.log('🔍 [SERVICE] getGroupDevicesRealtime - No devices in group');
             return {};
         }
         const deviceResults = await db_1.default.select()
             .from(deviceGroupMembers_1.default)
             .innerJoin(deviceSchema_1.default, (0, drizzle_orm_1.eq)(deviceGroupMembers_1.default.DeviceID, deviceSchema_1.default.DeviceID))
             .where((0, drizzle_orm_1.eq)(deviceGroupMembers_1.default.DeviceGroupID, DeviceGroupID));
+        console.log('🔍 [SERVICE] getGroupDevicesRealtime - Device results:', deviceResults);
         const deviceData = deviceResults.map(result => ({
             applicationKey: result.device_table.DeviceApplicationKey,
             apiKey: result.device_table.DeviceApiKey,
@@ -232,12 +236,14 @@ class DeviceGroupService {
             deviceName: result.device_table.DeviceName,
             deviceId: result.device_table.DeviceID
         }));
+        console.log('🔍 [SERVICE] getGroupDevicesRealtime - Device data:', deviceData);
         // Obtener datos de Ecowitt
         const ecowittData = await ecowitt_1.EcowittService.getMultipleDevicesRealtime(deviceData.map(device => ({
             applicationKey: device.applicationKey,
             apiKey: device.apiKey,
             mac: device.mac
         })));
+        console.log('🔍 [SERVICE] getGroupDevicesRealtime - Ecowitt data:', ecowittData);
         // Combinar datos de Ecowitt con información del dispositivo
         const enrichedData = {};
         for (const device of deviceData) {
@@ -253,6 +259,7 @@ class DeviceGroupService {
                 };
             }
         }
+        console.log('🔍 [SERVICE] getGroupDevicesRealtime - Enriched data:', enrichedData);
         return enrichedData;
     }
 }
