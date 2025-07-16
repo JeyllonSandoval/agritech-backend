@@ -274,6 +274,33 @@ export class EcowittService {
 
       const responseData = response.data as HistoryResponseType;
       
+      // Verificar si hay error de rate limiting
+      if (responseData.code === -1 && responseData.msg === 'Operation too frequent') {
+        
+        // Esperar 2 segundos y reintentar una vez
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        const retryResponse = await axios.get(`${ECOWITT_API_BASE}/device/history`, {
+          params
+        });
+        
+        const retryData = retryResponse.data as HistoryResponseType;
+        
+        // Si aún hay error, devolver con información de diagnóstico
+        if (retryData.code === -1) {
+          return {
+            ...retryData,
+            _diagnostic: {
+              message: 'Rate limiting persistente después de retry',
+              retryAttempted: true,
+              timestamp: new Date().toISOString()
+            }
+          } as HistoryResponseType;
+        }
+        
+        return retryData;
+      }
+      
       // Verificar si la respuesta tiene datos
       if (responseData.code === 0 && responseData.msg === 'success') {
         // Verificar si hay datos en la respuesta
