@@ -38,6 +38,7 @@ export interface AIRequest {
     ChatID: string;
     FileID?: string;
     pdfContent?: string;
+    userLanguage?: string;
 }
 
 const openai = new OpenAI({
@@ -49,7 +50,10 @@ const generateAIResponse = async (
     reply: FastifyReply
 ) => {
     try {
-        const { ask, ChatID, FileID, pdfContent } = request.body;
+        const { ask, ChatID, FileID, pdfContent, userLanguage } = request.body;
+
+        console.log(`AI Response - Recibido: ask="${ask}", FileID="${FileID}", pdfContent length=${pdfContent ? pdfContent.length : 0}`);
+        console.log(`AI Response - Preview del pdfContent: ${pdfContent ? pdfContent.substring(0, 200) : 'No content'}...`);
 
         // Obtener el historial de mensajes del chat
         const chatHistory = await getMessagesForChat(ChatID);
@@ -137,6 +141,9 @@ const generateAIResponse = async (
         // Determinar el contenido final del PDF
         const finalPdfContent = pdfContent || currentFileContent;
 
+        console.log(`AI Response - finalPdfContent length: ${finalPdfContent ? finalPdfContent.length : 0}`);
+        console.log(`AI Response - finalPdfContent preview: ${finalPdfContent ? finalPdfContent.substring(0, 200) : 'No content'}...`);
+
         // Log para debugging del contexto
         console.log(`Chat ${ChatID} - Contexto enviado a IA:`, {
             totalMessages: chatHistory.length,
@@ -152,11 +159,20 @@ const generateAIResponse = async (
             currentFileID: FileID,
             hasCurrentFileContent: !!currentFileContent,
             currentFileContentLength: currentFileContent.length,
-            finalPdfContentLength: finalPdfContent ? finalPdfContent.length : 0
+            finalPdfContentLength: finalPdfContent ? finalPdfContent.length : 0,
+            userLanguage: userLanguage
         });
 
         // Construir el prompt con el contexto del PDF si existe
         let systemPrompt = "Eres un asistente especializado en agricultura y jardinería. Tu objetivo es proporcionar información precisa, práctica y útil sobre cultivos, sensores, clima, riego, fertilización y cualquier tema relacionado con la agricultura. Mantén un tono profesional pero accesible. IMPORTANTE: Siempre considera el historial completo de la conversación, incluyendo cualquier archivo que haya sido subido anteriormente. Si se te proporciona información de un documento, úsala como contexto adicional para tus respuestas y mantén coherencia con las preguntas y respuestas anteriores. CRÍTICO: Si el usuario hace referencia a un documento o archivo que se subió anteriormente, DEBES usar esa información para responder, incluso si la pregunta es sobre el contenido del documento. SIEMPRE usa el contenido del documento cuando esté disponible. NO digas que no tienes acceso al documento si el contenido está presente en el contexto. REGLA ABSOLUTA: Si hay contenido de documento en el contexto, SIEMPRE úsalo para responder preguntas sobre el documento. FORMATO: Usa Markdown para formatear tus respuestas. Usa **negritas** para énfasis, *cursivas* para términos técnicos, y listas con - o 1. para organizar información.";
+        
+        // Agregar instrucción de idioma si está disponible
+        if (userLanguage) {
+            const languageInstruction = userLanguage === 'es' 
+                ? "IMPORTANTE: Responde SIEMPRE en español. Usa un tono natural y apropiado para el contexto agrícola."
+                : "IMPORTANTE: Respond ALWAYS in English. Use a natural tone appropriate for the agricultural context.";
+            systemPrompt += `\n\n${languageInstruction}`;
+        }
         
         // Priorizar el contenido del archivo actual si está disponible
         if (finalPdfContent && finalPdfContent.trim().length > 0) {
@@ -168,6 +184,9 @@ const generateAIResponse = async (
         } else {
             console.log('No hay contenido de PDF disponible para agregar al contexto');
         }
+
+        console.log(`Prompt final length: ${systemPrompt.length}`);
+        console.log(`Prompt final preview: ${systemPrompt.substring(0, 500)}...`);
 
         // Llamar a OpenAI con historial completo
         console.log(`Enviando prompt al AI. Longitud del prompt: ${systemPrompt.length} caracteres`);

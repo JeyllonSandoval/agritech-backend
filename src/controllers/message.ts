@@ -102,12 +102,19 @@ const createMessage = async (
         }).returning();
 
         if (result.data.sendertype === "user" && result.data.contentAsk) {
+            // Obtener el idioma del usuario desde los headers
+            const userLanguage = request.headers['user-language'] as string || 'en';
+            
+            console.log(`Enviando mensaje a AI con FileID: ${result.data.FileID}, pdfContent length: ${pdfContent ? pdfContent.length : 0}`);
+            console.log(`Preview del pdfContent: ${pdfContent ? pdfContent.substring(0, 200) : 'No content'}...`);
+            
             const aiRequest = {
                 body: {
                     ask: result.data.contentAsk,
                     ChatID: result.data.ChatID,
                     FileID: result.data.FileID,
-                    pdfContent: pdfContent // Asegurar que el contenido del PDF se pase a la AI
+                    pdfContent: pdfContent, // Asegurar que el contenido del PDF se pase a la AI
+                    userLanguage: userLanguage // Pasar el idioma del usuario
                 }
             } as FastifyRequest<{ Body: AIRequest }>;
 
