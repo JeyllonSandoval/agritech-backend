@@ -7,6 +7,8 @@ import { z, ZodError } from "zod";
 import generateAIResponse, { AIRequest } from "@/controllers/ai_response";
 import filesTable from "@/db/schemas/filesSchema";
 import { parsePDF } from "@/controllers/readPdf";
+import pdfParse from "pdf-parse";
+import axios from "axios";
 
 const createMessageSchema = z.object({
     ChatID: z.string().uuid({ message: "Invalid chat ID" }),
@@ -70,21 +72,21 @@ const createMessage = async (
                 .where(eq(filesTable.FileID, result.data.FileID));
             fileContent = file[0]?.contentURL || null;
             
-            if(file.length){
-                const pdfRequest = {
-                    body: { fileURL: fileContent }
-                } as FastifyRequest;
+            if(file.length && fileContent){
+                console.log(`Procesando PDF para FileID: ${result.data.FileID}, URL: ${fileContent}`);
                 
-                const pdfReply = {
-                    status: () => ({
-                        send: (data: any) => {
-                            pdfContent = data.data.rawText;
-                            return data;
-                        }
-                    })
-                } as unknown as FastifyReply;
-                
-                await parsePDF(pdfRequest, pdfReply);
+                try {
+                    // Llamar directamente a la función de procesamiento de PDF
+                    const pdfBuffer = await downloadPDF(fileContent);
+                    const pdfData = await extractPDFText(pdfBuffer);
+                    pdfContent = processPDFText(pdfData.text).rawText;
+                    
+                    console.log(`PDF procesado exitosamente. Longitud del contenido: ${pdfContent.length}`);
+                    console.log(`Preview del contenido: ${pdfContent.substring(0, 200)}...`);
+                } catch (error) {
+                    console.error(`Error procesando PDF para FileID: ${result.data.FileID}:`, error);
+                    pdfContent = "Error procesando el PDF";
+                }
             }
         }
 
@@ -105,7 +107,7 @@ const createMessage = async (
                     ask: result.data.contentAsk,
                     ChatID: result.data.ChatID,
                     FileID: result.data.FileID,
-                    pdfContent: pdfContent
+                    pdfContent: pdfContent // Asegurar que el contenido del PDF se pase a la AI
                 }
             } as FastifyRequest<{ Body: AIRequest }>;
 
@@ -315,6 +317,76 @@ const deleteMessage = async (
         });
     }
 };
+
+// Funciones auxiliares para procesamiento de PDF
+async function downloadPDF(url: string): Promise<Buffer> {
+    try {
+        console.log(`Descargando PDF desde: ${url}`);
+        
+        const response = await axios.get(url, { 
+            responseType: "arraybuffer",
+            timeout: 30000, // 30 segundos timeout
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+        });
+
+        console.log(`Respuesta recibida. Status: ${response.status}, Tamaño: ${response.data.length} bytes`);
+
+        if (response.data.length > 10 * 1024 * 1024) { // 10MB limit
+            throw new Error("PDF file size exceeds 10MB limit");
+        }
+
+        if (response.data.length === 0) {
+            throw new Error("PDF file is empty");
+        }
+
+        const buffer = Buffer.from(response.data);
+        console.log(`Buffer creado. Tamaño: ${buffer.length} bytes`);
+        
+        return buffer;
+    } catch (error) {
+        console.error(`Error descargando PDF desde ${url}:`, error);
+        throw new Error(`Failed to download PDF: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+}
+
+async function extractPDFText(buffer: Buffer): Promise<any> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
+    try {
+        console.log('Iniciando extracción de texto del PDF...');
+        const pdfData = await pdfParse(buffer);
+        console.log(`Extracción completada. Texto extraído: ${pdfData.text.length} caracteres`);
+        
+        if (!pdfData.text || pdfData.text.trim().length === 0) {
+            console.warn('Advertencia: El PDF no contiene texto extraíble');
+        }
+        
+        return pdfData;
+    } catch (error) {
+        console.error('Error extrayendo texto del PDF:', error);
+        throw error;
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+function processPDFText(text: string) {
+    const cleanedText = text.replace(/\s+/g, ' ').trim();
+    const lines = cleanedText.split('. ').filter(line => line.trim() !== '');
+
+    return {
+        rawText: cleanedText,
+        lines: lines,
+        totalLines: lines.length,
+        metadata: {
+            processedAt: new Date().toISOString(),
+            wordCount: cleanedText.split(/\s+/).length
+        }
+    };
+}
 
 export { createMessage, getChatMessages, getAllMessages, updateMessage, deleteMessage };
 

@@ -11,30 +11,37 @@ interface PDFData {
 
 export const parsePDF = async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-    
-
+        console.log('Iniciando procesamiento de PDF...');
+        
         const { fileURL } = req.body as { fileURL?: string };
 
         if (!fileURL) {
+            console.error('Error: File URL is required');
             return reply.status(400).send({ error: "File URL is required" });
         }
+        
+        console.log(`Procesando PDF desde URL: ${fileURL}`);
+        
         if (!isValidURL(fileURL)) {
+            console.error('Error: Invalid URL format');
             return reply.status(400).send({ error: "Invalid URL format" });
         }
 
-
+        console.log('Descargando PDF...');
         const pdfBuffer = await downloadPDF(fileURL);
-
+        console.log(`PDF descargado. Tamaño: ${pdfBuffer.length} bytes`);
 
         if (!isPDFFormat(pdfBuffer)) {
+            console.error('Error: Invalid PDF format');
             return reply.status(400).send({ error: "Invalid PDF format" });
         }
 
-
+        console.log('Extrayendo texto del PDF...');
         const pdfData = await extractPDFText(pdfBuffer);
-
+        console.log(`Texto extraído. Longitud: ${pdfData.text.length} caracteres`);
 
         const processedText = processPDFText(pdfData.text);
+        console.log(`Texto procesado. Longitud final: ${processedText.rawText.length} caracteres`);
 
         return reply.status(200).send({ 
             message: "PDF processed successfully",
@@ -42,7 +49,7 @@ export const parsePDF = async (req: FastifyRequest, reply: FastifyReply) => {
         });
 
     } catch (error) {
-        console.error('General error:', error);
+        console.error('Error procesando PDF:', error);
         return reply.status(500).send({ 
             error: "ReadPDF:Error processing PDF",
             details: error instanceof Error ? error.message : "Unknown error"
@@ -53,14 +60,32 @@ export const parsePDF = async (req: FastifyRequest, reply: FastifyReply) => {
 // Descargar el PDF de Cloudinary con control de errores
 async function downloadPDF(url: string): Promise<Buffer> {
     try {
-        const response = await axios.get(url, { responseType: "arraybuffer" });
+        console.log(`Descargando PDF desde: ${url}`);
+        
+        const response = await axios.get(url, { 
+            responseType: "arraybuffer",
+            timeout: 30000, // 30 segundos timeout
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+        });
+
+        console.log(`Respuesta recibida. Status: ${response.status}, Tamaño: ${response.data.length} bytes`);
 
         if (response.data.length > 10 * 1024 * 1024) { // 10MB limit
             throw new Error("PDF file size exceeds 10MB limit");
         }
 
-        return Buffer.from(response.data);
+        if (response.data.length === 0) {
+            throw new Error("PDF file is empty");
+        }
+
+        const buffer = Buffer.from(response.data);
+        console.log(`Buffer creado. Tamaño: ${buffer.length} bytes`);
+        
+        return buffer;
     } catch (error) {
+        console.error(`Error descargando PDF desde ${url}:`, error);
         throw new Error(`Failed to download PDF: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
 }
@@ -71,8 +96,18 @@ async function extractPDFText(buffer: Buffer): Promise<PDFData> {
     const timeout = setTimeout(() => controller.abort(), 30000);
 
     try {
+        console.log('Iniciando extracción de texto del PDF...');
         const pdfData = await pdfParse(buffer);
+        console.log(`Extracción completada. Texto extraído: ${pdfData.text.length} caracteres`);
+        
+        if (!pdfData.text || pdfData.text.trim().length === 0) {
+            console.warn('Advertencia: El PDF no contiene texto extraíble');
+        }
+        
         return pdfData;
+    } catch (error) {
+        console.error('Error extrayendo texto del PDF:', error);
+        throw error;
     } finally {
         clearTimeout(timeout);
     }
