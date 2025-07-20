@@ -13,6 +13,8 @@ const messageSchema_1 = __importDefault(require("../db/schemas/messageSchema"));
 const uuid_1 = require("uuid");
 const pdf_parse_1 = __importDefault(require("pdf-parse"));
 const axios_1 = __importDefault(require("axios"));
+const ecowitt_1 = require("../db/services/ecowitt");
+const deviceSchema_1 = __importDefault(require("../db/schemas/deviceSchema"));
 const openai = new openai_1.default({
     apiKey: process.env.OPENAI_API_KEY,
 });
@@ -34,103 +36,128 @@ const generateAIResponse = async (request, reply) => {
         });
         // Si hay un FileID específico en la solicitud actual, procesarlo primero
         let currentFileContent = "";
-        if (FileID && !pdfContent) {
+        if (FileID) {
             try {
-                const files = await db_1.default
+                const file = await db_1.default
                     .select()
                     .from(filesSchema_1.default)
                     .where((0, drizzle_orm_1.eq)(filesSchema_1.default.FileID, FileID));
-                if (files.length > 0) {
-                    const fileContent = files[0]?.contentURL;
-                    if (fileContent) {
-                        console.log(`Procesando PDF actual para FileID: ${FileID}, URL: ${fileContent}`);
-                        const pdfBuffer = await downloadPDF(fileContent);
-                        const pdfData = await extractPDFText(pdfBuffer);
-                        const processedText = processPDFText(pdfData.text);
-                        currentFileContent = processedText.rawText;
-                        console.log(`PDF actual procesado exitosamente. Longitud: ${currentFileContent.length}`);
+                if (file.length > 0 && file[0].contentURL) {
+                    const pdfBuffer = await downloadPDF(file[0].contentURL);
+                    const pdfData = await extractPDFText(pdfBuffer);
+                    currentFileContent = processPDFText(pdfData.text).rawText;
+                    console.log(`Contenido del archivo actual procesado. Longitud: ${currentFileContent.length}`);
+                }
+            }
+            catch (error) {
+                console.error('Error procesando archivo actual:', error);
+            }
+        }
+        // Procesar todos los archivos del historial del chat
+        for (const fileId of fileIds) {
+            if (fileId === FileID)
+                continue; // Ya procesado arriba
+            try {
+                const file = await db_1.default
+                    .select()
+                    .from(filesSchema_1.default)
+                    .where((0, drizzle_orm_1.eq)(filesSchema_1.default.FileID, fileId));
+                if (file.length > 0 && file[0].contentURL) {
+                    const pdfBuffer = await downloadPDF(file[0].contentURL);
+                    const pdfData = await extractPDFText(pdfBuffer);
+                    const fileContent = processPDFText(pdfData.text).rawText;
+                    allPdfContent += `\n\n=== ARCHIVO: ${file[0].FileName} ===\n${fileContent}`;
+                }
+            }
+            catch (error) {
+                console.error(`Error procesando archivo ${fileId}:`, error);
+            }
+        }
+        // Verificar si la pregunta es sobre dispositivos
+        const deviceKeywords = ['dispositivo', 'device', 'sensor', 'estación', 'station', 'ecowitt', 'temperatura', 'humedad', 'presión', 'clima', 'weather'];
+        const isDeviceQuery = deviceKeywords.some(keyword => ask.toLowerCase().includes(keyword.toLowerCase()));
+        let deviceInfo = "";
+        if (isDeviceQuery) {
+            try {
+                // Obtener el UserID del token (asumiendo que está disponible)
+                const token = request.headers.authorization?.replace('Bearer ', '');
+                if (token) {
+                    // Decodificar el token para obtener UserID
+                    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+                    const userId = payload.UserID;
+                    // Obtener dispositivos del usuario
+                    const userDevices = await db_1.default
+                        .select()
+                        .from(deviceSchema_1.default)
+                        .where((0, drizzle_orm_1.eq)(deviceSchema_1.default.UserID, userId));
+                    if (userDevices.length > 0) {
+                        deviceInfo = "\n\n=== INFORMACIÓN DE DISPOSITIVOS DISPONIBLES ===\n";
+                        for (const device of userDevices) {
+                            try {
+                                // Obtener información en tiempo real del dispositivo
+                                const realtimeData = await ecowitt_1.EcowittService.getDeviceRealtime(device.DeviceApplicationKey, device.DeviceApiKey, device.DeviceMac);
+                                deviceInfo += `\n**Dispositivo: ${device.DeviceName}**\n`;
+                                deviceInfo += `- ID: ${device.DeviceID}\n`;
+                                deviceInfo += `- MAC: ${device.DeviceMac}\n`;
+                                deviceInfo += `- Tipo: ${device.DeviceType}\n`;
+                                deviceInfo += `- Estado: ${realtimeData?.code === 0 ? '🟢 En línea' : '🔴 Desconectado'}\n`;
+                                if (realtimeData && realtimeData.code === 0) {
+                                    deviceInfo += `- Última actualización: ${realtimeData.dateutc || 'N/A'}\n`;
+                                    if (realtimeData.tempf)
+                                        deviceInfo += `- Temperatura: ${realtimeData.tempf}°F\n`;
+                                    if (realtimeData.humidity)
+                                        deviceInfo += `- Humedad: ${realtimeData.humidity}%\n`;
+                                    if (realtimeData.baromrelin)
+                                        deviceInfo += `- Presión: ${realtimeData.baromrelin} inHg\n`;
+                                    if (realtimeData.windspeedmph)
+                                        deviceInfo += `- Velocidad del viento: ${realtimeData.windspeedmph} mph\n`;
+                                    if (realtimeData.rainratein)
+                                        deviceInfo += `- Lluvia: ${realtimeData.rainratein} in/h\n`;
+                                }
+                                deviceInfo += "\n";
+                            }
+                            catch (error) {
+                                deviceInfo += `\n**Dispositivo: ${device.DeviceName}**\n`;
+                                deviceInfo += `- ID: ${device.DeviceID}\n`;
+                                deviceInfo += `- MAC: ${device.DeviceMac}\n`;
+                                deviceInfo += `- Tipo: ${device.DeviceType}\n`;
+                                deviceInfo += `- Estado: 🔴 Error de conexión\n`;
+                                deviceInfo += "\n";
+                            }
+                        }
                     }
                 }
             }
             catch (error) {
-                console.error(`Error procesando PDF actual para FileID: ${FileID}:`, error);
-                currentFileContent = "Error procesando el PDF actual";
+                console.error('Error obteniendo información de dispositivos:', error);
             }
         }
-        // Obtener contenido de todos los archivos del chat
-        if (fileIds.size > 0) {
-            for (const fileId of fileIds) {
-                const files = await db_1.default
-                    .select()
-                    .from(filesSchema_1.default)
-                    .where((0, drizzle_orm_1.eq)(filesSchema_1.default.FileID, fileId));
-                if (files.length > 0) {
-                    const fileContent = files[0]?.contentURL;
-                    if (fileContent) {
-                        try {
-                            // Llamar directamente a la función de procesamiento de PDF
-                            const pdfBuffer = await downloadPDF(fileContent);
-                            const pdfData = await extractPDFText(pdfBuffer);
-                            const processedText = processPDFText(pdfData.text);
-                            allPdfContent += `\n\n=== CONTENIDO DEL ARCHIVO ${fileId} ===\n${processedText.rawText}\n`;
-                        }
-                        catch (error) {
-                            console.error(`Error procesando PDF para FileID: ${fileId}:`, error);
-                            allPdfContent += `\n\n=== ERROR PROCESANDO ARCHIVO ${fileId} ===\nError procesando el PDF\n`;
-                        }
-                    }
-                }
-            }
-        }
-        // Construir el contexto del chat con TODOS los mensajes (incluyendo archivos)
+        // Construir el contexto del chat
         const chatContext = chatHistory
-            .map(msg => {
-            let content = msg.content || "";
-            // Si es un mensaje de archivo, agregar contexto adicional
-            if (msg.fileId && msg.senderType === "user") {
-                content = `[Archivo subido: ${msg.fileId}] ${content}`;
-            }
-            return {
-                role: msg.senderType === "user" ? "user" : "assistant",
-                content: content
-            };
-        })
-            .slice(-25); // Aumentar a 25 mensajes para incluir más contexto
-        // Determinar el contenido final del PDF
-        const finalPdfContent = pdfContent || currentFileContent;
-        console.log(`AI Response - finalPdfContent length: ${finalPdfContent ? finalPdfContent.length : 0}`);
-        console.log(`AI Response - finalPdfContent preview: ${finalPdfContent ? finalPdfContent.substring(0, 200) : 'No content'}...`);
-        // Log para debugging del contexto
-        console.log(`Chat ${ChatID} - Contexto enviado a IA:`, {
-            totalMessages: chatHistory.length,
-            contextMessages: chatContext.length,
-            hasFileContext: chatContext.some(msg => {
-                const content = typeof msg.content === 'string' ? msg.content : '';
-                return content.includes('[Archivo subido:');
-            }),
-            hasPdfContent: !!allPdfContent,
-            pdfContentLength: allPdfContent.length,
-            pdfContentPreview: allPdfContent.substring(0, 200) + '...',
-            currentAsk: ask,
-            currentFileID: FileID,
-            hasCurrentFileContent: !!currentFileContent,
-            currentFileContentLength: currentFileContent.length,
-            finalPdfContentLength: finalPdfContent ? finalPdfContent.length : 0,
-            userLanguage: userLanguage
-        });
-        // Construir el prompt con el contexto del PDF si existe
-        let systemPrompt = "Eres un asistente especializado en agricultura y jardinería. Tu objetivo es proporcionar información precisa, práctica y útil sobre cultivos, sensores, clima, riego, fertilización y cualquier tema relacionado con la agricultura. Mantén un tono profesional pero accesible. IMPORTANTE: Siempre considera el historial completo de la conversación, incluyendo cualquier archivo que haya sido subido anteriormente. Si se te proporciona información de un documento, úsala como contexto adicional para tus respuestas y mantén coherencia con las preguntas y respuestas anteriores. CRÍTICO: Si el usuario hace referencia a un documento o archivo que se subió anteriormente, DEBES usar esa información para responder, incluso si la pregunta es sobre el contenido del documento. SIEMPRE usa el contenido del documento cuando esté disponible. NO digas que no tienes acceso al documento si el contenido está presente en el contexto. REGLA ABSOLUTA: Si hay contenido de documento en el contexto, SIEMPRE úsalo para responder preguntas sobre el documento. FORMATO: Usa Markdown para formatear tus respuestas. Usa **negritas** para énfasis, *cursivas* para términos técnicos, y listas con - o 1. para organizar información.";
-        // Agregar instrucción de idioma si está disponible
-        if (userLanguage) {
-            const languageInstruction = userLanguage === 'es'
-                ? "IMPORTANTE: Responde SIEMPRE en español. Usa un tono natural y apropiado para el contexto agrícola."
-                : "IMPORTANTE: Respond ALWAYS in English. Use a natural tone appropriate for the agricultural context.";
-            systemPrompt += `\n\n${languageInstruction}`;
-        }
+            .filter(msg => msg.senderType === 'user' || msg.senderType === 'ai')
+            .map(msg => ({
+            role: msg.senderType === 'user' ? 'user' : 'assistant',
+            content: msg.senderType === 'user' ? msg.content : msg.content
+        }));
+        // Construir el prompt del sistema
+        let systemPrompt = `Eres un asistente especializado en análisis de datos agrícolas y meteorológicos para AgriTech. Tu función es ayudar a los usuarios a interpretar reportes, analizar datos de dispositivos y proporcionar insights valiosos.
+
+**Instrucciones importantes:**
+- Responde en ${userLanguage === 'es' ? 'español' : 'inglés'}
+- Usa formato markdown para mejorar la legibilidad
+- Proporciona análisis detallados y recomendaciones prácticas
+- Si hay datos de dispositivos disponibles, úsalos para enriquecer tus respuestas
+- Sé específico y técnico cuando sea necesario, pero mantén un tono accesible
+
+**Capacidades especiales:**
+- Puedes acceder a información de dispositivos EcoWitt del usuario
+- Puedes analizar reportes PDF y JSON de dispositivos y clima
+- Puedes proporcionar recomendaciones basadas en datos históricos
+- Puedes identificar patrones y anomalías en los datos`;
         // Priorizar el contenido del archivo actual si está disponible
-        if (finalPdfContent && finalPdfContent.trim().length > 0) {
-            console.log(`Agregando contexto del documento actual. Longitud: ${finalPdfContent.length}`);
-            systemPrompt += `\n\n=== CONTENIDO DEL DOCUMENTO ACTUAL ===\n${finalPdfContent}\n\nINSTRUCCIÓN FINAL: El contenido del documento está disponible arriba. SIEMPRE usa esta información para responder preguntas sobre el documento. NO digas que no tienes acceso al documento.`;
+        if (currentFileContent && currentFileContent.trim().length > 0) {
+            console.log(`Agregando contexto del documento actual. Longitud: ${currentFileContent.length}`);
+            systemPrompt += `\n\n=== CONTENIDO DEL DOCUMENTO ACTUAL ===\n${currentFileContent}\n\nINSTRUCCIÓN FINAL: El contenido del documento está disponible arriba. SIEMPRE usa esta información para responder preguntas sobre el documento. NO digas que no tienes acceso al documento.`;
         }
         else if (allPdfContent && allPdfContent.trim().length > 0) {
             console.log(`Agregando contexto del documento del chat. Longitud: ${allPdfContent.length}`);
@@ -138,6 +165,10 @@ const generateAIResponse = async (request, reply) => {
         }
         else {
             console.log('No hay contenido de PDF disponible para agregar al contexto');
+        }
+        // Agregar información de dispositivos si está disponible
+        if (deviceInfo) {
+            systemPrompt += deviceInfo;
         }
         console.log(`Prompt final length: ${systemPrompt.length}`);
         console.log(`Prompt final preview: ${systemPrompt.substring(0, 500)}...`);
