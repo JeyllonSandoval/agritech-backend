@@ -146,7 +146,7 @@ export class DeviceWeatherReportController {
 **📊 Información del reporte:**
 - **Dispositivo:** ${result.device.DeviceName}
 - **Tipo:** ${result.device.DeviceType}
-- **Ubicación:** ${result.report.data.device.characteristics.location.latitude}°, ${result.report.data.device.characteristics.location.longitude}°
+- **Ubicación:** ${result.report.data.device.characteristics?.location?.latitude || 'N/A'}°, ${result.report.data.device.characteristics?.location?.longitude || 'N/A'}°
 - **Estado:** ${result.report.data.metadata.deviceOnline ? '🟢 En línea' : '🔴 Desconectado'}
 - **Datos históricos:** ${result.report.data.metadata.hasHistoricalData ? '✅ Incluidos' : '❌ No disponibles'}
 - **Formato:** ${format.toUpperCase()}

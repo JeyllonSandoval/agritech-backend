@@ -358,11 +358,32 @@ class DeviceWeatherReportService {
                     createdAt: group.createdAt,
                     deviceCount: deviceReports.length
                 },
-                devices: deviceReports.map(report => ({
-                    device: report.device,
-                    deviceInfo: report.deviceInfo,
-                    report: report.report.data
-                })),
+                devices: deviceReports.map(report => {
+                    // Asegurar que el dispositivo tenga las características necesarias
+                    const device = {
+                        ...report.device,
+                        characteristics: report.report.data.device.characteristics || {
+                            id: report.device.DeviceID,
+                            name: report.device.DeviceName,
+                            mac: report.device.DeviceMac,
+                            type: report.device.DeviceType,
+                            stationType: 'N/A',
+                            timezone: 'N/A',
+                            createdAt: 'N/A',
+                            location: {
+                                latitude: 0,
+                                longitude: 0,
+                                elevation: 0
+                            },
+                            lastUpdate: null
+                        }
+                    };
+                    return {
+                        device,
+                        deviceInfo: report.deviceInfo,
+                        report: report.report.data
+                    };
+                }),
                 errors,
                 generatedAt: new Date().toISOString(),
                 timeRange: historyRange ? {
