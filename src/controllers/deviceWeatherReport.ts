@@ -80,7 +80,7 @@ export class DeviceWeatherReportController {
       );
 
       // Preparar el contenido del archivo
-      let fileContent: Buffer | string;
+      let fileContent: Buffer;
       let fileName: string;
       let folder: string;
 
@@ -90,10 +90,10 @@ export class DeviceWeatherReportController {
         fileName = DeviceWeatherReportService.generateFileName(result.device.DeviceName, 'pdf');
         folder = 'WeatherReports_PDF_AgriTech';
       } else {
-        // Generar JSON
-        fileContent = JSON.stringify(result.report, null, 2);
-        fileName = DeviceWeatherReportService.generateFileName(result.device.DeviceName, 'json');
-        folder = 'WeatherReports_JSON_AgriTech';
+        // Generar PDF con contenido JSON
+        fileContent = await PDFGenerator.generateDeviceJSONPDF(result.report.data);
+        fileName = DeviceWeatherReportService.generateFileName(result.device.DeviceName, 'pdf');
+        folder = 'WeatherReports_PDF_AgriTech';
       }
 
       // Subir archivo a Cloudinary
@@ -112,11 +112,7 @@ export class DeviceWeatherReportController {
           }
         );
         
-        if (fileContent instanceof Buffer) {
-          uploadStream.end(fileContent);
-        } else {
-          uploadStream.end(Buffer.from(fileContent as string, 'utf-8'));
-        }
+        uploadStream.end(fileContent);
       });
 
       // Guardar registro en la base de datos
@@ -289,7 +285,7 @@ export class DeviceWeatherReportController {
       );
 
       // Preparar el contenido del archivo
-      let fileContent: Buffer | string;
+      let fileContent: Buffer;
       let fileName: string;
       let folder: string;
 
@@ -299,10 +295,10 @@ export class DeviceWeatherReportController {
         fileName = DeviceWeatherReportService.generateGroupFileName(result.group.GroupName, 'pdf');
         folder = 'WeatherReports_PDF_AgriTech';
       } else {
-        // Generar JSON
-        fileContent = JSON.stringify(result.report, null, 2);
-        fileName = DeviceWeatherReportService.generateGroupFileName(result.group.GroupName, 'json');
-        folder = 'WeatherReports_JSON_AgriTech';
+        // Generar PDF con contenido JSON
+        fileContent = await PDFGenerator.generateGroupJSONPDF(result.report.data);
+        fileName = DeviceWeatherReportService.generateGroupFileName(result.group.GroupName, 'pdf');
+        folder = 'WeatherReports_PDF_AgriTech';
       }
 
       // Subir archivo a Cloudinary
@@ -321,11 +317,7 @@ export class DeviceWeatherReportController {
           }
         );
         
-        if (fileContent instanceof Buffer) {
-          uploadStream.end(fileContent);
-        } else {
-          uploadStream.end(Buffer.from(fileContent as string, 'utf-8'));
-        }
+        uploadStream.end(fileContent);
       });
 
       // Guardar registro en la base de datos

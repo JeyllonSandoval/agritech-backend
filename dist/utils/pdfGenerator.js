@@ -21,6 +21,20 @@ class PDFGenerator {
         return await this.convertHTMLToPDF(html);
     }
     /**
+     * Genera un PDF con contenido JSON para un reporte de dispositivo individual
+     */
+    static async generateDeviceJSONPDF(report) {
+        const html = this.generateDeviceJSONHTML(report);
+        return await this.convertHTMLToPDF(html);
+    }
+    /**
+     * Genera un PDF con contenido JSON para un reporte de grupo
+     */
+    static async generateGroupJSONPDF(report) {
+        const html = this.generateGroupJSONHTML(report);
+        return await this.convertHTMLToPDF(html);
+    }
+    /**
      * Convierte HTML a PDF usando Puppeteer
      */
     static async convertHTMLToPDF(html) {
@@ -1029,6 +1043,446 @@ class PDFGenerator {
       `;
         }
         return formattedData.join('');
+    }
+    /**
+     * Genera HTML con contenido JSON para reporte de dispositivo individual
+     */
+    static generateDeviceJSONHTML(report) {
+        const device = report.device;
+        const timestamp = new Date(report.generatedAt).toLocaleString('es-ES');
+        // Convertir el reporte completo a JSON formateado
+        const jsonContent = JSON.stringify(report, null, 2);
+        return `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Reporte JSON - ${device.name} - AgriTech</title>
+        <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet"/>
+        <style>
+          html, body { 
+            width: 100%; 
+            height: 100%; 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            font-family: 'Poppins', sans-serif !important; 
+            background: #0a0a0a; 
+            color: #ffffff; 
+          }
+          body { 
+            min-height: 100vh; 
+            width: 100vw; 
+            padding: 0; 
+            margin: 0; 
+            overflow-x: hidden; 
+          }
+          .container { 
+            width: 100vw; 
+            min-height: 100vh; 
+            height: 100vh; 
+            background: rgba(10,10,10,1); 
+            border-radius: 0; 
+            border: none; 
+            box-shadow: none; 
+            margin: 0; 
+            padding: 0; 
+            display: flex; 
+            flex-direction: column; 
+          }
+          .header { 
+            background: #0a0a0a; 
+            padding: 40px 30px 30px 30px; 
+            text-align: center; 
+            position: relative; 
+            overflow: hidden; 
+            border-radius: 0; 
+            border-bottom: 2px solid #10b981;
+          }
+          .header h1 { 
+            font-family: 'Poppins', sans-serif !important; 
+            font-size: 2.5em; 
+            font-weight: 600; 
+            margin-bottom: 10px; 
+            color: #10b981; 
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3); 
+            position: relative; 
+            z-index: 1; 
+          }
+          .header .subtitle { 
+            font-size: 1.1em; 
+            opacity: 0.95; 
+            font-weight: 300; 
+            position: relative; 
+            z-index: 1; 
+            font-family: 'Poppins', sans-serif !important; 
+            color: #fff; 
+          }
+          .content { 
+            flex: 1 1 auto; 
+            padding: 40px 30px; 
+            width: 100%; 
+            box-sizing: border-box; 
+            overflow-y: auto;
+          }
+          .json-section { 
+            margin-bottom: 40px; 
+            padding: 30px; 
+            border-radius: 20px; 
+            background: rgba(20,20,20,0.95); 
+            border: 2.5px solid #10b981; 
+            box-shadow: none; 
+            transition: all 0.3s ease; 
+          }
+          .json-section h2 { 
+            color: #10b981; 
+            margin-bottom: 20px; 
+            font-size: 1.8em; 
+            font-weight: 600; 
+            display: flex; 
+            align-items: center; 
+            font-family: 'Poppins', sans-serif !important; 
+          }
+          .json-content { 
+            background: rgba(0,0,0,0.8); 
+            border: 1px solid #333; 
+            border-radius: 12px; 
+            padding: 25px; 
+            font-family: 'JetBrains Mono', monospace; 
+            font-size: 11px; 
+            line-height: 1.4; 
+            color: #e5e7eb; 
+            white-space: pre-wrap; 
+            word-wrap: break-word; 
+            overflow-x: auto; 
+            max-height: 70vh; 
+            overflow-y: auto;
+          }
+          .json-content::-webkit-scrollbar { 
+            width: 8px; 
+          }
+          .json-content::-webkit-scrollbar-track { 
+            background: #1a1a1a; 
+            border-radius: 4px; 
+          }
+          .json-content::-webkit-scrollbar-thumb { 
+            background: #10b981; 
+            border-radius: 4px; 
+          }
+          .json-content::-webkit-scrollbar-thumb:hover { 
+            background: #059669; 
+          }
+          .metadata { 
+            background: rgba(255,255,255,0.04); 
+            padding: 20px; 
+            border-radius: 12px; 
+            margin-top: 20px; 
+            border: 1px solid #10b98122; 
+          }
+          .metadata h3 { 
+            color: #10b981; 
+            margin-bottom: 15px; 
+            font-size: 1.2em; 
+            font-weight: 500; 
+          }
+          .metadata-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+            gap: 15px; 
+          }
+          .metadata-item { 
+            background: rgba(255,255,255,0.02); 
+            padding: 15px; 
+            border-radius: 8px; 
+            border: 1px solid #333; 
+          }
+          .metadata-item .label { 
+            font-size: 0.9em; 
+            color: #9ca3af; 
+            margin-bottom: 5px; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px; 
+          }
+          .metadata-item .value { 
+            font-size: 1.1em; 
+            color: #fff; 
+            font-weight: 500; 
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>📊 Reporte JSON - ${device.name}</h1>
+            <div class="subtitle">Datos completos del dispositivo y clima en formato JSON</div>
+            <div class="subtitle">Generado el ${timestamp}</div>
+          </div>
+          
+          <div class="content">
+            <div class="json-section">
+              <h2>🔍 Datos Completos en JSON</h2>
+              <div class="json-content">${jsonContent}</div>
+            </div>
+            
+            <div class="metadata">
+              <h3>📋 Información del Reporte</h3>
+              <div class="metadata-grid">
+                <div class="metadata-item">
+                  <div class="label">Dispositivo</div>
+                  <div class="value">${device.name}</div>
+                </div>
+                <div class="metadata-item">
+                  <div class="label">Tipo</div>
+                  <div class="value">${device.type}</div>
+                </div>
+                <div class="metadata-item">
+                  <div class="label">Ubicación</div>
+                  <div class="value">${device.characteristics.location.latitude}°, ${device.characteristics.location.longitude}°</div>
+                </div>
+                <div class="metadata-item">
+                  <div class="label">Estado</div>
+                  <div class="value">${report.metadata.deviceOnline ? '🟢 En línea' : '🔴 Desconectado'}</div>
+                </div>
+                <div class="metadata-item">
+                  <div class="label">Datos Históricos</div>
+                  <div class="value">${report.metadata.hasHistoricalData ? '✅ Incluidos' : '❌ No disponibles'}</div>
+                </div>
+                <div class="metadata-item">
+                  <div class="label">Datos del Clima</div>
+                  <div class="value">${report.metadata.hasWeatherData ? '✅ Incluidos' : '❌ No disponibles'}</div>
+                </div>
+                <div class="metadata-item">
+                  <div class="label">Diagnóstico</div>
+                  <div class="value">${report.metadata.diagnosticPerformed ? '✅ Realizado' : '❌ No realizado'}</div>
+                </div>
+                <div class="metadata-item">
+                  <div class="label">Tamaño del JSON</div>
+                  <div class="value">${(jsonContent.length / 1024).toFixed(2)} KB</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    }
+    /**
+     * Genera HTML con contenido JSON para reporte de grupo
+     */
+    static generateGroupJSONHTML(report) {
+        const group = report.group;
+        const timestamp = new Date(report.generatedAt).toLocaleString('es-ES');
+        // Convertir el reporte completo a JSON formateado
+        const jsonContent = JSON.stringify(report, null, 2);
+        return `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Reporte JSON - Grupo ${group.name} - AgriTech</title>
+        <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet"/>
+        <style>
+          html, body { 
+            width: 100%; 
+            height: 100%; 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            font-family: 'Poppins', sans-serif !important; 
+            background: #0a0a0a; 
+            color: #ffffff; 
+          }
+          body { 
+            min-height: 100vh; 
+            width: 100vw; 
+            padding: 0; 
+            margin: 0; 
+            overflow-x: hidden; 
+          }
+          .container { 
+            width: 100vw; 
+            min-height: 100vh; 
+            height: 100vh; 
+            background: rgba(10,10,10,1); 
+            border-radius: 0; 
+            border: none; 
+            box-shadow: none; 
+            margin: 0; 
+            padding: 0; 
+            display: flex; 
+            flex-direction: column; 
+          }
+          .header { 
+            background: #0a0a0a; 
+            padding: 40px 30px 30px 30px; 
+            text-align: center; 
+            position: relative; 
+            overflow: hidden; 
+            border-radius: 0; 
+            border-bottom: 2px solid #10b981;
+          }
+          .header h1 { 
+            font-family: 'Poppins', sans-serif !important; 
+            font-size: 2.5em; 
+            font-weight: 600; 
+            margin-bottom: 10px; 
+            color: #10b981; 
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3); 
+            position: relative; 
+            z-index: 1; 
+          }
+          .header .subtitle { 
+            font-size: 1.1em; 
+            opacity: 0.95; 
+            font-weight: 300; 
+            position: relative; 
+            z-index: 1; 
+            font-family: 'Poppins', sans-serif !important; 
+            color: #fff; 
+          }
+          .content { 
+            flex: 1 1 auto; 
+            padding: 40px 30px; 
+            width: 100%; 
+            box-sizing: border-box; 
+            overflow-y: auto;
+          }
+          .json-section { 
+            margin-bottom: 40px; 
+            padding: 30px; 
+            border-radius: 20px; 
+            background: rgba(20,20,20,0.95); 
+            border: 2.5px solid #10b981; 
+            box-shadow: none; 
+            transition: all 0.3s ease; 
+          }
+          .json-section h2 { 
+            color: #10b981; 
+            margin-bottom: 20px; 
+            font-size: 1.8em; 
+            font-weight: 600; 
+            display: flex; 
+            align-items: center; 
+            font-family: 'Poppins', sans-serif !important; 
+          }
+          .json-content { 
+            background: rgba(0,0,0,0.8); 
+            border: 1px solid #333; 
+            border-radius: 12px; 
+            padding: 25px; 
+            font-family: 'JetBrains Mono', monospace; 
+            font-size: 11px; 
+            line-height: 1.4; 
+            color: #e5e7eb; 
+            white-space: pre-wrap; 
+            word-wrap: break-word; 
+            overflow-x: auto; 
+            max-height: 70vh; 
+            overflow-y: auto;
+          }
+          .json-content::-webkit-scrollbar { 
+            width: 8px; 
+          }
+          .json-content::-webkit-scrollbar-track { 
+            background: #1a1a1a; 
+            border-radius: 4px; 
+          }
+          .json-content::-webkit-scrollbar-thumb { 
+            background: #10b981; 
+            border-radius: 4px; 
+          }
+          .json-content::-webkit-scrollbar-thumb:hover { 
+            background: #059669; 
+          }
+          .metadata { 
+            background: rgba(255,255,255,0.04); 
+            padding: 20px; 
+            border-radius: 12px; 
+            margin-top: 20px; 
+            border: 1px solid #10b98122; 
+          }
+          .metadata h3 { 
+            color: #10b981; 
+            margin-bottom: 15px; 
+            font-size: 1.2em; 
+            font-weight: 500; 
+          }
+          .metadata-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+            gap: 15px; 
+          }
+          .metadata-item { 
+            background: rgba(255,255,255,0.02); 
+            padding: 15px; 
+            border-radius: 8px; 
+            border: 1px solid #333; 
+          }
+          .metadata-item .label { 
+            font-size: 0.9em; 
+            color: #9ca3af; 
+            margin-bottom: 5px; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px; 
+          }
+          .metadata-item .value { 
+            font-size: 1.1em; 
+            color: #fff; 
+            font-weight: 500; 
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>📊 Reporte JSON - Grupo ${group.name}</h1>
+            <div class="subtitle">Datos completos del grupo de dispositivos en formato JSON</div>
+            <div class="subtitle">Generado el ${timestamp}</div>
+          </div>
+          
+          <div class="content">
+            <div class="json-section">
+              <h2>🔍 Datos Completos en JSON</h2>
+              <div class="json-content">${jsonContent}</div>
+            </div>
+            
+            <div class="metadata">
+              <h3>📋 Información del Reporte</h3>
+              <div class="metadata-grid">
+                <div class="metadata-item">
+                  <div class="label">Grupo</div>
+                  <div class="value">${group.name}</div>
+                </div>
+                <div class="metadata-item">
+                  <div class="label">Total Dispositivos</div>
+                  <div class="value">${report.metadata.totalDevices}</div>
+                </div>
+                <div class="metadata-item">
+                  <div class="label">Reportes Exitosos</div>
+                  <div class="value">${report.metadata.successfulReports}</div>
+                </div>
+                <div class="metadata-item">
+                  <div class="label">Reportes Fallidos</div>
+                  <div class="value">${report.metadata.failedReports}</div>
+                </div>
+                <div class="metadata-item">
+                  <div class="label">Con Datos Históricos</div>
+                  <div class="value">${report.metadata.totalDevices - report.metadata.failedReports} dispositivos</div>
+                </div>
+                <div class="metadata-item">
+                  <div class="label">Tamaño del JSON</div>
+                  <div class="value">${(jsonContent.length / 1024).toFixed(2)} KB</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
     }
     /**
      * Genera un nombre de archivo para el PDF
