@@ -391,13 +391,14 @@ class PDFGenerator {
             if (realtime.rssi !== undefined)
                 sensorCards.push(`<div class="info-card"><h3>Señal</h3><div class="value">${realtime.rssi} dBm</div></div>`);
         }
-        // Si no hay datos de sensores, mostrar mensaje
+        // Si no hay datos de sensores, mostrar mensaje más informativo
         if (sensorCards.length === 0) {
             sensorCards.push(`
-        <div class="info-card">
-          <h3>Estado del Dispositivo</h3>
-          <div class="value text-yellow-400">No hay datos de sensores disponibles</div>
+        <div class="info-card" style="background: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.3);">
+          <h3 style="color: #fbbf24;">⚠️ Estado del Dispositivo</h3>
+          <div class="value" style="color: #fbbf24;">No hay datos de sensores disponibles</div>
           <div class="text-xs text-white/50">Última actualización: ${lastUpdate}</div>
+          <div class="text-xs text-white/50" style="margin-top: 10px;">El dispositivo puede estar desconectado o sin datos recientes</div>
         </div>
       `);
         }
@@ -669,7 +670,7 @@ class PDFGenerator {
      * Genera contenedores de gráficos para datos históricos
      * CORREGIDO para manejar la estructura EcoWitt {timestamp: value}
      */
-    static generateChartContainers(historicalData) {
+    static generateChartContainers(historicalData, deviceIndex = 0) {
         if (!historicalData || typeof historicalData !== 'object') {
             return `
         <div class="chart-container" style="background: rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 20px; margin: 15px 0; border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
@@ -737,7 +738,7 @@ class PDFGenerator {
             </div>
           </div>
           <div style="position: relative; height: 300px;">
-            <canvas id="tempChart" width="400" height="300"></canvas>
+            <canvas id="tempChart_${deviceIndex}" width="400" height="300"></canvas>
           </div>
           <div style="display: flex; justify-content: space-between; margin-top: 20px; padding: 15px; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
             <div style="text-align: center;">
@@ -769,7 +770,7 @@ class PDFGenerator {
             </div>
           </div>
           <div style="position: relative; height: 300px;">
-            <canvas id="humChart" width="400" height="300"></canvas>
+            <canvas id="humChart_${deviceIndex}" width="400" height="300"></canvas>
           </div>
           <div style="display: flex; justify-content: space-between; margin-top: 20px; padding: 15px; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
             <div style="text-align: center;">
@@ -801,7 +802,7 @@ class PDFGenerator {
             </div>
           </div>
           <div style="position: relative; height: 300px;">
-            <canvas id="pressureChart" width="400" height="300"></canvas>
+            <canvas id="pressureChart_${deviceIndex}" width="400" height="300"></canvas>
           </div>
           <div style="display: flex; justify-content: space-between; margin-top: 20px; padding: 15px; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
             <div style="text-align: center;">
@@ -833,7 +834,7 @@ class PDFGenerator {
             </div>
           </div>
           <div style="position: relative; height: 300px;">
-            <canvas id="soilChart" width="400" height="300"></canvas>
+            <canvas id="soilChart_${deviceIndex}" width="400" height="300"></canvas>
           </div>
           <div style="display: flex; justify-content: space-between; margin-top: 20px; padding: 15px; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
             <div style="text-align: center;">
@@ -868,7 +869,7 @@ class PDFGenerator {
      * Genera scripts para los gráficos de Chart.js con diseño minimalista moderno
      * CORREGIDO para manejar la estructura EcoWitt {timestamp: value}
      */
-    static generateChartScripts(historicalData) {
+    static generateChartScripts(historicalData, deviceIndex = 0) {
         console.log('🔍 Debug generateChartScripts - Input historicalData keys:', Object.keys(historicalData || {}));
         // Procesar datos según la estructura EcoWitt
         let tempSeries = [];
@@ -934,12 +935,12 @@ class PDFGenerator {
         console.log('🔍 Debug Hum - Values sample:', humValues.slice(0, 3));
         // Generar script único para todos los gráficos
         let scripts = `
-      function createCharts() {
+      function createCharts_${deviceIndex}() {
         try {
-          console.log('🔍 Starting chart creation...');
+          console.log('🔍 Starting chart creation for device ${deviceIndex}...');
           
           // Gráfico de temperatura
-          const tempCtx = document.getElementById('tempChart');
+          const tempCtx = document.getElementById('tempChart_${deviceIndex}');
           if (tempCtx && ${tempSeries.length} > 0) {
             console.log('🔍 Creating temperature chart with ${tempSeries.length} data points');
             new Chart(tempCtx, {
@@ -981,7 +982,7 @@ class PDFGenerator {
           }
           
           // Gráfico de humedad
-          const humCtx = document.getElementById('humChart');
+          const humCtx = document.getElementById('humChart_${deviceIndex}');
           if (humCtx && ${humSeries.length} > 0) {
             console.log('🔍 Creating humidity chart with ${humSeries.length} data points');
             new Chart(humCtx, {
@@ -1023,7 +1024,7 @@ class PDFGenerator {
           }
           
           // Gráfico de presión
-          const pressureCtx = document.getElementById('pressureChart');
+          const pressureCtx = document.getElementById('pressureChart_${deviceIndex}');
           if (pressureCtx && ${pressureSeries.length} > 0) {
             console.log('🔍 Creating pressure chart with ${pressureSeries.length} data points');
             new Chart(pressureCtx, {
@@ -1065,7 +1066,7 @@ class PDFGenerator {
           }
           
           // Gráfico de humedad del suelo
-          const soilCtx = document.getElementById('soilChart');
+          const soilCtx = document.getElementById('soilChart_${deviceIndex}');
           if (soilCtx && ${soilSeries.length} > 0) {
             console.log('🔍 Creating soil moisture chart with ${soilSeries.length} data points');
             new Chart(soilCtx, {
@@ -1106,7 +1107,7 @@ class PDFGenerator {
             console.log('🔍 Soil moisture chart created successfully');
           }
         } catch (error) {
-          console.error('🔍 Error creating charts:', error);
+          console.error('🔍 Error creating charts for device ${deviceIndex}:', error);
         }
       };
       
@@ -1117,10 +1118,10 @@ class PDFGenerator {
           setTimeout(function() {
             if (typeof Chart !== 'undefined') {
               console.log('🔍 Chart.js available in DOMContentLoaded');
-              createCharts();
+              createCharts_${deviceIndex}();
             } else {
               console.log('🔍 Chart.js not available, waiting...');
-              setTimeout(createCharts, 500);
+              setTimeout(createCharts_${deviceIndex}, 500);
             }
           }, 300);
         });
@@ -1129,10 +1130,10 @@ class PDFGenerator {
         setTimeout(function() {
           if (typeof Chart !== 'undefined') {
             console.log('🔍 Chart.js available, creating charts...');
-            createCharts();
+            createCharts_${deviceIndex}();
           } else {
             console.log('🔍 Chart.js not available, waiting...');
-            setTimeout(createCharts, 500);
+            setTimeout(createCharts_${deviceIndex}, 500);
           }
         }, 200);
       }
@@ -1498,13 +1499,19 @@ class PDFGenerator {
                     </div>
                   </div>
 
-                  <!-- Datos de Sensores -->
-                  <div class="section">
-                    <h2>📊 Datos de Sensores</h2>
-                    <div class="weather-grid">
-                      ${sensorCards.length > 0 ? sensorCards.join('') : '<div class="weather-card"><div class="label">No hay datos</div><div class="value">Sin datos disponibles</div></div>'}
-                    </div>
-                  </div>
+                              <!-- Datos en Tiempo Real -->
+            <div class="section" style="background: rgba(16, 185, 129, 0.05); border-color: #10b981;">
+              <h2>⚡ Datos en Tiempo Real</h2>
+              <div style="background: rgba(16, 185, 129, 0.1); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+                <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                  <div style="width: 8px; height: 8px; background: #10b981; border-radius: 50%; margin-right: 10px; animation: pulse 2s infinite;"></div>
+                  <span style="color: #10b981; font-weight: 600;">Datos actuales del dispositivo</span>
+                </div>
+                <div class="weather-grid">
+                  ${sensorCards.length > 0 ? sensorCards.join('') : '<div class="weather-card"><div class="label">No hay datos</div><div class="value">Sin datos disponibles</div></div>'}
+                </div>
+              </div>
+            </div>
 
                   <!-- Datos Históricos -->
                   ${(() => {
@@ -1565,7 +1572,7 @@ class PDFGenerator {
                           </div>
                           ` : ''}
                           <div class="chart-grid">
-                            ${this.generateChartContainers(historicalData)}
+                            ${this.generateChartContainers(historicalData, index)}
                           </div>
                         </div>
                       `;
@@ -1669,7 +1676,7 @@ class PDFGenerator {
             };
             const historicalData = getProcessedHistoricalData();
             if (hasHistoricalData() && historicalData) {
-                return this.generateChartScripts(historicalData);
+                return this.generateChartScripts(historicalData, deviceIndex);
             }
             return '';
         }).join('')}
