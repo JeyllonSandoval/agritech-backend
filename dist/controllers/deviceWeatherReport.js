@@ -185,7 +185,12 @@ class DeviceWeatherReportController {
                     hasHistoricalData: result.report.data.metadata.hasHistoricalData,
                     historicalDataKeys: result.report.data.metadata.historicalDataKeys,
                     diagnosticPerformed: result.report.data.metadata.diagnosticPerformed,
-                    timeRange: result.report.data.timeRange
+                    timeRange: result.report.data.timeRange,
+                    // Incluir datos completos del dispositivo para el PDF
+                    device: result.report.data.device,
+                    weather: result.report.data.weather,
+                    deviceData: result.report.data.deviceData,
+                    metadata: result.report.data.metadata
                 },
                 // Información del chat automático si se creó
                 chat: chatData
@@ -367,7 +372,12 @@ class DeviceWeatherReportController {
                     successfulReports: result.report.data.metadata.successfulReports,
                     failedReports: result.report.data.metadata.failedReports,
                     devicesWithHistoricalData: result.report.data.metadata.devicesWithHistoricalData,
-                    timeRange: result.report.data.timeRange
+                    timeRange: result.report.data.timeRange,
+                    // Incluir datos completos del grupo para el PDF
+                    group: result.report.data.group,
+                    devices: result.report.data.devices,
+                    errors: result.report.data.errors,
+                    metadata: result.report.data.metadata
                 },
                 // Información del chat automático si se creó
                 chat: chatData

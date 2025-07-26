@@ -104,6 +104,9 @@ export class DeviceWeatherReportService {
               if (historicalDiagnostic.summary.bestConfiguration) {
                 historicalData = historicalDiagnostic.summary.bestConfiguration.response;
               }
+            } else {
+              // Procesar y normalizar los datos históricos
+              historicalData = this.normalizeHistoricalData(historicalData);
             }
           }
         } catch (historyError) {
@@ -118,6 +121,7 @@ export class DeviceWeatherReportService {
             );
             if (historicalDiagnostic.summary.bestConfiguration) {
               historicalData = historicalDiagnostic.summary.bestConfiguration.response;
+              historicalData = this.normalizeHistoricalData(historicalData);
             }
           } catch (diagnosticError) {
             // Silenciar errores de diagnóstico
@@ -125,24 +129,38 @@ export class DeviceWeatherReportService {
         }
       }
 
-      // 6. Preparar datos del dispositivo para el reporte
-      const deviceCharacteristics = {
-        id: deviceInfo?.data?.id || 'N/A',
-        name: deviceInfo?.data?.name || device.DeviceName,
-        mac: deviceInfo?.data?.mac || device.DeviceMac,
-        type: deviceInfo?.data?.type || 'N/A',
-        stationType: deviceInfo?.data?.stationtype || 'N/A',
-        timezone: deviceInfo?.data?.date_zone_id || 'N/A',
-        createdAt: deviceInfo?.data?.createtime ? new Date(deviceInfo.data.createtime * 1000).toISOString() : 'N/A',
+      // 6. Preparar características del dispositivo (CORREGIDO para EcoWitt)
+      const deviceCharacteristics = deviceInfo?.data ? {
+        id: deviceInfo.data.id,
+        name: deviceInfo.data.name,
+        mac: deviceInfo.data.mac,
+        type: deviceInfo.data.type,
+        stationType: deviceInfo.data.stationtype,
+        timezone: deviceInfo.data.date_zone_id,
+        createdAt: new Date(deviceInfo.data.createtime * 1000).toISOString(),
         location: {
-          latitude: deviceInfo?.data?.latitude || 0,
-          longitude: deviceInfo?.data?.longitude || 0,
-          elevation: 0 // EcoWitt no proporciona elevación por defecto
+          latitude: deviceInfo.data.latitude,
+          longitude: deviceInfo.data.longitude,
+          elevation: 0
         },
-        lastUpdate: deviceInfo?.data?.last_update || null
+        lastUpdate: deviceInfo.data.last_update
+      } : {
+        id: device.DeviceID,
+        name: device.DeviceName,
+        mac: device.DeviceMac,
+        type: device.DeviceType,
+        stationType: 'N/A',
+        timezone: 'N/A',
+        createdAt: device.createdAt,
+        location: {
+          latitude: 0,
+          longitude: 0,
+          elevation: 0
+        },
+        lastUpdate: null
       };
 
-      // 7. Preparar datos del clima para el reporte
+      // 7. Preparar datos del clima (CORREGIDO para OpenWeather)
       const weatherReport = weatherData ? {
         current: {
           temperature: weatherData.current.temp,
@@ -166,7 +184,7 @@ export class DeviceWeatherReportService {
         location: weatherData.location
       } : null;
 
-      // 8. Preparar datos del dispositivo para el reporte
+      // 8. Preparar datos del dispositivo para el reporte (CORREGIDO para EcoWitt)
       const deviceDataReport = {
         realtime: realtimeData,
         historical: (historicalData && historicalData.data) ? historicalData.data : {},
@@ -183,7 +201,7 @@ export class DeviceWeatherReportService {
         } : null
       };
 
-      // 9. Crear estructura del reporte
+      // 9. Crear estructura del reporte (CORREGIDA para EcoWitt)
       const report = {
         device: {
           id: device.DeviceID,
@@ -328,7 +346,47 @@ export class DeviceWeatherReportService {
   }
 
   /**
-   * Obtener descripción del rango de tiempo
+   * Normalizar los datos históricos de EcoWitt para un formato consistente
+   * @param data - Los datos históricos de EcoWitt
+   * @returns - Los datos normalizados
+   */
+  private static normalizeHistoricalData(data: any): any {
+    if (!data || !data.data) {
+      return data;
+    }
+
+    const normalizedData: any = {};
+    const dataKeys = Object.keys(data.data);
+
+    for (const key of dataKeys) {
+      const value = data.data[key];
+      
+      // Procesar diferentes estructuras de datos
+      if (value && typeof value === 'object') {
+        // Si ya tiene la estructura {list: {...}}, mantenerla
+        if (value.list) {
+          normalizedData[key] = value;
+        } else {
+          // Convertir a formato {list: {...}}
+          normalizedData[key] = {
+            list: value
+          };
+        }
+      } else {
+        // Si es un valor simple, mantenerlo como está
+        normalizedData[key] = value;
+      }
+    }
+
+    return {
+      code: data.code,
+      msg: data.msg,
+      data: normalizedData
+    };
+  }
+
+  /**
+   * Formatea los datos del dispositivo para mostrar en el PDF
    */
   private static getTimeRangeDescription(startTime: string, endTime: string): string {
     const start = new Date(startTime);
@@ -444,7 +502,7 @@ export class DeviceWeatherReportService {
         }
       }
 
-      // 5. Crear estructura del reporte de grupo (CON MEJORAS)
+      // 5. Crear estructura del reporte de grupo (CORREGIDA para EcoWitt)
       const groupReport = {
         group: {
           id: group.DeviceGroupID,
@@ -454,14 +512,16 @@ export class DeviceWeatherReportService {
           deviceCount: deviceReports.length
         },
         devices: deviceReports.map(report => {
+          // Usar la estructura procesada del reporte individual
+          const device = report.report.data.device;
+          
           // Asegurar que el dispositivo tenga las características necesarias
-          const device = {
-            ...report.device,
-            characteristics: report.report.data.device.characteristics || {
-              id: report.device.DeviceID,
-              name: report.device.DeviceName,
+          if (!device.characteristics) {
+            device.characteristics = {
+              id: device.id,
+              name: device.name,
               mac: report.device.DeviceMac,
-              type: report.device.DeviceType,
+              type: device.type,
               stationType: 'N/A',
               timezone: 'N/A',
               createdAt: 'N/A',
@@ -471,8 +531,8 @@ export class DeviceWeatherReportService {
                 elevation: 0
               },
               lastUpdate: null
-            }
-          };
+            };
+          }
           
           return {
             device,

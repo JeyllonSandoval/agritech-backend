@@ -95,7 +95,10 @@ class PDFGenerator {
         const lastUpdate = device.characteristics?.lastUpdate ? new Date(device.characteristics.lastUpdate).toLocaleString('es-ES') : 'N/A';
         // Robustez: si recibimos el objeto completo, extraer 'data'
         if (deviceData.realtime && typeof deviceData.realtime === 'object' && 'data' in deviceData.realtime && 'code' in deviceData.realtime) {
-            deviceData.realtime = deviceData.realtime.data;
+            // Si es la respuesta completa de EcoWitt, extraer solo los datos
+            if (deviceData.realtime.code === 0 && deviceData.realtime.msg === 'success') {
+                deviceData.realtime = deviceData.realtime.data;
+            }
         }
         // SVGs para secciones (alineados verticalmente y tamaño fijo)
         const svgDevice = `<span style="display:inline-flex;align-items:center;vertical-align:middle;"><svg width='22' height='22' fill='none' stroke='#10b981' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24' style='margin-right:8px;'><rect x='3' y='7' width='18' height='13' rx='2'/><path d='M8 7V5a4 4 0 1 1 8 0v2'/></svg></span>`;
@@ -106,56 +109,298 @@ class PDFGenerator {
         // Utilidades para mostrar dinámicamente los sensores relevantes
         const { realtime } = deviceData;
         const sensorCards = [];
-        // Exterior/Interior
-        if (realtime?.outdoor?.temperature?.value !== undefined)
-            sensorCards.push(`<div class="info-card"><h3>Temp. Exterior</h3><div class="value">${realtime.outdoor.temperature.value} ${realtime.outdoor.temperature.unit || ''}</div></div>`);
-        if (realtime?.outdoor?.humidity?.value !== undefined)
-            sensorCards.push(`<div class="info-card"><h3>Humedad Exterior</h3><div class="value">${realtime.outdoor.humidity.value} ${realtime.outdoor.humidity.unit || ''}</div></div>`);
-        if (realtime?.indoor?.temperature?.value !== undefined)
-            sensorCards.push(`<div class="info-card"><h3>Temp. Interior</h3><div class="value">${realtime.indoor.temperature.value} ${realtime.indoor.temperature.unit || ''}</div></div>`);
-        if (realtime?.indoor?.humidity?.value !== undefined)
-            sensorCards.push(`<div class="info-card"><h3>Humedad Interior</h3><div class="value">${realtime.indoor.humidity.value} ${realtime.indoor.humidity.unit || ''}</div></div>`);
-        // Presión
-        if (realtime?.pressure?.relative?.value !== undefined)
-            sensorCards.push(`<div class="info-card"><h3>Presión Relativa</h3><div class="value">${realtime.pressure.relative.value} ${realtime.pressure.relative.unit || ''}</div></div>`);
-        if (realtime?.pressure?.absolute?.value !== undefined)
-            sensorCards.push(`<div class="info-card"><h3>Presión Absoluta</h3><div class="value">${realtime.pressure.absolute.value} ${realtime.pressure.absolute.unit || ''}</div></div>`);
-        // Canales de temperatura y humedad (temp_and_humidity_chX)
-        for (let i = 1; i <= 8; i++) {
-            const th = realtime[`temp_and_humidity_ch${i}`];
-            if (th?.temperature !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Temp. CH${i}</h3><div class="value">${th.temperature} ${th.unit || ''}</div></div>`);
-            if (th?.humidity !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Humedad CH${i}</h3><div class="value">${th.humidity} ${th.unit || ''}</div></div>`);
+        // Función helper para formatear valores de sensores
+        const formatSensorValue = (sensorData, unit = '') => {
+            if (typeof sensorData === 'object' && sensorData.value !== undefined) {
+                return `${sensorData.value} ${sensorData.unit || unit}`;
+            }
+            if (typeof sensorData === 'number' || typeof sensorData === 'string') {
+                return `${sensorData} ${unit}`;
+            }
+            return `${sensorData} ${unit}`;
+        };
+        const formatSensorTime = (sensorData) => {
+            if (typeof sensorData === 'object' && sensorData.time !== undefined) {
+                return new Date(sensorData.time * 1000).toLocaleTimeString('es-ES');
+            }
+            return new Date().toLocaleTimeString('es-ES');
+        };
+        // Verificar si realtime es un objeto con estructura EcoWitt nueva
+        if (realtime && typeof realtime === 'object') {
+            // ============================================================================
+            // NUEVA ESTRUCTURA ECOWITT (OBJETOS ANIDADOS)
+            // ============================================================================
+            // Sensores interiores (indoor)
+            if (realtime.indoor) {
+                if (realtime.indoor.temperature) {
+                    sensorCards.push(`
+            <div class="info-card">
+              <h3>Temperatura Interior</h3>
+              <div class="value">${formatSensorValue(realtime.indoor.temperature, '°C')}</div>
+              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.indoor.temperature)}</div>
+            </div>
+          `);
+                }
+                if (realtime.indoor.humidity) {
+                    sensorCards.push(`
+            <div class="info-card">
+              <h3>Humedad Interior</h3>
+              <div class="value">${formatSensorValue(realtime.indoor.humidity, '%')}</div>
+              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.indoor.humidity)}</div>
+            </div>
+          `);
+                }
+            }
+            // Sensores exteriores (outdoor)
+            if (realtime.outdoor) {
+                if (realtime.outdoor.temperature) {
+                    sensorCards.push(`
+            <div class="info-card">
+              <h3>Temperatura Exterior</h3>
+              <div class="value">${formatSensorValue(realtime.outdoor.temperature, '°C')}</div>
+              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.outdoor.temperature)}</div>
+            </div>
+          `);
+                }
+                if (realtime.outdoor.humidity) {
+                    sensorCards.push(`
+            <div class="info-card">
+              <h3>Humedad Exterior</h3>
+              <div class="value">${formatSensorValue(realtime.outdoor.humidity, '%')}</div>
+              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.outdoor.humidity)}</div>
+            </div>
+          `);
+                }
+                if (realtime.outdoor.feels_like) {
+                    sensorCards.push(`
+            <div class="info-card">
+              <h3>Sensación Térmica</h3>
+              <div class="value">${formatSensorValue(realtime.outdoor.feels_like, '°C')}</div>
+              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.outdoor.feels_like)}</div>
+            </div>
+          `);
+                }
+            }
+            // Sensores de presión
+            if (realtime.pressure) {
+                if (realtime.pressure.relative) {
+                    sensorCards.push(`
+            <div class="info-card">
+              <h3>Presión Relativa</h3>
+              <div class="value">${formatSensorValue(realtime.pressure.relative, 'hPa')}</div>
+              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.pressure.relative)}</div>
+            </div>
+          `);
+                }
+                if (realtime.pressure.absolute) {
+                    sensorCards.push(`
+            <div class="info-card">
+              <h3>Presión Absoluta</h3>
+              <div class="value">${formatSensorValue(realtime.pressure.absolute, 'hPa')}</div>
+              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.pressure.absolute)}</div>
+            </div>
+          `);
+                }
+            }
+            // Sensores de viento
+            if (realtime.wind) {
+                if (realtime.wind.wind_speed) {
+                    sensorCards.push(`
+            <div class="info-card">
+              <h3>Velocidad del Viento</h3>
+              <div class="value">${formatSensorValue(realtime.wind.wind_speed, 'km/h')}</div>
+              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.wind.wind_speed)}</div>
+            </div>
+          `);
+                }
+                if (realtime.wind.wind_direction) {
+                    sensorCards.push(`
+            <div class="info-card">
+              <h3>Dirección del Viento</h3>
+              <div class="value">${formatSensorValue(realtime.wind.wind_direction, '°')}</div>
+              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.wind.wind_direction)}</div>
+            </div>
+          `);
+                }
+            }
+            // Sensores de lluvia
+            if (realtime.rainfall) {
+                if (realtime.rainfall.rain_rate) {
+                    sensorCards.push(`
+            <div class="info-card">
+              <h3>Tasa de Lluvia</h3>
+              <div class="value">${formatSensorValue(realtime.rainfall.rain_rate, 'mm/h')}</div>
+              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.rainfall.rain_rate)}</div>
+            </div>
+          `);
+                }
+                if (realtime.rainfall.daily) {
+                    sensorCards.push(`
+            <div class="info-card">
+              <h3>Lluvia Diaria</h3>
+              <div class="value">${formatSensorValue(realtime.rainfall.daily, 'mm')}</div>
+              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.rainfall.daily)}</div>
+            </div>
+          `);
+                }
+            }
+            // Sensores solares y UV
+            if (realtime.solar_and_uvi) {
+                if (realtime.solar_and_uvi.solar) {
+                    sensorCards.push(`
+            <div class="info-card">
+              <h3>Radiación Solar</h3>
+              <div class="value">${formatSensorValue(realtime.solar_and_uvi.solar, 'W/m²')}</div>
+              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.solar_and_uvi.solar)}</div>
+            </div>
+          `);
+                }
+                if (realtime.solar_and_uvi.uvi) {
+                    sensorCards.push(`
+            <div class="info-card">
+              <h3>Índice UV</h3>
+              <div class="value">${formatSensorValue(realtime.solar_and_uvi.uvi)}</div>
+              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.solar_and_uvi.uvi)}</div>
+            </div>
+          `);
+                }
+            }
+            // Sensores de suelo CH1
+            if (realtime.soil_ch1) {
+                if (realtime.soil_ch1.soilmoisture) {
+                    sensorCards.push(`
+            <div class="info-card">
+              <h3>Humedad del Suelo CH1</h3>
+              <div class="value">${formatSensorValue(realtime.soil_ch1.soilmoisture, '%')}</div>
+              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.soil_ch1.soilmoisture)}</div>
+            </div>
+          `);
+                }
+                if (realtime.soil_ch1.ad) {
+                    sensorCards.push(`
+            <div class="info-card">
+              <h3>Señal Analógica CH1</h3>
+              <div class="value">${formatSensorValue(realtime.soil_ch1.ad, 'V')}</div>
+              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.soil_ch1.ad)}</div>
+            </div>
+          `);
+                }
+            }
+            // Sensores de suelo CH9
+            if (realtime.soil_ch9) {
+                if (realtime.soil_ch9.soilmoisture) {
+                    sensorCards.push(`
+            <div class="info-card">
+              <h3>Humedad del Suelo CH9</h3>
+              <div class="value">${formatSensorValue(realtime.soil_ch9.soilmoisture, '%')}</div>
+              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.soil_ch9.soilmoisture)}</div>
+            </div>
+          `);
+                }
+                if (realtime.soil_ch9.ad) {
+                    sensorCards.push(`
+            <div class="info-card">
+              <h3>Señal Analógica CH9</h3>
+              <div class="value">${formatSensorValue(realtime.soil_ch9.ad, 'V')}</div>
+              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.soil_ch9.ad)}</div>
+            </div>
+          `);
+                }
+            }
+            // Sensores de batería
+            if (realtime.battery) {
+                if (realtime.battery.soilmoisture_sensor_ch1) {
+                    sensorCards.push(`
+            <div class="info-card">
+              <h3>Batería Sensor Suelo CH1</h3>
+              <div class="value">${formatSensorValue(realtime.battery.soilmoisture_sensor_ch1, 'V')}</div>
+              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.battery.soilmoisture_sensor_ch1)}</div>
+            </div>
+          `);
+                }
+            }
+            // ============================================================================
+            // ESTRUCTURA LEGACY (COMPATIBILIDAD)
+            // ============================================================================
+            // Temperatura y humedad exterior (formato legacy)
+            if (realtime.tempf !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Temperatura Exterior</h3><div class="value">${realtime.tempf}°F</div></div>`);
+            if (realtime.tempc !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Temperatura Exterior</h3><div class="value">${realtime.tempc}°C</div></div>`);
+            if (realtime.humidity !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Humedad Exterior</h3><div class="value">${realtime.humidity}%</div></div>`);
+            // Temperatura y humedad interior (formato legacy)
+            if (realtime.temp1f !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Temperatura Interior</h3><div class="value">${realtime.temp1f}°F</div></div>`);
+            if (realtime.temp1c !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Temperatura Interior</h3><div class="value">${realtime.temp1c}°C</div></div>`);
+            if (realtime.humidity1 !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Humedad Interior</h3><div class="value">${realtime.humidity1}%</div></div>`);
+            // Presión (formato legacy)
+            if (realtime.baromrelin !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Presión Relativa</h3><div class="value">${realtime.baromrelin} inHg</div></div>`);
+            if (realtime.baromabsin !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Presión Absoluta</h3><div class="value">${realtime.baromabsin} inHg</div></div>`);
+            // Viento (formato legacy)
+            if (realtime.winddir !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Dirección del Viento</h3><div class="value">${realtime.winddir}°</div></div>`);
+            if (realtime.windspeedmph !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Velocidad del Viento</h3><div class="value">${realtime.windspeedmph} mph</div></div>`);
+            if (realtime.windgustmph !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Ráfaga de Viento</h3><div class="value">${realtime.windgustmph} mph</div></div>`);
+            // Lluvia (formato legacy)
+            if (realtime.rainratein !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Tasa de Lluvia</h3><div class="value">${realtime.rainratein} in/h</div></div>`);
+            if (realtime.dailyrainin !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Lluvia Diaria</h3><div class="value">${realtime.dailyrainin} in</div></div>`);
+            // Radiación solar y UV (formato legacy)
+            if (realtime.solarradiation !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Radiación Solar</h3><div class="value">${realtime.solarradiation} W/m²</div></div>`);
+            if (realtime.uv !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Índice UV</h3><div class="value">${realtime.uv}</div></div>`);
+            // Calidad del aire (formato legacy)
+            if (realtime.pm25 !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>PM2.5</h3><div class="value">${realtime.pm25} µg/m³</div></div>`);
+            if (realtime.pm10 !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>PM10</h3><div class="value">${realtime.pm10} µg/m³</div></div>`);
+            if (realtime.co2 !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>CO₂</h3><div class="value">${realtime.co2} ppm</div></div>`);
+            // Suelo (formato legacy)
+            if (realtime.soilmoisture1 !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Humedad del Suelo CH1</h3><div class="value">${realtime.soilmoisture1}%</div></div>`);
+            if (realtime.soiltemp1f !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Temperatura del Suelo CH1</h3><div class="value">${realtime.soiltemp1f}°F</div></div>`);
+            // Batería y señal (formato legacy)
+            if (realtime.batt1 !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Batería Sensor 1</h3><div class="value">${realtime.batt1} V</div></div>`);
+            if (realtime.batt2 !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Batería Sensor 2</h3><div class="value">${realtime.batt2} V</div></div>`);
+            if (realtime.batt3 !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Batería Sensor 3</h3><div class="value">${realtime.batt3} V</div></div>`);
+            if (realtime.batt4 !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Batería Sensor 4</h3><div class="value">${realtime.batt4} V</div></div>`);
+            if (realtime.batt5 !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Batería Sensor 5</h3><div class="value">${realtime.batt5} V</div></div>`);
+            if (realtime.batt6 !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Batería Sensor 6</h3><div class="value">${realtime.batt6} V</div></div>`);
+            if (realtime.batt7 !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Batería Sensor 7</h3><div class="value">${realtime.batt7} V</div></div>`);
+            if (realtime.batt8 !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Batería Sensor 8</h3><div class="value">${realtime.batt8} V</div></div>`);
+            // Señal (formato legacy)
+            if (realtime.rssi !== undefined)
+                sensorCards.push(`<div class="info-card"><h3>Señal</h3><div class="value">${realtime.rssi} dBm</div></div>`);
         }
-        // Suelo (soil_chX)
-        for (let i = 1; i <= 8; i++) {
-            const soil = realtime[`soil_ch${i}`];
-            if (soil?.soilmoisture !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Humedad Suelo CH${i}</h3><div class="value">${soil.soilmoisture} ${soil.unit || '%'}</div></div>`);
+        // Si no hay datos de sensores, mostrar mensaje
+        if (sensorCards.length === 0) {
+            sensorCards.push(`
+        <div class="info-card">
+          <h3>Estado del Dispositivo</h3>
+          <div class="value text-yellow-400">No hay datos de sensores disponibles</div>
+          <div class="text-xs text-white/50">Última actualización: ${lastUpdate}</div>
+        </div>
+      `);
         }
-        // Lluvia
-        if (realtime?.rainfall?.rain_rate?.value !== undefined)
-            sensorCards.push(`<div class="info-card"><h3>Lluvia Actual</h3><div class="value">${realtime.rainfall.rain_rate.value} ${realtime.rainfall.rain_rate.unit || 'mm/h'}</div></div>`);
-        if (realtime?.rainfall?.daily?.value !== undefined)
-            sensorCards.push(`<div class="info-card"><h3>Lluvia Diaria</h3><div class="value">${realtime.rainfall.daily.value} ${realtime.rainfall.daily.unit || 'mm'}</div></div>`);
-        // Radiación solar y UV
-        if (realtime?.solar_and_uvi?.solar !== undefined)
-            sensorCards.push(`<div class="info-card"><h3>Radiación Solar</h3><div class="value">${realtime.solar_and_uvi.solar} ${realtime.solar_and_uvi.unit || 'W/m²'}</div></div>`);
-        if (realtime?.solar_and_uvi?.uvi !== undefined)
-            sensorCards.push(`<div class="info-card"><h3>UV</h3><div class="value">${realtime.solar_and_uvi.uvi}</div></div>`);
-        // Calidad del aire
-        if (realtime?.pm25_ch1?.pm25 !== undefined)
-            sensorCards.push(`<div class="info-card"><h3>PM2.5 CH1</h3><div class="value">${realtime.pm25_ch1.pm25} ${realtime.pm25_ch1.unit || 'µg/m³'}</div></div>`);
-        if (realtime?.pm10_aqi_combo?.pm10 !== undefined)
-            sensorCards.push(`<div class="info-card"><h3>PM10</h3><div class="value">${realtime.pm10_aqi_combo.pm10} ${realtime.pm10_aqi_combo.unit || 'µg/m³'}</div></div>`);
-        if (realtime?.co2_aqi_combo?.co2 !== undefined)
-            sensorCards.push(`<div class="info-card"><h3>CO₂</h3><div class="value">${realtime.co2_aqi_combo.co2} ${realtime.co2_aqi_combo.unit || 'ppm'}</div></div>`);
-        // Batería y señal (si existen)
-        if (realtime?.battery?.console !== undefined)
-            sensorCards.push(`<div class="info-card"><h3>Batería Consola</h3><div class="value">${realtime.battery.console} V</div></div>`);
-        if (realtime?.signal !== undefined)
-            sensorCards.push(`<div class="info-card"><h3>Señal</h3><div class="value">${realtime.signal} dBm</div></div>`);
         return `
       <!DOCTYPE html>
       <html lang="es">
@@ -355,37 +600,96 @@ class PDFGenerator {
         };
     }
     /**
-     * Genera contenedores HTML para los gráficos basados en los datos disponibles
-     * Ahora soporta la estructura EcoWitt {list: {timestamp: value}}
+     * Genera contenedores de gráficos para datos históricos
+     * CORREGIDO para manejar la estructura EcoWitt {list: {timestamp: value}}
      */
     static generateChartContainers(historicalData) {
+        if (!historicalData || typeof historicalData !== 'object') {
+            return `
+        <div class="chart-container" style="background: rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 20px; margin: 15px 0; border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
+          <div style="text-align: center; padding: 40px;">
+            <h3 style="color: #fbbf24; font-size: 1.3em; font-weight: 600; font-family: 'Poppins', sans-serif;">📊 Datos Históricos</h3>
+            <p style="color: rgba(255, 255, 255, 0.7); margin-top: 10px;">No hay datos históricos disponibles para este período</p>
+          </div>
+        </div>
+      `;
+        }
+        // Extraer datos de diferentes estructuras posibles según la estructura EcoWitt
         const indoorData = historicalData.indoor || {};
         const outdoorData = historicalData.outdoor || {};
         const pressureData = historicalData.pressure || {};
-        // Temperatura
+        const soilData = historicalData.soil_ch1 || {};
+        // Temperatura - Buscar en múltiples ubicaciones según estructura EcoWitt
         let tempSeries = [];
+        // Estructura EcoWitt: indoor.temperature.list
         if (indoorData.temperature && indoorData.temperature.list) {
             tempSeries = this.listToSeries(indoorData.temperature.list);
         }
         else if (outdoorData.temperature && outdoorData.temperature.list) {
             tempSeries = this.listToSeries(outdoorData.temperature.list);
         }
-        // Humedad
+        // Estructura legacy para compatibilidad
+        if (tempSeries.length === 0) {
+            if (historicalData.temp1c && historicalData.temp1c.list) {
+                tempSeries = this.listToSeries(historicalData.temp1c.list);
+            }
+            else if (historicalData.tempf && historicalData.tempf.list) {
+                tempSeries = this.listToSeries(historicalData.tempf.list);
+            }
+        }
+        // Humedad - Buscar en múltiples ubicaciones según estructura EcoWitt
         let humSeries = [];
+        // Estructura EcoWitt: indoor.humidity.list
         if (indoorData.humidity && indoorData.humidity.list) {
             humSeries = this.listToSeries(indoorData.humidity.list);
         }
         else if (outdoorData.humidity && outdoorData.humidity.list) {
             humSeries = this.listToSeries(outdoorData.humidity.list);
         }
-        // Presión
+        // Estructura legacy para compatibilidad
+        if (humSeries.length === 0) {
+            if (historicalData.humidity1 && historicalData.humidity1.list) {
+                humSeries = this.listToSeries(historicalData.humidity1.list);
+            }
+            else if (historicalData.humidity && historicalData.humidity.list) {
+                humSeries = this.listToSeries(historicalData.humidity.list);
+            }
+        }
+        // Presión - Buscar en múltiples ubicaciones según estructura EcoWitt
         let pressureSeries = [];
+        // Estructura EcoWitt: pressure.relative.list o pressure.absolute.list
         if (pressureData.relative && pressureData.relative.list) {
             pressureSeries = this.listToSeries(pressureData.relative.list);
         }
+        else if (pressureData.absolute && pressureData.absolute.list) {
+            pressureSeries = this.listToSeries(pressureData.absolute.list);
+        }
+        // Estructura legacy para compatibilidad
+        if (pressureSeries.length === 0) {
+            if (historicalData.baromrelin && historicalData.baromrelin.list) {
+                pressureSeries = this.listToSeries(historicalData.baromrelin.list);
+            }
+            else if (historicalData.baromabsin && historicalData.baromabsin.list) {
+                pressureSeries = this.listToSeries(historicalData.baromabsin.list);
+            }
+        }
+        // Humedad del suelo - Buscar en múltiples ubicaciones según estructura EcoWitt
+        let soilMoistureSeries = [];
+        // Estructura EcoWitt: soil_ch1.soilmoisture.list
+        if (soilData.soilmoisture && soilData.soilmoisture.list) {
+            soilMoistureSeries = this.listToSeries(soilData.soilmoisture.list);
+        }
+        // Estructura legacy para compatibilidad
+        if (soilMoistureSeries.length === 0) {
+            if (historicalData.soilmoisture1 && historicalData.soilmoisture1.list) {
+                soilMoistureSeries = this.listToSeries(historicalData.soilmoisture1.list);
+            }
+        }
         // Solo crear contenedores si hay datos con diseño minimalista moderno
         let html = '';
+        let hasAnyData = false;
         if (tempSeries.length > 0) {
+            hasAnyData = true;
             const tempStats = this.calculateStats(tempSeries);
             html += `
         <div class="chart-container" style="background: rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 20px; margin: 15px 0; border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
@@ -419,6 +723,7 @@ class PDFGenerator {
       `;
         }
         if (humSeries.length > 0) {
+            hasAnyData = true;
             const humStats = this.calculateStats(humSeries);
             html += `
         <div class="chart-container" style="background: rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 20px; margin: 15px 0; border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
@@ -452,6 +757,7 @@ class PDFGenerator {
       `;
         }
         if (pressureSeries.length > 0) {
+            hasAnyData = true;
             const pressureStats = this.calculateStats(pressureSeries);
             html += `
         <div class="chart-container" style="background: rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 20px; margin: 15px 0; border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
@@ -484,17 +790,63 @@ class PDFGenerator {
         </div>
       `;
         }
+        if (soilMoistureSeries.length > 0) {
+            hasAnyData = true;
+            const soilStats = this.calculateStats(soilMoistureSeries);
+            html += `
+        <div class="chart-container" style="background: rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 20px; margin: 15px 0; border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+            <h3 style="color: #10b981; font-size: 1.3em; font-weight: 600; font-family: 'Poppins', sans-serif;">🌱 Humedad del Suelo</h3>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <div style="width: 12px; height: 12px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 50%;"></div>
+              <span style="font-size: 0.9em; color: rgba(255, 255, 255, 0.7);">Datos históricos</span>
+            </div>
+          </div>
+          <div style="position: relative; height: 300px;">
+            <canvas id="soilChart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}" width="400" height="300"></canvas>
+          </div>
+          <div style="margin-top: 15px; padding: 15px; background: rgba(255, 255, 255, 0.03); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05);">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; text-align: center;">
+              <div>
+                <div style="font-size: 0.8em; color: rgba(255, 255, 255, 0.6); text-transform: uppercase; letter-spacing: 0.5px;">Mínimo</div>
+                <div style="font-size: 1.1em; font-weight: 600; color: #10b981;">${soilStats.min.toFixed(1)}%</div>
+              </div>
+              <div>
+                <div style="font-size: 0.8em; color: rgba(255, 255, 255, 0.6); text-transform: uppercase; letter-spacing: 0.5px;">Máximo</div>
+                <div style="font-size: 1.1em; font-weight: 600; color: #10b981;">${soilStats.max.toFixed(1)}%</div>
+              </div>
+              <div>
+                <div style="font-size: 0.8em; color: rgba(255, 255, 255, 0.6); text-transform: uppercase; letter-spacing: 0.5px;">Promedio</div>
+                <div style="font-size: 1.1em; font-weight: 600; color: #10b981;">${soilStats.avg.toFixed(1)}%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+        }
+        // Si no hay datos, mostrar mensaje
+        if (!hasAnyData) {
+            html = `
+        <div class="chart-container" style="background: rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 20px; margin: 15px 0; border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
+          <div style="text-align: center; padding: 40px;">
+            <h3 style="color: #fbbf24; font-size: 1.3em; font-weight: 600; font-family: 'Poppins', sans-serif;">📊 Datos Históricos</h3>
+            <p style="color: rgba(255, 255, 255, 0.7); margin-top: 10px;">No hay datos históricos disponibles para este período</p>
+          </div>
+        </div>
+      `;
+        }
         return html;
     }
     /**
      * Genera scripts para los gráficos de Chart.js con diseño minimalista moderno
-     * Ahora soporta la estructura EcoWitt {list: {timestamp: value}}
+     * CORREGIDO para manejar la estructura EcoWitt {list: {timestamp: value}}
      */
     static generateChartScripts(historicalData) {
         const indoorData = historicalData.indoor || {};
         const outdoorData = historicalData.outdoor || {};
         const pressureData = historicalData.pressure || {};
-        // Temperatura
+        const soilData = historicalData.soil_ch1 || {};
+        // Temperatura - Estructura EcoWitt
         let tempSeries = [];
         if (indoorData.temperature && indoorData.temperature.list) {
             tempSeries = this.listToSeries(indoorData.temperature.list);
@@ -504,7 +856,7 @@ class PDFGenerator {
         }
         const tempLabels = tempSeries.map(p => new Date(p.time).toLocaleString('es-ES', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }));
         const tempValues = tempSeries.map(p => p.value);
-        // Humedad
+        // Humedad - Estructura EcoWitt
         let humSeries = [];
         if (indoorData.humidity && indoorData.humidity.list) {
             humSeries = this.listToSeries(indoorData.humidity.list);
@@ -514,235 +866,254 @@ class PDFGenerator {
         }
         const humLabels = humSeries.map(p => new Date(p.time).toLocaleString('es-ES', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }));
         const humValues = humSeries.map(p => p.value);
-        // Presión
+        // Presión - Estructura EcoWitt
         let pressureSeries = [];
         if (pressureData.relative && pressureData.relative.list) {
             pressureSeries = this.listToSeries(pressureData.relative.list);
         }
+        else if (pressureData.absolute && pressureData.absolute.list) {
+            pressureSeries = this.listToSeries(pressureData.absolute.list);
+        }
         const pressureLabels = pressureSeries.map(p => new Date(p.time).toLocaleString('es-ES', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }));
         const pressureValues = pressureSeries.map(p => p.value);
+        // Humedad del suelo - Estructura EcoWitt
+        let soilSeries = [];
+        if (soilData.soilmoisture && soilData.soilmoisture.list) {
+            soilSeries = this.listToSeries(soilData.soilmoisture.list);
+        }
+        const soilLabels = soilSeries.map(p => new Date(p.time).toLocaleString('es-ES', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }));
+        const soilValues = soilSeries.map(p => p.value);
         let scripts = '';
+        // Script para gráfico de temperatura
         if (tempSeries.length > 0) {
-            const tempChartId = `temperatureChart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             scripts += `
-        new Chart(document.getElementById('${tempChartId}'), {
-          type: 'line',
-          data: {
-            labels: ${JSON.stringify(tempLabels)},
-            datasets: [{
-              label: 'Temperatura',
-              data: ${JSON.stringify(tempValues)},
-              borderColor: '#10b981',
-              backgroundColor: 'rgba(16, 185, 129, 0.1)',
-              borderWidth: 2,
-              tension: 0.4,
-              fill: true,
-              pointBackgroundColor: '#10b981',
-              pointBorderColor: '#ffffff',
-              pointBorderWidth: 2,
-              pointRadius: 4,
-              pointHoverRadius: 6
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { 
-                display: false
+        (function() {
+          const ctx = document.getElementById('temperatureChart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}');
+          if (ctx) {
+            new Chart(ctx, {
+              type: 'line',
+              data: {
+                labels: ${JSON.stringify(tempLabels)},
+                datasets: [{
+                  label: 'Temperatura (°C)',
+                  data: ${JSON.stringify(tempValues)},
+                  borderColor: '#10b981',
+                  backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                  borderWidth: 2,
+                  fill: true,
+                  tension: 0.4,
+                  pointRadius: 0,
+                  pointHoverRadius: 4,
+                  pointHoverBackgroundColor: '#10b981'
+                }]
               },
-              tooltip: {
-                backgroundColor: 'rgba(24, 24, 27, 0.95)',
-                titleColor: '#ffffff',
-                bodyColor: '#10b981',
-                borderColor: '#10b981',
-                borderWidth: 1,
-                cornerRadius: 8,
-                displayColors: false
-              }
-            },
-            scales: {
-              x: { 
-                ticks: { 
-                  color: 'rgba(255, 255, 255, 0.7)', 
-                  maxTicksLimit: 8,
-                  font: { size: 11 }
-                }, 
-                grid: { 
-                  color: 'rgba(255, 255, 255, 0.05)',
-                  drawBorder: false
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    display: false
+                  }
                 },
-                border: { display: false }
-              },
-              y: { 
-                beginAtZero: false, 
-                ticks: { 
-                  color: 'rgba(255, 255, 255, 0.7)',
-                  font: { size: 11 }
-                }, 
-                grid: { 
-                  color: 'rgba(255, 255, 255, 0.05)',
-                  drawBorder: false
-                },
-                border: { display: false }
+                scales: {
+                  x: {
+                    display: true,
+                    grid: {
+                      color: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    ticks: {
+                      color: 'rgba(255, 255, 255, 0.7)',
+                      maxTicksLimit: 8
+                    }
+                  },
+                  y: {
+                    display: true,
+                    grid: {
+                      color: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    ticks: {
+                      color: 'rgba(255, 255, 255, 0.7)'
+                    }
+                  }
+                }
               }
-            },
-            elements: {
-              point: {
-                hoverBackgroundColor: '#10b981'
-              }
-            }
+            });
           }
-        });
+        })();
       `;
         }
+        // Script para gráfico de humedad
         if (humSeries.length > 0) {
-            const humChartId = `humidityChart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             scripts += `
-        new Chart(document.getElementById('${humChartId}'), {
-          type: 'line',
-          data: {
-            labels: ${JSON.stringify(humLabels)},
-            datasets: [{
-              label: 'Humedad',
-              data: ${JSON.stringify(humValues)},
-              borderColor: '#3b82f6',
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-              borderWidth: 2,
-              tension: 0.4,
-              fill: true,
-              pointBackgroundColor: '#3b82f6',
-              pointBorderColor: '#ffffff',
-              pointBorderWidth: 2,
-              pointRadius: 4,
-              pointHoverRadius: 6
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { 
-                display: false
+        (function() {
+          const ctx = document.getElementById('humidityChart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}');
+          if (ctx) {
+            new Chart(ctx, {
+              type: 'line',
+              data: {
+                labels: ${JSON.stringify(humLabels)},
+                datasets: [{
+                  label: 'Humedad (%)',
+                  data: ${JSON.stringify(humValues)},
+                  borderColor: '#10b981',
+                  backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                  borderWidth: 2,
+                  fill: true,
+                  tension: 0.4,
+                  pointRadius: 0,
+                  pointHoverRadius: 4,
+                  pointHoverBackgroundColor: '#10b981'
+                }]
               },
-              tooltip: {
-                backgroundColor: 'rgba(24, 24, 27, 0.95)',
-                titleColor: '#ffffff',
-                bodyColor: '#3b82f6',
-                borderColor: '#3b82f6',
-                borderWidth: 1,
-                cornerRadius: 8,
-                displayColors: false
-              }
-            },
-            scales: {
-              x: { 
-                ticks: { 
-                  color: 'rgba(255, 255, 255, 0.7)', 
-                  maxTicksLimit: 8,
-                  font: { size: 11 }
-                }, 
-                grid: { 
-                  color: 'rgba(255, 255, 255, 0.05)',
-                  drawBorder: false
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    display: false
+                  }
                 },
-                border: { display: false }
-              },
-              y: { 
-                beginAtZero: true, 
-                max: 100,
-                ticks: { 
-                  color: 'rgba(255, 255, 255, 0.7)',
-                  font: { size: 11 }
-                }, 
-                grid: { 
-                  color: 'rgba(255, 255, 255, 0.05)',
-                  drawBorder: false
-                },
-                border: { display: false }
+                scales: {
+                  x: {
+                    display: true,
+                    grid: {
+                      color: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    ticks: {
+                      color: 'rgba(255, 255, 255, 0.7)',
+                      maxTicksLimit: 8
+                    }
+                  },
+                  y: {
+                    display: true,
+                    grid: {
+                      color: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    ticks: {
+                      color: 'rgba(255, 255, 255, 0.7)'
+                    }
+                  }
+                }
               }
-            },
-            elements: {
-              point: {
-                hoverBackgroundColor: '#3b82f6'
-              }
-            }
+            });
           }
-        });
+        })();
       `;
         }
+        // Script para gráfico de presión
         if (pressureSeries.length > 0) {
-            const pressureChartId = `pressureChart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             scripts += `
-        new Chart(document.getElementById('${pressureChartId}'), {
-          type: 'line',
-          data: {
-            labels: ${JSON.stringify(pressureLabels)},
-            datasets: [{
-              label: 'Presión',
-              data: ${JSON.stringify(pressureValues)},
-              borderColor: '#8b5cf6',
-              backgroundColor: 'rgba(139, 92, 246, 0.1)',
-              borderWidth: 2,
-              tension: 0.4,
-              fill: true,
-              pointBackgroundColor: '#8b5cf6',
-              pointBorderColor: '#ffffff',
-              pointBorderWidth: 2,
-              pointRadius: 4,
-              pointHoverRadius: 6
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { 
-                display: false
+        (function() {
+          const ctx = document.getElementById('pressureChart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}');
+          if (ctx) {
+            new Chart(ctx, {
+              type: 'line',
+              data: {
+                labels: ${JSON.stringify(pressureLabels)},
+                datasets: [{
+                  label: 'Presión (hPa)',
+                  data: ${JSON.stringify(pressureValues)},
+                  borderColor: '#10b981',
+                  backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                  borderWidth: 2,
+                  fill: true,
+                  tension: 0.4,
+                  pointRadius: 0,
+                  pointHoverRadius: 4,
+                  pointHoverBackgroundColor: '#10b981'
+                }]
               },
-              tooltip: {
-                backgroundColor: 'rgba(24, 24, 27, 0.95)',
-                titleColor: '#ffffff',
-                bodyColor: '#8b5cf6',
-                borderColor: '#8b5cf6',
-                borderWidth: 1,
-                cornerRadius: 8,
-                displayColors: false
-              }
-            },
-            scales: {
-              x: { 
-                ticks: { 
-                  color: 'rgba(255, 255, 255, 0.7)', 
-                  maxTicksLimit: 8,
-                  font: { size: 11 }
-                }, 
-                grid: { 
-                  color: 'rgba(255, 255, 255, 0.05)',
-                  drawBorder: false
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    display: false
+                  }
                 },
-                border: { display: false }
-              },
-              y: { 
-                beginAtZero: false, 
-                ticks: { 
-                  color: 'rgba(255, 255, 255, 0.7)',
-                  font: { size: 11 }
-                }, 
-                grid: { 
-                  color: 'rgba(255, 255, 255, 0.05)',
-                  drawBorder: false
-                },
-                border: { display: false }
+                scales: {
+                  x: {
+                    display: true,
+                    grid: {
+                      color: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    ticks: {
+                      color: 'rgba(255, 255, 255, 0.7)',
+                      maxTicksLimit: 8
+                    }
+                  },
+                  y: {
+                    display: true,
+                    grid: {
+                      color: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    ticks: {
+                      color: 'rgba(255, 255, 255, 0.7)'
+                    }
+                  }
+                }
               }
-            },
-            elements: {
-              point: {
-                hoverBackgroundColor: '#8b5cf6'
-              }
-            }
+            });
           }
-        });
+        })();
+      `;
+        }
+        // Script para gráfico de humedad del suelo
+        if (soilSeries.length > 0) {
+            scripts += `
+        (function() {
+          const ctx = document.getElementById('soilChart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}');
+          if (ctx) {
+            new Chart(ctx, {
+              type: 'line',
+              data: {
+                labels: ${JSON.stringify(soilLabels)},
+                datasets: [{
+                  label: 'Humedad del Suelo (%)',
+                  data: ${JSON.stringify(soilValues)},
+                  borderColor: '#10b981',
+                  backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                  borderWidth: 2,
+                  fill: true,
+                  tension: 0.4,
+                  pointRadius: 0,
+                  pointHoverRadius: 4,
+                  pointHoverBackgroundColor: '#10b981'
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    display: false
+                  }
+                },
+                scales: {
+                  x: {
+                    display: true,
+                    grid: {
+                      color: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    ticks: {
+                      color: 'rgba(255, 255, 255, 0.7)',
+                      maxTicksLimit: 8
+                    }
+                  },
+                  y: {
+                    display: true,
+                    grid: {
+                      color: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    ticks: {
+                      color: 'rgba(255, 255, 255, 0.7)'
+                    }
+                  }
+                }
+              }
+            });
+          }
+        })();
       `;
         }
         return scripts;
@@ -916,70 +1287,179 @@ class PDFGenerator {
             // Generar sensores dinámicamente
             const { realtime } = deviceDataInfo;
             const sensorCards = [];
-            // Exterior/Interior
-            if (realtime?.outdoor?.temperature?.value !== undefined)
-                sensorCards.push(`<div class="weather-card"><div class="label">Temp. Exterior</div><div class="value">${realtime.outdoor.temperature.value} ${realtime.outdoor.temperature.unit || ''}</div></div>`);
-            if (realtime?.outdoor?.humidity?.value !== undefined)
-                sensorCards.push(`<div class="weather-card"><div class="label">Humedad Exterior</div><div class="value">${realtime.outdoor.humidity.value} ${realtime.outdoor.humidity.unit || ''}</div></div>`);
-            if (realtime?.indoor?.temperature?.value !== undefined)
-                sensorCards.push(`<div class="weather-card"><div class="label">Temp. Interior</div><div class="value">${realtime.indoor.temperature.value} ${realtime.indoor.temperature.unit || ''}</div></div>`);
-            if (realtime?.indoor?.humidity?.value !== undefined)
-                sensorCards.push(`<div class="weather-card"><div class="label">Humedad Interior</div><div class="value">${realtime.indoor.humidity.value} ${realtime.indoor.humidity.unit || ''}</div></div>`);
-            // Presión
-            if (realtime?.pressure?.relative?.value !== undefined)
-                sensorCards.push(`<div class="weather-card"><div class="label">Presión Relativa</div><div class="value">${realtime.pressure.relative.value} ${realtime.pressure.relative.unit || ''}</div></div>`);
-            if (realtime?.pressure?.absolute?.value !== undefined)
-                sensorCards.push(`<div class="weather-card"><div class="label">Presión Absoluta</div><div class="value">${realtime.pressure.absolute.value} ${realtime.pressure.absolute.unit || ''}</div></div>`);
-            // Canales de temperatura y humedad
-            for (let i = 1; i <= 8; i++) {
-                const th = realtime[`temp_and_humidity_ch${i}`];
-                if (th?.temperature !== undefined)
-                    sensorCards.push(`<div class="weather-card"><div class="label">Temp. CH${i}</div><div class="value">${th.temperature} ${th.unit || ''}</div></div>`);
-                if (th?.humidity !== undefined)
-                    sensorCards.push(`<div class="weather-card"><div class="label">Humedad CH${i}</div><div class="value">${th.humidity} ${th.unit || ''}</div></div>`);
+            // Función para extraer datos de sensores de la estructura EcoWitt
+            const extractSensorData = (data) => {
+                if (!data || typeof data !== 'object')
+                    return;
+                // Temperatura y humedad interior (indoor)
+                if (data.indoor) {
+                    if (data.indoor.temperature?.value) {
+                        const unit = data.indoor.temperature.unit || '°F';
+                        sensorCards.push(`<div class="weather-card"><div class="label">Temperatura Interior</div><div class="value">${data.indoor.temperature.value}${unit}</div></div>`);
+                    }
+                    if (data.indoor.humidity?.value) {
+                        const unit = data.indoor.humidity.unit || '%';
+                        sensorCards.push(`<div class="weather-card"><div class="label">Humedad Interior</div><div class="value">${data.indoor.humidity.value}${unit}</div></div>`);
+                    }
+                }
+                // Temperatura y humedad exterior (outdoor)
+                if (data.outdoor) {
+                    if (data.outdoor.temperature?.value) {
+                        const unit = data.outdoor.temperature.unit || '°F';
+                        sensorCards.push(`<div class="weather-card"><div class="label">Temperatura Exterior</div><div class="value">${data.outdoor.temperature.value}${unit}</div></div>`);
+                    }
+                    if (data.outdoor.humidity?.value) {
+                        const unit = data.outdoor.humidity.unit || '%';
+                        sensorCards.push(`<div class="weather-card"><div class="label">Humedad Exterior</div><div class="value">${data.outdoor.humidity.value}${unit}</div></div>`);
+                    }
+                    if (data.outdoor.feels_like?.value) {
+                        const unit = data.outdoor.feels_like.unit || '°F';
+                        sensorCards.push(`<div class="weather-card"><div class="label">Sensación Térmica</div><div class="value">${data.outdoor.feels_like.value}${unit}</div></div>`);
+                    }
+                }
+                // Presión
+                if (data.pressure) {
+                    if (data.pressure.relative?.value) {
+                        const unit = data.pressure.relative.unit || 'inHg';
+                        sensorCards.push(`<div class="weather-card"><div class="label">Presión Relativa</div><div class="value">${data.pressure.relative.value} ${unit}</div></div>`);
+                    }
+                    if (data.pressure.absolute?.value) {
+                        const unit = data.pressure.absolute.unit || 'inHg';
+                        sensorCards.push(`<div class="weather-card"><div class="label">Presión Absoluta</div><div class="value">${data.pressure.absolute.value} ${unit}</div></div>`);
+                    }
+                }
+                // Viento
+                if (data.wind) {
+                    if (data.wind.wind_speed?.value) {
+                        const unit = data.wind.wind_speed.unit || 'km/h';
+                        sensorCards.push(`<div class="weather-card"><div class="label">Velocidad del Viento</div><div class="value">${data.wind.wind_speed.value} ${unit}</div></div>`);
+                    }
+                    if (data.wind.wind_direction?.value) {
+                        const unit = data.wind.wind_direction.unit || '°';
+                        sensorCards.push(`<div class="weather-card"><div class="label">Dirección del Viento</div><div class="value">${data.wind.wind_direction.value} ${unit}</div></div>`);
+                    }
+                }
+                // Lluvia
+                if (data.rainfall) {
+                    if (data.rainfall.rain_rate?.value) {
+                        const unit = data.rainfall.rain_rate.unit || 'mm/h';
+                        sensorCards.push(`<div class="weather-card"><div class="label">Tasa de Lluvia</div><div class="value">${data.rainfall.rain_rate.value} ${unit}</div></div>`);
+                    }
+                    if (data.rainfall.daily?.value) {
+                        const unit = data.rainfall.daily.unit || 'mm';
+                        sensorCards.push(`<div class="weather-card"><div class="label">Lluvia Diaria</div><div class="value">${data.rainfall.daily.value} ${unit}</div></div>`);
+                    }
+                }
+                // Sensores solares y UV
+                if (data.solar_and_uvi) {
+                    if (data.solar_and_uvi.solar?.value) {
+                        const unit = data.solar_and_uvi.solar.unit || 'W/m²';
+                        sensorCards.push(`<div class="weather-card"><div class="label">Radiación Solar</div><div class="value">${data.solar_and_uvi.solar.value} ${unit}</div></div>`);
+                    }
+                    if (data.solar_and_uvi.uvi?.value) {
+                        sensorCards.push(`<div class="weather-card"><div class="label">Índice UV</div><div class="value">${data.solar_and_uvi.uvi.value}</div></div>`);
+                    }
+                }
+                // Suelo (soil_ch1, soil_ch9, etc.)
+                Object.keys(data).forEach(key => {
+                    if (key.startsWith('soil_ch')) {
+                        const soilData = data[key];
+                        if (soilData.soilmoisture?.value) {
+                            const unit = soilData.soilmoisture.unit || '%';
+                            sensorCards.push(`<div class="weather-card"><div class="label">Humedad del Suelo ${key.toUpperCase()}</div><div class="value">${soilData.soilmoisture.value}${unit}</div></div>`);
+                        }
+                        if (soilData.ad?.value) {
+                            sensorCards.push(`<div class="weather-card"><div class="label">AD ${key.toUpperCase()}</div><div class="value">${soilData.ad.value}</div></div>`);
+                        }
+                    }
+                });
+                // Batería
+                if (data.battery) {
+                    Object.keys(data.battery).forEach(batteryKey => {
+                        const batteryData = data.battery[batteryKey];
+                        if (batteryData?.value) {
+                            const unit = batteryData.unit || 'V';
+                            sensorCards.push(`<div class="weather-card"><div class="label">Batería ${batteryKey.replace(/_/g, ' ').toUpperCase()}</div><div class="value">${batteryData.value} ${unit}</div></div>`);
+                        }
+                    });
+                }
+                // Estructura legacy EcoWitt (para compatibilidad)
+                if (data.tempf !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Temperatura Exterior</div><div class="value">${data.tempf}°F</div></div>`);
+                if (data.tempc !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Temperatura Exterior</div><div class="value">${data.tempc}°C</div></div>`);
+                if (data.humidity !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Humedad Exterior</div><div class="value">${data.humidity}%</div></div>`);
+                if (data.temp1f !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Temperatura Interior</div><div class="value">${data.temp1f}°F</div></div>`);
+                if (data.temp1c !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Temperatura Interior</div><div class="value">${data.temp1c}°C</div></div>`);
+                if (data.humidity1 !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Humedad Interior</div><div class="value">${data.humidity1}%</div></div>`);
+                if (data.baromrelin !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Presión Relativa</div><div class="value">${data.baromrelin} inHg</div></div>`);
+                if (data.baromabsin !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Presión Absoluta</div><div class="value">${data.baromabsin} inHg</div></div>`);
+                if (data.winddir !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Dirección del Viento</div><div class="value">${data.winddir}°</div></div>`);
+                if (data.windspeedmph !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Velocidad del Viento</div><div class="value">${data.windspeedmph} mph</div></div>`);
+                if (data.windgustmph !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Ráfaga de Viento</div><div class="value">${data.windgustmph} mph</div></div>`);
+                if (data.rainratein !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Tasa de Lluvia</div><div class="value">${data.rainratein} in/h</div></div>`);
+                if (data.dailyrainin !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Lluvia Diaria</div><div class="value">${data.dailyrainin} in</div></div>`);
+                if (data.solarradiation !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Radiación Solar</div><div class="value">${data.solarradiation} W/m²</div></div>`);
+                if (data.uv !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Índice UV</div><div class="value">${data.uv}</div></div>`);
+                if (data.pm25 !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">PM2.5</div><div class="value">${data.pm25} µg/m³</div></div>`);
+                if (data.pm10 !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">PM10</div><div class="value">${data.pm10} µg/m³</div></div>`);
+                if (data.co2 !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">CO₂</div><div class="value">${data.co2} ppm</div></div>`);
+                if (data.soilmoisture1 !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Humedad del Suelo CH1</div><div class="value">${data.soilmoisture1}%</div></div>`);
+                if (data.soiltemp1f !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Temperatura del Suelo CH1</div><div class="value">${data.soiltemp1f}°F</div></div>`);
+                if (data.batt1 !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Batería Sensor 1</div><div class="value">${data.batt1} V</div></div>`);
+                if (data.batt2 !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Batería Sensor 2</div><div class="value">${data.batt2} V</div></div>`);
+                if (data.batt3 !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Batería Sensor 3</div><div class="value">${data.batt3} V</div></div>`);
+                if (data.batt4 !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Batería Sensor 4</div><div class="value">${data.batt4} V</div></div>`);
+                if (data.batt5 !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Batería Sensor 5</div><div class="value">${data.batt5} V</div></div>`);
+                if (data.batt6 !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Batería Sensor 6</div><div class="value">${data.batt6} V</div></div>`);
+                if (data.batt7 !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Batería Sensor 7</div><div class="value">${data.batt7} V</div></div>`);
+                if (data.batt8 !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Batería Sensor 8</div><div class="value">${data.batt8} V</div></div>`);
+                if (data.rssi !== undefined)
+                    sensorCards.push(`<div class="weather-card"><div class="label">Señal</div><div class="value">${data.rssi} dBm</div></div>`);
+            };
+            // Verificar si realtime es un objeto con estructura EcoWitt
+            if (realtime && typeof realtime === 'object') {
+                // Procesar datos de la estructura actual (realtime.data)
+                if (realtime.data && typeof realtime.data === 'object') {
+                    extractSensorData(realtime.data);
+                }
+                // Procesar datos directamente si no están en .data
+                else {
+                    extractSensorData(realtime);
+                }
             }
-            // Suelo
-            for (let i = 1; i <= 8; i++) {
-                const soil = realtime[`soil_ch${i}`];
-                if (soil?.soilmoisture !== undefined)
-                    sensorCards.push(`<div class="weather-card"><div class="label">Humedad Suelo CH${i}</div><div class="value">${soil.soilmoisture} ${soil.unit || '%'}</div></div>`);
-            }
-            // Lluvia
-            if (realtime?.rainfall?.rain_rate?.value !== undefined)
-                sensorCards.push(`<div class="weather-card"><div class="label">Lluvia Actual</div><div class="value">${realtime.rainfall.rain_rate.value} ${realtime.rainfall.rain_rate.unit || 'mm/h'}</div></div>`);
-            if (realtime?.rainfall?.daily?.value !== undefined)
-                sensorCards.push(`<div class="weather-card"><div class="label">Lluvia Diaria</div><div class="value">${realtime.rainfall.daily.value} ${realtime.rainfall.daily.unit || 'mm'}</div></div>`);
-            // Radiación solar y UV
-            if (realtime?.solar_and_uvi?.solar !== undefined)
-                sensorCards.push(`<div class="weather-card"><div class="label">Radiación Solar</div><div class="value">${realtime.solar_and_uvi.solar} ${realtime.solar_and_uvi.unit || 'W/m²'}</div></div>`);
-            if (realtime?.solar_and_uvi?.uvi !== undefined)
-                sensorCards.push(`<div class="weather-card"><div class="label">UV</div><div class="value">${realtime.solar_and_uvi.uvi}</div></div>`);
-            // Calidad del aire
-            if (realtime?.pm25_ch1?.pm25 !== undefined)
-                sensorCards.push(`<div class="weather-card"><div class="label">PM2.5 CH1</div><div class="value">${realtime.pm25_ch1.pm25} ${realtime.pm25_ch1.unit || 'µg/m³'}</div></div>`);
-            if (realtime?.pm10_aqi_combo?.pm10 !== undefined)
-                sensorCards.push(`<div class="weather-card"><div class="label">PM10</div><div class="value">${realtime.pm10_aqi_combo.pm10} ${realtime.pm10_aqi_combo.unit || 'µg/m³'}</div></div>`);
-            if (realtime?.co2_aqi_combo?.co2 !== undefined)
-                sensorCards.push(`<div class="weather-card"><div class="label">CO₂</div><div class="value">${realtime.co2_aqi_combo.co2} ${realtime.co2_aqi_combo.unit || 'ppm'}</div></div>`);
-            // Batería y señal
-            if (realtime?.battery?.console !== undefined)
-                sensorCards.push(`<div class="weather-card"><div class="label">Batería Consola</div><div class="value">${realtime.battery.console} V</div></div>`);
-            if (realtime?.signal !== undefined)
-                sensorCards.push(`<div class="weather-card"><div class="label">Señal</div><div class="value">${realtime.signal} dBm</div></div>`);
             return `
                 <div class="section device-detail-section">
                   <h3>📱 ${device.name}</h3>
                   
-                  <!-- Información del Dispositivo -->
+                  <!-- Estado del dispositivo -->
                   <div class="info-grid">
-                    <div class="info-card">
-                      <h3>ID del Dispositivo</h3>
-                      <div class="value">${device.id}</div>
-                    </div>
-                    <div class="info-card">
-                      <h3>Tipo</h3>
-                      <div class="value">${device.type}</div>
-                    </div>
                     <div class="info-card">
                       <h3>Estado</h3>
                       <div class="value">
@@ -988,110 +1468,100 @@ class PDFGenerator {
                       </div>
                     </div>
                     <div class="info-card">
+                      <h3>Tipo</h3>
+                      <div class="value">${device.type}</div>
+                    </div>
+                    <div class="info-card">
                       <h3>Última Actualización</h3>
                       <div class="value">${lastUpdate}</div>
-                    </div>
-                    <div class="info-card">
-                      <h3>Latitud</h3>
-                      <div class="value">${device.characteristics?.location?.latitude || 'N/A'}°</div>
-                    </div>
-                    <div class="info-card">
-                      <h3>Longitud</h3>
-                      <div class="value">${device.characteristics?.location?.longitude || 'N/A'}°</div>
                     </div>
                   </div>
 
                   <!-- Datos de Sensores -->
-                  ${sensorCards.length > 0 ? `
-                  <div class="section weather-section">
-                    <h2>🌡️ Datos de Sensores</h2>
+                  <div class="section">
+                    <h2>📊 Datos de Sensores</h2>
                     <div class="weather-grid">
-                      ${sensorCards.join('')}
+                      ${sensorCards.length > 0 ? sensorCards.join('') : '<div class="weather-card"><div class="label">No hay datos</div><div class="value">Sin datos disponibles</div></div>'}
                     </div>
                   </div>
-                  ` : ''}
 
-                  <!-- Datos del Clima -->
-                  ${weather ? `
-                  <div class="section weather-section">
-                    <h2>🌤️ Condiciones Meteorológicas</h2>
-                    <div class="weather-grid">
-                      <div class="weather-card">
-                        <div class="label">Temperatura</div>
-                        <div class="value">${weather.current.temperature}°C</div>
-                      </div>
-                      <div class="weather-card">
-                        <div class="label">Sensación Térmica</div>
-                        <div class="value">${weather.current.feelsLike}°C</div>
-                      </div>
-                      <div class="weather-card">
-                        <div class="label">Humedad</div>
-                        <div class="value">${weather.current.humidity}%</div>
-                      </div>
-                      <div class="weather-card">
-                        <div class="label">Presión</div>
-                        <div class="value">${weather.current.pressure} hPa</div>
-                      </div>
-                      <div class="weather-card">
-                        <div class="label">Velocidad del Viento</div>
-                        <div class="value">${weather.current.windSpeed} m/s</div>
-                      </div>
-                      <div class="weather-card">
-                        <div class="label">Dirección del Viento</div>
-                        <div class="value">${weather.current.windDirection}°</div>
-                      </div>
-                      <div class="weather-card">
-                        <div class="label">Visibilidad</div>
-                        <div class="value">${weather.current.visibility} km</div>
-                      </div>
-                      <div class="weather-card">
-                        <div class="label">Índice UV</div>
-                        <div class="value">${weather.current.uvi}</div>
-                      </div>
-                    </div>
-                  </div>
-                  ` : ''}
-
-                  <!-- Pronóstico del Clima -->
-                  ${weather?.forecast?.daily && weather.forecast.daily.length > 0 ? `
-                  <div class="section forecast-section">
-                    <h2>🌤️ Pronóstico de 7 Días</h2>
-                    <div class="forecast-grid">
-                      ${weather.forecast.daily.slice(0, 7).map(day => {
-                const date = new Date(day.dt * 1000);
-                const dayName = date.toLocaleDateString('es-ES', { weekday: 'short' });
-                return `
-                          <div class="forecast-card">
-                            <div class="day">${dayName}</div>
-                            <div class="temp">${Math.round(day.temp.day)}°C</div>
-                            <div class="description">${day.weather[0]?.description || ''}</div>
+                  <!-- Datos Históricos -->
+                  ${(() => {
+                // Función para verificar si hay datos históricos en la nueva estructura
+                const hasHistoricalData = () => {
+                    if (!deviceDataInfo.historical)
+                        return false;
+                    // Verificar estructura EcoWitt: deviceData.historical.indoor.list
+                    if (deviceDataInfo.historical.indoor && deviceDataInfo.historical.indoor.list) {
+                        return Object.keys(deviceDataInfo.historical.indoor.list).length > 0;
+                    }
+                    // Verificar estructura EcoWitt: deviceData.historical.outdoor.list
+                    if (deviceDataInfo.historical.outdoor && deviceDataInfo.historical.outdoor.list) {
+                        return Object.keys(deviceDataInfo.historical.outdoor.list).length > 0;
+                    }
+                    // Verificar estructura EcoWitt: deviceData.historical.pressure.list
+                    if (deviceDataInfo.historical.pressure && deviceDataInfo.historical.pressure.list) {
+                        return Object.keys(deviceDataInfo.historical.pressure.list).length > 0;
+                    }
+                    // Verificar estructura legacy para compatibilidad
+                    return Object.keys(deviceDataInfo.historical).length > 0;
+                };
+                // Función para obtener los datos históricos procesados
+                const getProcessedHistoricalData = () => {
+                    if (!deviceDataInfo.historical)
+                        return null;
+                    // Estructura EcoWitt: deviceData.historical.indoor.list
+                    if (deviceDataInfo.historical.indoor && deviceDataInfo.historical.indoor.list) {
+                        return {
+                            indoor: {
+                                list: deviceDataInfo.historical.indoor.list
+                            },
+                            outdoor: deviceDataInfo.historical.outdoor ? {
+                                list: deviceDataInfo.historical.outdoor.list
+                            } : {},
+                            pressure: deviceDataInfo.historical.pressure ? {
+                                list: deviceDataInfo.historical.pressure.list
+                            } : {}
+                        };
+                    }
+                    // Estructura legacy para compatibilidad
+                    return deviceDataInfo.historical;
+                };
+                const historicalData = getProcessedHistoricalData();
+                if (hasHistoricalData() && historicalData) {
+                    return `
+                        <div class="section chart-section">
+                          <h2>📊 Datos Históricos</h2>
+                          ${deviceDataInfo.diagnostic && deviceDataInfo.diagnostic.performed ? `
+                          <div class="diagnostic-info">
+                            <h3>🔧 Información de Diagnóstico</h3>
+                            <p><strong>Diagnóstico realizado:</strong> ${deviceDataInfo.diagnostic.performed ? 'Sí' : 'No'}</p>
+                            ${deviceDataInfo.diagnostic.summary ? `
+                            <div class="diagnostic-result">
+                              <strong>Resumen:</strong> ${JSON.stringify(deviceDataInfo.diagnostic.summary, null, 2)}
+                            </div>
+                            ` : ''}
                           </div>
-                        `;
-            }).join('')}
-                    </div>
-                  </div>
-                  ` : ''}
-
-                  <!-- Gráficos Históricos -->
-                  ${deviceDataInfo.historical && Object.keys(deviceDataInfo.historical).length > 0 ? `
-                  <div class="section chart-section">
-                    <h2>📊 Datos Históricos</h2>
-                    ${deviceDataInfo.diagnostic && deviceDataInfo.diagnostic.performed ? `
-                    <div class="diagnostic-info">
-                      <h3>🔧 Información de Diagnóstico</h3>
-                      <p><strong>Diagnóstico realizado:</strong> ${deviceDataInfo.diagnostic.performed ? 'Sí' : 'No'}</p>
-                      ${deviceDataInfo.diagnostic.summary ? `
-                      <div class="diagnostic-result">
-                        <strong>Resumen:</strong> ${JSON.stringify(deviceDataInfo.diagnostic.summary, null, 2)}
-                      </div>
-                      ` : ''}
-                    </div>
-                    ` : ''}
-                    <div class="chart-grid">
-                      ${this.generateChartContainers(deviceDataInfo.historical)}
-                    </div>
-                  </div>
-                  ` : ''}
+                          ` : ''}
+                          <div class="chart-grid">
+                            ${this.generateChartContainers(historicalData)}
+                          </div>
+                        </div>
+                      `;
+                }
+                else {
+                    return `
+                        <div class="section chart-section">
+                          <h2>📊 Datos Históricos</h2>
+                          <div class="info-card">
+                            <h3>Estado de Datos Históricos</h3>
+                            <div class="value text-yellow-400">No hay datos históricos disponibles para este período</div>
+                            <div class="text-xs text-white/50">Última actualización: ${lastUpdate}</div>
+                          </div>
+                        </div>
+                      `;
+                }
+            })()}
 
                   <!-- Información de Diagnóstico -->
                   ${deviceDataInfo.diagnostic ? `
@@ -1136,8 +1606,49 @@ class PDFGenerator {
           
           ${report.devices.map((deviceData, deviceIndex) => {
             const deviceDataInfo = deviceData.report.deviceData;
-            if (deviceDataInfo.historical && Object.keys(deviceDataInfo.historical).length > 0) {
-                return this.generateChartScripts(deviceDataInfo.historical);
+            // Función para verificar si hay datos históricos en la nueva estructura
+            const hasHistoricalData = () => {
+                if (!deviceDataInfo.historical)
+                    return false;
+                // Verificar estructura EcoWitt: deviceData.historical.indoor.list
+                if (deviceDataInfo.historical.indoor && deviceDataInfo.historical.indoor.list) {
+                    return Object.keys(deviceDataInfo.historical.indoor.list).length > 0;
+                }
+                // Verificar estructura EcoWitt: deviceData.historical.outdoor.list
+                if (deviceDataInfo.historical.outdoor && deviceDataInfo.historical.outdoor.list) {
+                    return Object.keys(deviceDataInfo.historical.outdoor.list).length > 0;
+                }
+                // Verificar estructura EcoWitt: deviceData.historical.pressure.list
+                if (deviceDataInfo.historical.pressure && deviceDataInfo.historical.pressure.list) {
+                    return Object.keys(deviceDataInfo.historical.pressure.list).length > 0;
+                }
+                // Verificar estructura legacy para compatibilidad
+                return Object.keys(deviceDataInfo.historical).length > 0;
+            };
+            // Función para obtener los datos históricos procesados
+            const getProcessedHistoricalData = () => {
+                if (!deviceDataInfo.historical)
+                    return null;
+                // Estructura EcoWitt: deviceData.historical.indoor.list
+                if (deviceDataInfo.historical.indoor && deviceDataInfo.historical.indoor.list) {
+                    return {
+                        indoor: {
+                            list: deviceDataInfo.historical.indoor.list
+                        },
+                        outdoor: deviceDataInfo.historical.outdoor ? {
+                            list: deviceDataInfo.historical.outdoor.list
+                        } : {},
+                        pressure: deviceDataInfo.historical.pressure ? {
+                            list: deviceDataInfo.historical.pressure.list
+                        } : {}
+                    };
+                }
+                // Estructura legacy para compatibilidad
+                return deviceDataInfo.historical;
+            };
+            const historicalData = getProcessedHistoricalData();
+            if (hasHistoricalData() && historicalData) {
+                return this.generateChartScripts(historicalData);
             }
             return '';
         }).join('')}
@@ -1172,6 +1683,178 @@ class PDFGenerator {
                 lastUpdate: null
             };
         }
+        // Función helper para formatear valores de sensores
+        const formatSensorValue = (sensorData, unit = '') => {
+            if (typeof sensorData === 'object' && sensorData.value !== undefined) {
+                return `${sensorData.value} ${sensorData.unit || unit}`;
+            }
+            return `${sensorData} ${unit}`;
+        };
+        const formatSensorTime = (sensorData) => {
+            if (typeof sensorData === 'object' && sensorData.time !== undefined) {
+                return new Date(sensorData.time * 1000).toLocaleTimeString('es-ES');
+            }
+            return new Date().toLocaleTimeString('es-ES');
+        };
+        // Procesar datos en tiempo real del dispositivo
+        const { realtime } = deviceData;
+        const sensorCards = [];
+        // Verificar si realtime es un objeto con estructura EcoWitt nueva
+        if (realtime && typeof realtime === 'object') {
+            // Sensores interiores (indoor)
+            if (realtime.indoor) {
+                if (realtime.indoor.temperature) {
+                    sensorCards.push(`
+            <div class="data-item">
+              <div class="data-label">Temperatura Interior</div>
+              <div class="data-value">${formatSensorValue(realtime.indoor.temperature, '°C')}</div>
+            </div>
+          `);
+                }
+                if (realtime.indoor.humidity) {
+                    sensorCards.push(`
+            <div class="data-item">
+              <div class="data-label">Humedad Interior</div>
+              <div class="data-value">${formatSensorValue(realtime.indoor.humidity, '%')}</div>
+            </div>
+          `);
+                }
+            }
+            // Sensores exteriores (outdoor)
+            if (realtime.outdoor) {
+                if (realtime.outdoor.temperature) {
+                    sensorCards.push(`
+            <div class="data-item">
+              <div class="data-label">Temperatura Exterior</div>
+              <div class="data-value">${formatSensorValue(realtime.outdoor.temperature, '°C')}</div>
+            </div>
+          `);
+                }
+                if (realtime.outdoor.humidity) {
+                    sensorCards.push(`
+            <div class="data-item">
+              <div class="data-label">Humedad Exterior</div>
+              <div class="data-value">${formatSensorValue(realtime.outdoor.humidity, '%')}</div>
+            </div>
+          `);
+                }
+            }
+            // Sensores de presión
+            if (realtime.pressure) {
+                if (realtime.pressure.relative) {
+                    sensorCards.push(`
+            <div class="data-item">
+              <div class="data-label">Presión Relativa</div>
+              <div class="data-value">${formatSensorValue(realtime.pressure.relative, 'hPa')}</div>
+            </div>
+          `);
+                }
+            }
+            // Sensores de suelo CH1
+            if (realtime.soil_ch1) {
+                if (realtime.soil_ch1.soilmoisture) {
+                    sensorCards.push(`
+            <div class="data-item">
+              <div class="data-label">Humedad del Suelo CH1</div>
+              <div class="data-value">${formatSensorValue(realtime.soil_ch1.soilmoisture, '%')}</div>
+            </div>
+          `);
+                }
+            }
+            // Sensores de suelo CH9
+            if (realtime.soil_ch9) {
+                if (realtime.soil_ch9.soilmoisture) {
+                    sensorCards.push(`
+            <div class="data-item">
+              <div class="data-label">Humedad del Suelo CH9</div>
+              <div class="data-value">${formatSensorValue(realtime.soil_ch9.soilmoisture, '%')}</div>
+            </div>
+          `);
+                }
+            }
+            // Sensores de batería
+            if (realtime.battery) {
+                if (realtime.battery.soilmoisture_sensor_ch1) {
+                    sensorCards.push(`
+            <div class="data-item">
+              <div class="data-label">Batería Sensor Suelo CH1</div>
+              <div class="data-value">${formatSensorValue(realtime.battery.soilmoisture_sensor_ch1, 'V')}</div>
+            </div>
+          `);
+                }
+            }
+            // ============================================================================
+            // ESTRUCTURA LEGACY (COMPATIBILIDAD)
+            // ============================================================================
+            // Temperatura y humedad exterior (formato legacy)
+            if (realtime.tempf !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Temperatura Exterior</div><div class="data-value">${realtime.tempf}°F</div></div>`);
+            if (realtime.tempc !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Temperatura Exterior</div><div class="data-value">${realtime.tempc}°C</div></div>`);
+            if (realtime.humidity !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Humedad Exterior</div><div class="data-value">${realtime.humidity}%</div></div>`);
+            // Temperatura y humedad interior (formato legacy)
+            if (realtime.temp1f !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Temperatura Interior</div><div class="data-value">${realtime.temp1f}°F</div></div>`);
+            if (realtime.temp1c !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Temperatura Interior</div><div class="data-value">${realtime.temp1c}°C</div></div>`);
+            if (realtime.humidity1 !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Humedad Interior</div><div class="data-value">${realtime.humidity1}%</div></div>`);
+            // Presión (formato legacy)
+            if (realtime.baromrelin !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Presión Relativa</div><div class="data-value">${realtime.baromrelin} inHg</div></div>`);
+            if (realtime.baromabsin !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Presión Absoluta</div><div class="data-value">${realtime.baromabsin} inHg</div></div>`);
+            // Viento (formato legacy)
+            if (realtime.winddir !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Dirección del Viento</div><div class="data-value">${realtime.winddir}°</div></div>`);
+            if (realtime.windspeedmph !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Velocidad del Viento</div><div class="data-value">${realtime.windspeedmph} mph</div></div>`);
+            // Lluvia (formato legacy)
+            if (realtime.rainratein !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Tasa de Lluvia</div><div class="data-value">${realtime.rainratein} in/h</div></div>`);
+            if (realtime.dailyrainin !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Lluvia Diaria</div><div class="data-value">${realtime.dailyrainin} in</div></div>`);
+            // Radiación solar y UV (formato legacy)
+            if (realtime.solarradiation !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Radiación Solar</div><div class="data-value">${realtime.solarradiation} W/m²</div></div>`);
+            if (realtime.uv !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Índice UV</div><div class="data-value">${realtime.uv}</div></div>`);
+            // Suelo (formato legacy)
+            if (realtime.soilmoisture1 !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Humedad del Suelo CH1</div><div class="data-value">${realtime.soilmoisture1}%</div></div>`);
+            if (realtime.soiltemp1f !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Temperatura del Suelo CH1</div><div class="data-value">${realtime.soiltemp1f}°F</div></div>`);
+            // Batería y señal (formato legacy)
+            if (realtime.batt1 !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Batería Sensor 1</div><div class="data-value">${realtime.batt1} V</div></div>`);
+            if (realtime.batt2 !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Batería Sensor 2</div><div class="data-value">${realtime.batt2} V</div></div>`);
+            if (realtime.batt3 !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Batería Sensor 3</div><div class="data-value">${realtime.batt3} V</div></div>`);
+            if (realtime.batt4 !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Batería Sensor 4</div><div class="data-value">${realtime.batt4} V</div></div>`);
+            if (realtime.batt5 !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Batería Sensor 5</div><div class="data-value">${realtime.batt5} V</div></div>`);
+            if (realtime.batt6 !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Batería Sensor 6</div><div class="data-value">${realtime.batt6} V</div></div>`);
+            if (realtime.batt7 !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Batería Sensor 7</div><div class="data-value">${realtime.batt7} V</div></div>`);
+            if (realtime.batt8 !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Batería Sensor 8</div><div class="data-value">${realtime.batt8} V</div></div>`);
+            // Señal (formato legacy)
+            if (realtime.rssi !== undefined)
+                sensorCards.push(`<div class="data-item"><div class="data-label">Señal</div><div class="data-value">${realtime.rssi} dBm</div></div>`);
+        }
+        // Si no hay datos de sensores, mostrar mensaje
+        if (sensorCards.length === 0) {
+            sensorCards.push(`
+        <div class="data-item">
+          <div class="data-label">Estado del Dispositivo</div>
+          <div class="data-value" style="color: #fbbf24;">No hay datos de sensores disponibles</div>
+        </div>
+      `);
+        }
         return `
       <div class="device-card">
         <div class="device-header">
@@ -1198,6 +1881,13 @@ class PDFGenerator {
               <span class="status-indicator ${deviceReport.metadata.deviceOnline ? 'status-online' : 'status-offline'}"></span>
               ${deviceReport.metadata.deviceOnline ? 'En línea' : 'Desconectado'}
             </div>
+          </div>
+        </div>
+        
+        <div class="sensor-data-section">
+          <h4>📊 Datos de Sensores</h4>
+          <div class="sensor-data-grid">
+            ${sensorCards.join('')}
           </div>
         </div>
         

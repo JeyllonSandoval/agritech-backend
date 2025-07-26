@@ -77,7 +77,6 @@ export class DeviceGroupService {
       
       return result[0]?.count || 0;
     } catch (error) {
-      console.error('Error counting devices in group:', error);
       return 0;
     }
   }
@@ -129,7 +128,6 @@ export class DeviceGroupService {
       
       return result;
     } catch (err) {
-      console.error('Error en DeviceGroupService.getGroupDevices:', err);
       throw err;
     }
   }
@@ -145,16 +143,10 @@ export class DeviceGroupService {
       deviceIds?: { DeviceGroupMemberID: string; DeviceID: string; }[];
     }
   ) {
-    console.log('🔧 DeviceGroupService.updateGroup - Input:', {
-      DeviceGroupID,
-      updateData
-    });
-
     const { deviceIds, ...groupInfo } = updateData;
 
     // Actualizar información del grupo
     if (Object.keys(groupInfo).length > 0) {
-      console.log('🔧 DeviceGroupService.updateGroup - Updating group info:', groupInfo);
       await db.update(deviceGroups)
         .set({
           ...groupInfo,
@@ -165,17 +157,12 @@ export class DeviceGroupService {
 
     // Actualizar dispositivos del grupo si se proporcionaron
     if (deviceIds) {
-      console.log('🔧 DeviceGroupService.updateGroup - Updating device members:', deviceIds.length);
-      
       // Verificar que todos los dispositivos existan antes de insertar
       const deviceIdsToCheck = deviceIds.map(d => d.DeviceID);
-      console.log('🔧 DeviceGroupService.updateGroup - Checking device IDs:', deviceIdsToCheck);
       
       const existingDevices = await db.select()
         .from(devices)
         .where(inArray(devices.DeviceID, deviceIdsToCheck));
-      
-      console.log('🔧 DeviceGroupService.updateGroup - Existing devices found:', existingDevices.length);
       
       if (existingDevices.length !== deviceIdsToCheck.length) {
         const foundIds = existingDevices.map(d => d.DeviceID);
@@ -201,7 +188,6 @@ export class DeviceGroupService {
     }
 
     const result = await this.getGroupById(DeviceGroupID);
-    console.log('🔧 DeviceGroupService.updateGroup - Result:', result);
     return result;
   }
 
@@ -209,12 +195,8 @@ export class DeviceGroupService {
    * Eliminar un grupo
    */
   static async deleteGroup(DeviceGroupID: string) {
-    console.log('🔧 DeviceGroupService.deleteGroup - Input:', DeviceGroupID);
-    
     await db.delete(deviceGroups)
       .where(eq(deviceGroups.DeviceGroupID, DeviceGroupID));
-    
-    console.log('🔧 DeviceGroupService.deleteGroup - Success');
   }
 
   /**
@@ -278,13 +260,9 @@ export class DeviceGroupService {
    * Obtener datos en tiempo real de los dispositivos en un grupo
    */
   static async getGroupDevicesRealtime(DeviceGroupID: string) {
-    console.log('🔍 [SERVICE] getGroupDevicesRealtime - Input:', DeviceGroupID);
-    
     const groupDevices = await this.getGroupDevices(DeviceGroupID);
-    console.log('🔍 [SERVICE] getGroupDevicesRealtime - Group devices:', groupDevices);
     
     if (groupDevices.length === 0) {
-      console.log('🔍 [SERVICE] getGroupDevicesRealtime - No devices in group');
       return {};
     }
 
@@ -292,8 +270,6 @@ export class DeviceGroupService {
       .from(deviceGroupMembers)
       .innerJoin(devices, eq(deviceGroupMembers.DeviceID, devices.DeviceID))
       .where(eq(deviceGroupMembers.DeviceGroupID, DeviceGroupID));
-
-    console.log('🔍 [SERVICE] getGroupDevicesRealtime - Device results:', deviceResults);
 
     const deviceData = deviceResults.map(result => ({
       applicationKey: result.device_table.DeviceApplicationKey,
@@ -303,8 +279,6 @@ export class DeviceGroupService {
       deviceId: result.device_table.DeviceID
     }));
 
-    console.log('🔍 [SERVICE] getGroupDevicesRealtime - Device data:', deviceData);
-
     // Obtener datos de Ecowitt
     const ecowittData = await EcowittService.getMultipleDevicesRealtime(
       deviceData.map(device => ({
@@ -313,8 +287,6 @@ export class DeviceGroupService {
         mac: device.mac
       }))
     );
-
-    console.log('🔍 [SERVICE] getGroupDevicesRealtime - Ecowitt data:', ecowittData);
 
     // Combinar datos de Ecowitt con información del dispositivo
     const enrichedData: Record<string, any> = {};
@@ -333,7 +305,6 @@ export class DeviceGroupService {
       }
     }
 
-    console.log('🔍 [SERVICE] getGroupDevicesRealtime - Enriched data:', enrichedData);
     return enrichedData;
   }
 } 

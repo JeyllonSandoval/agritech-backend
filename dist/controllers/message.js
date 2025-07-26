@@ -56,17 +56,13 @@ const createMessage = async (request, reply) => {
                 .where((0, drizzle_orm_1.eq)(filesSchema_1.default.FileID, result.data.FileID));
             fileContent = file[0]?.contentURL || null;
             if (file.length && fileContent) {
-                console.log(`Procesando PDF para FileID: ${result.data.FileID}, URL: ${fileContent}`);
                 try {
                     // Llamar directamente a la función de procesamiento de PDF
                     const pdfBuffer = await downloadPDF(fileContent);
                     const pdfData = await extractPDFText(pdfBuffer);
                     pdfContent = processPDFText(pdfData.text).rawText;
-                    console.log(`PDF procesado exitosamente. Longitud del contenido: ${pdfContent.length}`);
-                    console.log(`Preview del contenido: ${pdfContent.substring(0, 200)}...`);
                 }
                 catch (error) {
-                    console.error(`Error procesando PDF para FileID: ${result.data.FileID}:`, error);
                     pdfContent = "Error procesando el PDF";
                 }
             }
@@ -84,8 +80,6 @@ const createMessage = async (request, reply) => {
         if (result.data.sendertype === "user" && result.data.contentAsk) {
             // Obtener el idioma del usuario desde los headers
             const userLanguage = request.headers['user-language'] || 'en';
-            console.log(`Enviando mensaje a AI con FileID: ${result.data.FileID}, pdfContent length: ${pdfContent ? pdfContent.length : 0}`);
-            console.log(`Preview del pdfContent: ${pdfContent ? pdfContent.substring(0, 200) : 'No content'}...`);
             const aiRequest = {
                 body: {
                     ask: result.data.contentAsk,
@@ -123,7 +117,6 @@ const createMessage = async (request, reply) => {
         });
     }
     catch (error) {
-        console.error(error);
         if (error instanceof zod_1.ZodError) {
             return reply.status(400).send({
                 error: "Message: Validation error",
@@ -166,7 +159,6 @@ const getChatMessages = async (request, reply) => {
         return reply.status(200).send(messages);
     }
     catch (error) {
-        console.error(error);
         if (error instanceof zod_1.z.ZodError) {
             return reply.status(400).send({
                 error: "Get Messages: Validation error",
@@ -189,7 +181,6 @@ const getAllMessages = async (_request, reply) => {
         return reply.status(200).send(messages);
     }
     catch (error) {
-        console.error(error);
         return reply.status(500).send({
             error: "Get All Messages: Failed to get all messages",
             details: error instanceof Error ? error.message : "Unknown error",
@@ -231,7 +222,6 @@ const updateMessage = async (request, reply) => {
         });
     }
     catch (error) {
-        console.error(error);
         return reply.status(500).send({
             error: "Update Message: Failed to update message",
             details: error instanceof Error ? error.message : "Unknown error"
@@ -265,7 +255,6 @@ const deleteMessage = async (request, reply) => {
         });
     }
     catch (error) {
-        console.error(error);
         return reply.status(500).send({
             error: "Delete Message: Failed to delete message",
             details: error instanceof Error ? error.message : "Unknown error"
@@ -276,7 +265,6 @@ exports.deleteMessage = deleteMessage;
 // Funciones auxiliares para procesamiento de PDF
 async function downloadPDF(url) {
     try {
-        console.log(`Descargando PDF desde: ${url}`);
         const response = await axios_1.default.get(url, {
             responseType: "arraybuffer",
             timeout: 30000, // 30 segundos timeout
@@ -284,7 +272,6 @@ async function downloadPDF(url) {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
         });
-        console.log(`Respuesta recibida. Status: ${response.status}, Tamaño: ${response.data.length} bytes`);
         if (response.data.length > 10 * 1024 * 1024) { // 10MB limit
             throw new Error("PDF file size exceeds 10MB limit");
         }
@@ -292,11 +279,9 @@ async function downloadPDF(url) {
             throw new Error("PDF file is empty");
         }
         const buffer = Buffer.from(response.data);
-        console.log(`Buffer creado. Tamaño: ${buffer.length} bytes`);
         return buffer;
     }
     catch (error) {
-        console.error(`Error descargando PDF desde ${url}:`, error);
         throw new Error(`Failed to download PDF: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
 }
@@ -304,16 +289,13 @@ async function extractPDFText(buffer) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
     try {
-        console.log('Iniciando extracción de texto del PDF...');
         const pdfData = await (0, pdf_parse_1.default)(buffer);
-        console.log(`Extracción completada. Texto extraído: ${pdfData.text.length} caracteres`);
         if (!pdfData.text || pdfData.text.trim().length === 0) {
-            console.warn('Advertencia: El PDF no contiene texto extraíble');
+            // El PDF no contiene texto extraíble
         }
         return pdfData;
     }
     catch (error) {
-        console.error('Error extrayendo texto del PDF:', error);
         throw error;
     }
     finally {

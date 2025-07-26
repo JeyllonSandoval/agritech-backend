@@ -55,8 +55,7 @@ const generateAIResponse = async (
     try {
         const { ask, ChatID, FileID, pdfContent, userLanguage } = request.body;
 
-        console.log(`AI Response - Recibido: ask="${ask}", FileID="${FileID}", pdfContent length=${pdfContent ? pdfContent.length : 0}`);
-        console.log(`AI Response - Preview del pdfContent: ${pdfContent ? pdfContent.substring(0, 200) : 'No content'}...`);
+
 
         // Obtener el historial de mensajes del chat
         const chatHistory = await getMessagesForChat(ChatID);
@@ -85,10 +84,9 @@ const generateAIResponse = async (
                     const pdfBuffer = await downloadPDF(file[0].contentURL);
                     const pdfData = await extractPDFText(pdfBuffer);
                     currentFileContent = processPDFText(pdfData.text).rawText;
-                    console.log(`Contenido del archivo actual procesado. Longitud: ${currentFileContent.length}`);
                 }
             } catch (error) {
-                console.error('Error procesando archivo actual:', error);
+                // Error procesando archivo actual
             }
         }
 
@@ -109,7 +107,7 @@ const generateAIResponse = async (
                     allPdfContent += `\n\n=== ARCHIVO: ${file[0].FileName} ===\n${fileContent}`;
                 }
             } catch (error) {
-                console.error(`Error procesando archivo ${fileId}:`, error);
+                // Error procesando archivo
             }
         }
 
@@ -174,7 +172,7 @@ const generateAIResponse = async (
                     }
                 }
             } catch (error) {
-                console.error('Error obteniendo información de dispositivos:', error);
+                // Error obteniendo información de dispositivos
             }
         }
 
@@ -204,13 +202,9 @@ const generateAIResponse = async (
 
         // Priorizar el contenido del archivo actual si está disponible
         if (currentFileContent && currentFileContent.trim().length > 0) {
-            console.log(`Agregando contexto del documento actual. Longitud: ${currentFileContent.length}`);
             systemPrompt += `\n\n=== CONTENIDO DEL DOCUMENTO ACTUAL ===\n${currentFileContent}\n\nINSTRUCCIÓN FINAL: El contenido del documento está disponible arriba. SIEMPRE usa esta información para responder preguntas sobre el documento. NO digas que no tienes acceso al documento.`;
         } else if (allPdfContent && allPdfContent.trim().length > 0) {
-            console.log(`Agregando contexto del documento del chat. Longitud: ${allPdfContent.length}`);
             systemPrompt += `\n\n=== CONTENIDO DEL DOCUMENTO DEL CHAT ===\n${allPdfContent}\n\nINSTRUCCIÓN FINAL: El contenido del documento está disponible arriba. SIEMPRE usa esta información para responder preguntas sobre el documento. NO digas que no tienes acceso al documento.`;
-        } else {
-            console.log('No hay contenido de PDF disponible para agregar al contexto');
         }
 
         // Agregar información de dispositivos si está disponible
@@ -218,12 +212,7 @@ const generateAIResponse = async (
             systemPrompt += deviceInfo;
         }
 
-        console.log(`Prompt final length: ${systemPrompt.length}`);
-        console.log(`Prompt final preview: ${systemPrompt.substring(0, 500)}...`);
 
-        // Llamar a OpenAI con historial completo
-        console.log(`Enviando prompt al AI. Longitud del prompt: ${systemPrompt.length} caracteres`);
-        console.log(`Preview del prompt: ${systemPrompt.substring(0, 500)}...`);
         
         const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
@@ -256,7 +245,6 @@ const generateAIResponse = async (
         };
 
     } catch (error) {
-        console.error(error);
         return reply.status(500).send({
             error: "AI Response: Failed to generate response",
             details: error instanceof Error ? error.message : "Unknown error"
@@ -267,8 +255,6 @@ const generateAIResponse = async (
 // Funciones auxiliares para procesamiento de PDF
 async function downloadPDF(url: string): Promise<Buffer> {
     try {
-        console.log(`Descargando PDF desde: ${url}`);
-        
         const response = await axios.get(url, { 
             responseType: "arraybuffer",
             timeout: 30000, // 30 segundos timeout
@@ -276,8 +262,6 @@ async function downloadPDF(url: string): Promise<Buffer> {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
         });
-
-        console.log(`Respuesta recibida. Status: ${response.status}, Tamaño: ${response.data.length} bytes`);
 
         if (response.data.length > 10 * 1024 * 1024) { // 10MB limit
             throw new Error("PDF file size exceeds 10MB limit");
@@ -288,11 +272,9 @@ async function downloadPDF(url: string): Promise<Buffer> {
         }
 
         const buffer = Buffer.from(response.data);
-        console.log(`Buffer creado. Tamaño: ${buffer.length} bytes`);
         
         return buffer;
     } catch (error) {
-        console.error(`Error descargando PDF desde ${url}:`, error);
         throw new Error(`Failed to download PDF: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
 }
@@ -302,17 +284,14 @@ async function extractPDFText(buffer: Buffer): Promise<any> {
     const timeout = setTimeout(() => controller.abort(), 30000);
 
     try {
-        console.log('Iniciando extracción de texto del PDF...');
         const pdfData = await pdfParse(buffer);
-        console.log(`Extracción completada. Texto extraído: ${pdfData.text.length} caracteres`);
         
         if (!pdfData.text || pdfData.text.trim().length === 0) {
-            console.warn('Advertencia: El PDF no contiene texto extraíble');
+            // El PDF no contiene texto extraíble
         }
         
         return pdfData;
     } catch (error) {
-        console.error('Error extrayendo texto del PDF:', error);
         throw error;
     } finally {
         clearTimeout(timeout);

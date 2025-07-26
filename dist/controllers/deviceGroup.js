@@ -92,7 +92,6 @@ class DeviceGroupController {
             return reply.send(devices);
         }
         catch (error) {
-            console.error('Error en getGroupDevices:', error);
             return reply.status(500).send({
                 error: 'Error al obtener dispositivos del grupo',
                 details: error instanceof Error ? error.message : error
@@ -109,7 +108,6 @@ class DeviceGroupController {
             return reply.send({ deviceCount });
         }
         catch (error) {
-            console.error('Error en getGroupDeviceCount:', error);
             return reply.status(500).send({
                 error: 'Error al obtener conteo de dispositivos del grupo',
                 details: error instanceof Error ? error.message : error
@@ -123,11 +121,6 @@ class DeviceGroupController {
         try {
             const { groupId } = request.params;
             const { GroupName, Description, deviceIds } = request.body;
-            console.log('🔧 updateGroup - Request details:', {
-                groupId: groupId,
-                body: request.body,
-                headers: request.headers
-            });
             const group = await deviceGroup_1.DeviceGroupService.updateGroup(groupId, {
                 GroupName,
                 Description,
@@ -136,11 +129,9 @@ class DeviceGroupController {
                     DeviceID: deviceId
                 }))
             });
-            console.log('🔧 updateGroup - Success:', group);
             return reply.send(group);
         }
         catch (error) {
-            console.error('🔧 updateGroup - Error:', error);
             if (error instanceof zod_1.z.ZodError) {
                 return reply.code(400).send({
                     error: 'Validation error',
@@ -156,16 +147,10 @@ class DeviceGroupController {
     static async deleteGroup(request, reply) {
         try {
             const { groupId } = request.params;
-            console.log('🔧 deleteGroup - Request details:', {
-                groupId: groupId,
-                headers: request.headers
-            });
             await deviceGroup_1.DeviceGroupService.deleteGroup(groupId);
-            console.log('🔧 deleteGroup - Success');
             return reply.status(204).send();
         }
         catch (error) {
-            console.error('🔧 deleteGroup - Error:', error);
             return reply.status(500).send({
                 error: 'Error deleting group'
             });
@@ -205,24 +190,15 @@ class DeviceGroupController {
     static async getGroupDevicesRealtime(request, reply) {
         try {
             const { groupId } = request.params;
-            console.log('🔍 [CONTROLLER] getGroupDevicesRealtime - Request:', {
-                groupId,
-                headers: request.headers,
-                user: request.user
-            });
             // Check if group exists
             const existingGroup = await deviceGroup_1.DeviceGroupService.getGroupById(groupId);
-            console.log('🔍 [CONTROLLER] getGroupDevicesRealtime - Existing group:', existingGroup);
             if (!existingGroup) {
-                console.log('❌ [CONTROLLER] getGroupDevicesRealtime - Group not found');
                 return reply.code(404).send({ error: 'Group not found' });
             }
             const realtimeData = await deviceGroup_1.DeviceGroupService.getGroupDevicesRealtime(groupId);
-            console.log('🔍 [CONTROLLER] getGroupDevicesRealtime - Realtime data:', realtimeData);
             return reply.send(realtimeData);
         }
         catch (error) {
-            console.error('❌ [CONTROLLER] getGroupDevicesRealtime - Error:', error);
             return reply.code(500).send({ error: 'Error retrieving group real-time data' });
         }
     }
