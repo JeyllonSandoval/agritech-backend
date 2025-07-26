@@ -9,5 +9,7 @@ async function reportsRoutes(fastify) {
     fastify.get('/reports/user/:userId', deviceWeatherReport_1.DeviceWeatherReportController.getUserReports);
     // Ruta de prueba para verificar la generación de reportes
     fastify.get('/reports/test', deviceWeatherReport_1.DeviceWeatherReportController.testReportGeneration);
+    // Ruta de prueba para verificar la generación de gráficos
+    fastify.get('/reports/test-charts', deviceWeatherReport_1.DeviceWeatherReportController.testChartGeneration);
 }
 //# sourceMappingURL=reports.routes.js.map

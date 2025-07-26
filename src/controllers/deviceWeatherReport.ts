@@ -672,4 +672,31 @@ export class DeviceWeatherReportController {
       });
     }
   }
+
+  /**
+   * Test: Verificar generación de gráficos con datos de ejemplo
+   */
+  static async testChartGeneration(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const testHtml = await PDFGenerator.testChartGeneration();
+      
+      return reply.send({
+        success: true,
+        message: 'Test de gráficos generado exitosamente',
+        html: testHtml,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error en test de gráficos:', error);
+      return reply.code(500).send({
+        success: false,
+        message: 'Error al generar test de gráficos',
+        error: error instanceof Error ? error.message : 'Error desconocido'
+      });
+    }
+  }
+
+  /**
+   * Test: Generar reporte de prueba para verificar funcionamiento
+   */
 } 

@@ -187,7 +187,7 @@ export class DeviceWeatherReportService {
       // 8. Preparar datos del dispositivo para el reporte (CORREGIDO para EcoWitt)
       const deviceDataReport = {
         realtime: realtimeData,
-        historical: (historicalData && historicalData.data) ? historicalData.data : {},
+        historical: (historicalData && historicalData.data && Object.keys(historicalData.data).length > 0) ? historicalData.data : null,
         characteristics: deviceCharacteristics,
         // Incluir información de diagnóstico si está disponible
         diagnostic: historicalDiagnostic ? {
