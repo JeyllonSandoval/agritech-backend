@@ -101,7 +101,18 @@ export default async function deviceRoutes(fastify: FastifyInstance) {
   fastify.get(
     '/devices/:deviceId/complete',
     {
-      preHandler: authenticateToken
+      preHandler: authenticateToken,
+      schema: {
+        querystring: {
+          type: 'object',
+          properties: {
+            rangeType: {
+              type: 'string',
+              enum: ['one_hour', 'hourly', 'one_day', 'daily', 'one_week', 'weekly', 'one_month', 'monthly', 'three_months', 'yearly']
+            }
+          }
+        }
+      }
     },
     DeviceController.getDeviceCompleteInfo
   );

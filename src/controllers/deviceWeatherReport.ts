@@ -358,7 +358,7 @@ export class DeviceWeatherReportController {
 - **Dispositivos:** ${result.report.data.metadata.totalDevices} dispositivos
 - **Reportes exitosos:** ${result.report.data.metadata.successfulReports}
 - **Datos históricos:** ${result.report.data.metadata.devicesWithHistoricalData} dispositivos con datos históricos
-- **Diagnósticos realizados:** ${result.report.data.metadata.devicesWithDiagnostic}
+- **Dispositivos con humedad del suelo:** ${result.report.data.metadata.devicesWithSoilMoisture}
 - **Formato:** ${format.toUpperCase()}
 
 **🔍 Puedes preguntarme sobre:**
@@ -431,8 +431,8 @@ export class DeviceWeatherReportController {
           message += `. No se encontraron datos históricos para el período especificado`;
         }
         
-        if (result.report.data.metadata.devicesWithDiagnostic > 0) {
-          message += `. Se realizaron diagnósticos automáticos para ${result.report.data.metadata.devicesWithDiagnostic} dispositivos`;
+        if (result.report.data.metadata.devicesWithSoilMoisture > 0) {
+          message += `. Se encontraron datos de humedad del suelo para ${result.report.data.metadata.devicesWithSoilMoisture} dispositivos`;
         }
       }
 
@@ -596,15 +596,9 @@ export class DeviceWeatherReportController {
             historicalDataKeys: result.report.data.metadata.historicalDataKeys,
             diagnosticPerformed: result.report.data.metadata.diagnosticPerformed,
             timeRange: result.report.data.timeRange,
-            // Información de diagnóstico si está disponible
-            diagnostic: result.report.data.deviceData.diagnostic ? {
-              performed: result.report.data.deviceData.diagnostic.performed,
-              bestConfiguration: result.report.data.deviceData.diagnostic.bestConfiguration ? {
-                test: result.report.data.deviceData.diagnostic.bestConfiguration.test,
-                dataKeys: result.report.data.deviceData.diagnostic.bestConfiguration.dataKeys,
-                hasData: result.report.data.deviceData.diagnostic.bestConfiguration.hasData
-              } : null
-            } : null
+            // Información de humedad del suelo si está disponible
+            hasSoilMoistureData: result.report.data.metadata.hasSoilMoistureData,
+            soilMoistureSensors: result.report.data.metadata.soilMoistureSensors
           }
         }
       };

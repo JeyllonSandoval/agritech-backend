@@ -7,13 +7,14 @@ import deviceGroups from '@/db/schemas/deviceGroupSchema';
 import deviceGroupMembers from '@/db/schemas/deviceGroupMembers';
 import { eq, and, inArray } from 'drizzle-orm';
 import { TimeRangeType, getTimeRange, getTimeRangeDescription } from '@/utils/timeRanges';
+import { validateTimeRange } from '@/utils/validationRange';
 
 export class DeviceWeatherReportService {
   private static weatherService = new WeatherService();
 
-  /**
+    /**
    * Generar reporte combinado para un dispositivo individual
-   * Incluye mejoras para el historial de EcoWitt con diagnóstico automático
+   * Usa el nuevo endpoint getDeviceCompleteInfo que incluye todos los datos necesarios
    */
   static async generateDeviceReport(
     deviceId: string,
@@ -73,60 +74,219 @@ export class DeviceWeatherReportService {
         }
       }
 
-      // 5. Obtener datos históricos si se solicita (INCLUYENDO PRESIÓN Y HUMEDAD DEL SUELO)
-      let historicalData = null;
-      let historicalDiagnostic = null;
+      // 5. Obtener datos históricos procesados (INCLUYENDO HUMEDAD DEL SUELO)
+      let processedHistoricalData = null;
+      let timeRange = null;
       
       if (includeHistory && historyRange) {
         try {
-          // Usar el nuevo método que incluye presión y humedad del suelo
-          historicalData = await EcowittService.getDeviceHistoryComplete(
+          // Usar validateTimeRange para obtener el rango de tiempo
+          const { start, end } = validateTimeRange(historyRange.startTime, historyRange.endTime);
+          
+          timeRange = {
+            type: 'custom',
+            startTime: start,
+            endTime: end,
+            description: this.getTimeRangeDescription(start, end)
+          };
+
+          // Obtener datos históricos generales
+          const historicalData = await EcowittService.getDeviceHistoryComplete(
             device.DeviceApplicationKey,
             device.DeviceApiKey,
             device.DeviceMac,
-            historyRange.startTime,
-            historyRange.endTime
+            start,
+            end
           );
 
-          // Verificar si los datos históricos están vacíos y realizar diagnóstico automático
-          if (historicalData && historicalData.code === 0 && historicalData.msg === 'success') {
-            const hasData = historicalData.data && Object.keys(historicalData.data).length > 0;
-            
-            if (!hasData) {
-              // Realizar diagnóstico automático con diferentes configuraciones
-              historicalDiagnostic = await this.performHistoricalDiagnostic(
-                device.DeviceApplicationKey,
-                device.DeviceApiKey,
-                device.DeviceMac,
-                historyRange.startTime,
-                historyRange.endTime
-              );
-              // Si el diagnóstico encuentra datos, usarlos
-              if (historicalDiagnostic.summary.bestConfiguration) {
-                historicalData = historicalDiagnostic.summary.bestConfiguration.response;
-              }
-            } else {
-              // Procesar y normalizar los datos históricos
-              historicalData = this.normalizeHistoricalData(historicalData);
-            }
-          }
-        } catch (historyError) {
-          // Intentar diagnóstico automático en caso de error
+          // Obtener datos específicos de humedad del suelo
+          let soilMoistureData = null;
           try {
-            historicalDiagnostic = await this.performHistoricalDiagnostic(
+            soilMoistureData = await EcowittService.getSoilMoistureHistory(
               device.DeviceApplicationKey,
               device.DeviceApiKey,
               device.DeviceMac,
-              historyRange.startTime,
-              historyRange.endTime
+              start,
+              end
             );
-            if (historicalDiagnostic.summary.bestConfiguration) {
-              historicalData = historicalDiagnostic.summary.bestConfiguration.response;
-              historicalData = this.normalizeHistoricalData(historicalData);
-            }
-          } catch (diagnosticError) {
-            // Silenciar errores de diagnóstico
+          } catch (soilError) {
+            console.warn('Error getting soil moisture data:', soilError);
           }
+
+          // Intentar obtener datos de presión específicamente
+          let specificPressureData = null;
+          try {
+            specificPressureData = await EcowittService.getDeviceHistory(
+              device.DeviceApplicationKey,
+              device.DeviceApiKey,
+              device.DeviceMac,
+              start,
+              end
+            );
+          } catch (pressureError) {
+            console.warn('Error getting pressure data:', pressureError);
+          }
+
+          // Procesar datos históricos usando la nueva estructura de getDeviceCompleteInfo
+          if (historicalData && historicalData.code === 0 && historicalData.msg === 'success') {
+            const data = historicalData.data;
+            
+            // Extraer datos de temperatura (nueva estructura directa)
+            let temperatureData = null;
+            if (data.temperature) {
+              temperatureData = data.temperature;
+            } else if (data.indoor?.indoor?.temperature?.list) {
+              temperatureData = {
+                unit: data.indoor.indoor.temperature.unit || '°F',
+                data: data.indoor.indoor.temperature.list
+              };
+            }
+
+            // Extraer datos de humedad (nueva estructura directa)
+            let humidityData = null;
+            if (data.humidity) {
+              humidityData = data.humidity;
+            } else if (data.indoor?.indoor?.humidity?.list) {
+              humidityData = {
+                unit: data.indoor.indoor.humidity.unit || '%',
+                data: data.indoor.indoor.humidity.list
+              };
+            }
+
+            // Extraer datos de presión (nueva estructura directa)
+            let pressureData = null;
+            if (data.pressure) {
+              pressureData = data.pressure;
+            } else if (data.pressure?.pressure?.relative?.list) {
+              pressureData = {
+                unit: data.pressure.pressure.relative.unit || 'inHg',
+                data: data.pressure.pressure.relative.list
+              };
+            }
+
+            // Extraer datos de humedad del suelo (nueva estructura directa)
+            let processedSoilMoistureData = null;
+            
+            // Buscar datos de humedad del suelo en múltiples fuentes
+            if (data.soilMoisture) {
+              processedSoilMoistureData = data.soilMoisture;
+            } else {
+              // Buscar en canales de suelo específicos desde getDeviceHistoryComplete (soil_ch1, soil_ch2, etc.)
+              const soilChannels = Object.keys(data).filter(key => key.startsWith('soil_ch'));
+              
+              if (soilChannels.length > 0) {
+                const firstChannel = soilChannels[0];
+                const soilChannelData = data[firstChannel];
+                
+                // Verificar estructura del canal de suelo desde getDeviceHistoryComplete
+                if (soilChannelData && typeof soilChannelData === 'object') {
+                  // Buscar directamente por nombre de sensor
+                  const sensorKeys = Object.keys(soilChannelData).filter(key => 
+                    key.startsWith('soilmoisture') || key.startsWith('soilmoisture_ch')
+                  );
+                  
+                  if (sensorKeys.length > 0) {
+                    const firstSensorKey = sensorKeys[0];
+                    const sensorData = soilChannelData[firstSensorKey];
+                    
+                    if (sensorData && sensorData.list) {
+                      processedSoilMoistureData = {
+                        unit: sensorData.unit || '%',
+                        data: sensorData.list
+                      };
+                    } else if (sensorData && typeof sensorData === 'object') {
+                      // Verificar si sensorData es directamente el objeto histórico
+                      const keys = Object.keys(sensorData);
+                      if (keys.length > 0 && keys[0].match(/^\d+$/)) {
+                        processedSoilMoistureData = {
+                          unit: '%',
+                          data: sensorData
+                        };
+                      }
+                    }
+                  }
+                  
+                  // Si no se encontró con nombres específicos, buscar estructura alternativa
+                  if (!processedSoilMoistureData) {
+                    // Estructura alternativa: soil_ch1.soilmoisture.list
+                    if (soilChannelData.soilmoisture && soilChannelData.soilmoisture.list) {
+                      processedSoilMoistureData = {
+                        unit: soilChannelData.soilmoisture.unit || '%',
+                        data: soilChannelData.soilmoisture.list
+                      };
+                    } else if (soilChannelData.list && soilChannelData.list.soilmoisture) {
+                      // Estructura alternativa: soil_ch1.list.soilmoisture
+                      if (soilChannelData.list.soilmoisture.list) {
+                        processedSoilMoistureData = {
+                          unit: soilChannelData.list.soilmoisture.unit || '%',
+                          data: soilChannelData.list.soilmoisture.list
+                        };
+                      } else {
+                        processedSoilMoistureData = {
+                          unit: soilChannelData.list.soilmoisture.unit || '%',
+                          data: soilChannelData.list.soilmoisture
+                        };
+                      }
+                    }
+                  }
+                }
+              }
+              
+              // Si no se encontró en canales, intentar con datos de getSoilMoistureHistory
+              if (!processedSoilMoistureData && soilMoistureData && soilMoistureData.code === 0 && soilMoistureData.msg === 'success') {
+                const soilData = soilMoistureData.data;
+                
+                const soilSensors = Object.keys(soilData).filter(key => 
+                  key.startsWith('soilmoisture') || key.startsWith('soil_moisture') || key.startsWith('soil_ch')
+                );
+
+                if (soilSensors.length > 0) {
+                  const firstSensor = soilSensors[0];
+                  const sensorData = soilData[firstSensor];
+                  
+                  // Estructura 1: sensorData.list (estilo histórico normal)
+                  if (sensorData && sensorData.list) {
+                    processedSoilMoistureData = {
+                      unit: sensorData.unit || '%',
+                      data: sensorData.list
+                    };
+                  }
+                  // Estructura 2: sensorData.soilmoisture.list (canal anidado)
+                  else if (sensorData && sensorData.soilmoisture && sensorData.soilmoisture.list) {
+                    processedSoilMoistureData = {
+                      unit: sensorData.soilmoisture.unit || '%',
+                      data: sensorData.soilmoisture.list
+                    };
+                  }
+                  // Estructura 3: sensorData es directamente el objeto de datos históricos
+                  else if (sensorData && typeof sensorData === 'object') {
+                    // Verificar si sensorData es un objeto con timestamps como keys
+                    const keys = Object.keys(sensorData);
+                    if (keys.length > 0 && keys[0].match(/^\d+$/)) {
+                      processedSoilMoistureData = {
+                        unit: '%',
+                        data: sensorData
+                      };
+                    }
+                  }
+                }
+              }
+            }
+            
+            if (!processedSoilMoistureData) {
+              console.log('🔍 Debug Soil Processing - No soil moisture historical data found');
+            }
+
+            // Crear estructura procesada igual que en getDeviceCompleteInfo
+            processedHistoricalData = {
+              temperature: temperatureData,
+              humidity: humidityData,
+              pressure: pressureData,
+              soilMoisture: processedSoilMoistureData
+            };
+          }
+        } catch (historyError) {
+          console.warn('Error getting historical data:', historyError);
         }
       }
 
@@ -188,18 +348,8 @@ export class DeviceWeatherReportService {
       // 8. Preparar datos del dispositivo para el reporte (CORREGIDO para EcoWitt)
       const deviceDataReport = {
         realtime: realtimeData,
-        historical: (historicalData && historicalData.data && Object.keys(historicalData.data).length > 0) ? historicalData.data : null,
-        characteristics: deviceCharacteristics,
-        // Incluir información de diagnóstico si está disponible
-        diagnostic: historicalDiagnostic ? {
-          performed: true,
-          summary: historicalDiagnostic.summary,
-          bestConfiguration: historicalDiagnostic.summary.bestConfiguration ? {
-            test: historicalDiagnostic.summary.bestConfiguration.test,
-            dataKeys: historicalDiagnostic.summary.bestConfiguration.dataKeys,
-            hasData: historicalDiagnostic.summary.bestConfiguration.hasData
-          } : null
-        } : null
+        historical: processedHistoricalData, // Usar los datos procesados que incluyen soilMoisture
+        characteristics: deviceCharacteristics
       };
 
       // 9. Crear estructura del reporte (CORREGIDA para EcoWitt)
@@ -222,12 +372,13 @@ export class DeviceWeatherReportService {
         metadata: {
           includeHistory,
           hasWeatherData: !!weatherData,
-          hasHistoricalData: !!historicalData && historicalData.data && Object.keys(historicalData.data).length > 0,
+          hasHistoricalData: !!processedHistoricalData,
           deviceOnline: realtimeData?.code === 0,
-          diagnosticPerformed: !!historicalDiagnostic,
-          historicalDataKeys: historicalData?.data ? Object.keys(historicalData.data) : [],
-          // Información de diagnóstico si está disponible
-          diagnosticSummary: historicalDiagnostic?.summary || null
+          diagnosticPerformed: false, // Ya no usamos diagnóstico automático
+          historicalDataKeys: processedHistoricalData ? Object.keys(processedHistoricalData) : [],
+          // Información de humedad del suelo si está disponible
+          hasSoilMoistureData: !!processedHistoricalData?.soilMoisture,
+          soilMoistureSensors: processedHistoricalData?.soilMoisture?.summary?.availableSensors || []
         }
       };
 
@@ -477,19 +628,17 @@ export class DeviceWeatherReportService {
             groupDiagnostic.devicesWithHistoricalData++;
           }
           
-          // Contar dispositivos que requirieron diagnóstico
-          if (deviceReport.report.data.metadata.diagnosticPerformed) {
+          // Contar dispositivos con datos de humedad del suelo
+          if (deviceReport.report.data.metadata.hasSoilMoistureData) {
             groupDiagnostic.devicesWithDiagnostic++;
             
-            // Agregar información de diagnóstico al resumen del grupo
-            if (deviceReport.report.data.deviceData.diagnostic) {
-              groupDiagnostic.diagnosticResults.push({
-                deviceId: device.DeviceID,
-                deviceName: device.DeviceName,
-                deviceMac: device.DeviceMac,
-                diagnostic: deviceReport.report.data.deviceData.diagnostic
-              });
-            }
+            // Agregar información de humedad del suelo al resumen del grupo
+            groupDiagnostic.diagnosticResults.push({
+              deviceId: device.DeviceID,
+              deviceName: device.DeviceName,
+              deviceMac: device.DeviceMac,
+              soilMoistureSensors: deviceReport.report.data.metadata.soilMoistureSensors
+            });
           }
           
           deviceReports.push(deviceReport);
@@ -558,15 +707,15 @@ export class DeviceWeatherReportService {
           hasErrors: errors.length > 0,
           // Información mejorada sobre datos históricos
           devicesWithHistoricalData: groupDiagnostic.devicesWithHistoricalData,
-          devicesWithDiagnostic: groupDiagnostic.devicesWithDiagnostic,
+          devicesWithSoilMoisture: groupDiagnostic.devicesWithDiagnostic,
           historicalDataSuccessRate: groupDevices.length > 0 
             ? Math.round((groupDiagnostic.devicesWithHistoricalData / groupDevices.length) * 100)
             : 0,
-          diagnosticSuccessRate: groupDiagnostic.devicesWithDiagnostic > 0 
-            ? Math.round((groupDiagnostic.devicesWithHistoricalData / groupDiagnostic.devicesWithDiagnostic) * 100)
+          soilMoistureSuccessRate: groupDiagnostic.devicesWithDiagnostic > 0 
+            ? Math.round((groupDiagnostic.devicesWithDiagnostic / groupDevices.length) * 100)
             : 0
         },
-        // Información de diagnóstico del grupo
+        // Información de humedad del suelo del grupo
         groupDiagnostic: includeHistory ? groupDiagnostic : null
       };
 

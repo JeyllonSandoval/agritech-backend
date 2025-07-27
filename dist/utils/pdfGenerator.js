@@ -92,7 +92,6 @@ class PDFGenerator {
                 lastUpdate: null
             };
         }
-        const lastUpdate = device.characteristics?.lastUpdate ? new Date(device.characteristics.lastUpdate).toLocaleString('es-ES') : 'N/A';
         // Robustez: si recibimos el objeto completo, extraer 'data'
         if (deviceData.realtime && typeof deviceData.realtime === 'object' && 'data' in deviceData.realtime && 'code' in deviceData.realtime) {
             // Si es la respuesta completa de EcoWitt, extraer solo los datos
@@ -100,12 +99,6 @@ class PDFGenerator {
                 deviceData.realtime = deviceData.realtime.data;
             }
         }
-        // SVGs para secciones (alineados verticalmente y tamaño fijo)
-        const svgDevice = `<span style="display:inline-flex;align-items:center;vertical-align:middle;"><svg width='22' height='22' fill='none' stroke='#10b981' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24' style='margin-right:8px;'><rect x='3' y='7' width='18' height='13' rx='2'/><path d='M8 7V5a4 4 0 1 1 8 0v2'/></svg></span>`;
-        const svgWeather = `<span style="display:inline-flex;align-items:center;vertical-align:middle;"><svg width='22' height='22' fill='none' stroke='#10b981' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24' style='margin-right:8px;'><circle cx='12' cy='12' r='5'/><path d='M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42'/></svg></span>`;
-        const svgForecast = `<span style="display:inline-flex;align-items:center;vertical-align:middle;"><svg width='22' height='22' fill='none' stroke='#ec4899' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24' style='margin-right:8px;'><path d='M3 16s1-4 9-4 9 4 9 4'/><circle cx='12' cy='8' r='4'/></svg></span>`;
-        const svgSensor = `<span style="display:inline-flex;align-items:center;vertical-align:middle;"><svg width='22' height='22' fill='none' stroke='#10b981' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24' style='margin-right:8px;'><rect x='2' y='7' width='20' height='14' rx='2'/><path d='M16 3v4M8 3v4'/></svg></span>`;
-        const svgHistory = `<span style="display:inline-flex;align-items:center;vertical-align:middle;"><svg width='22' height='22' fill='none' stroke='#6366f1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' viewBox='0 0 24 24' style='margin-right:8px;'><path d='M3 3v6h6'/><path d='M21 21v-6h-6'/><path d='M3 21l18-18'/></svg></span>`;
         // Utilidades para mostrar dinámicamente los sensores relevantes
         const { realtime } = deviceData;
         const sensorCards = [];
@@ -134,19 +127,25 @@ class PDFGenerator {
             if (realtime.indoor) {
                 if (realtime.indoor.temperature) {
                     sensorCards.push(`
-            <div class="info-card">
-              <h3>Temperatura Interior</h3>
-              <div class="value">${formatSensorValue(realtime.indoor.temperature, '°C')}</div>
-              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.indoor.temperature)}</div>
+            <div style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); border-radius: 12px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
+              <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                <div style="width: 8px; height: 8px; background: #10b981; border-radius: 50%; margin-right: 12px;"></div>
+                <h3 style="color: #ffffff; font-size: 0.9em; font-weight: 500; font-family: 'Inter', sans-serif; margin: 0;">Temperatura Interior</h3>
+              </div>
+              <div style="color: #10b981; font-size: 1.5em; font-weight: 600; margin-bottom: 8px;">${formatSensorValue(realtime.indoor.temperature, '°C')}</div>
+              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em;">Actualizado: ${formatSensorTime(realtime.indoor.temperature)}</div>
             </div>
           `);
                 }
                 if (realtime.indoor.humidity) {
                     sensorCards.push(`
-            <div class="info-card">
-              <h3>Humedad Interior</h3>
-              <div class="value">${formatSensorValue(realtime.indoor.humidity, '%')}</div>
-              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.indoor.humidity)}</div>
+            <div style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); border-radius: 12px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
+              <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                <div style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%; margin-right: 12px;"></div>
+                <h3 style="color: #ffffff; font-size: 0.9em; font-weight: 500; font-family: 'Inter', sans-serif; margin: 0;">Humedad Interior</h3>
+              </div>
+              <div style="color: #3b82f6; font-size: 1.5em; font-weight: 600; margin-bottom: 8px;">${formatSensorValue(realtime.indoor.humidity, '%')}</div>
+              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em;">Actualizado: ${formatSensorTime(realtime.indoor.humidity)}</div>
             </div>
           `);
                 }
@@ -155,28 +154,25 @@ class PDFGenerator {
             if (realtime.outdoor) {
                 if (realtime.outdoor.temperature) {
                     sensorCards.push(`
-            <div class="info-card">
-              <h3>Temperatura Exterior</h3>
-              <div class="value">${formatSensorValue(realtime.outdoor.temperature, '°C')}</div>
-              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.outdoor.temperature)}</div>
+            <div style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); border-radius: 12px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
+              <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                <div style="width: 8px; height: 8px; background: #f59e0b; border-radius: 50%; margin-right: 12px;"></div>
+                <h3 style="color: #ffffff; font-size: 0.9em; font-weight: 500; font-family: 'Inter', sans-serif; margin: 0;">Temperatura Exterior</h3>
+              </div>
+              <div style="color: #f59e0b; font-size: 1.5em; font-weight: 600; margin-bottom: 8px;">${formatSensorValue(realtime.outdoor.temperature, '°C')}</div>
+              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em;">Actualizado: ${formatSensorTime(realtime.outdoor.temperature)}</div>
             </div>
           `);
                 }
                 if (realtime.outdoor.humidity) {
                     sensorCards.push(`
-            <div class="info-card">
-              <h3>Humedad Exterior</h3>
-              <div class="value">${formatSensorValue(realtime.outdoor.humidity, '%')}</div>
-              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.outdoor.humidity)}</div>
-            </div>
-          `);
-                }
-                if (realtime.outdoor.feels_like) {
-                    sensorCards.push(`
-            <div class="info-card">
-              <h3>Sensación Térmica</h3>
-              <div class="value">${formatSensorValue(realtime.outdoor.feels_like, '°C')}</div>
-              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.outdoor.feels_like)}</div>
+            <div style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); border-radius: 12px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
+              <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                <div style="width: 8px; height: 8px; background: #8b5cf6; border-radius: 50%; margin-right: 12px;"></div>
+                <h3 style="color: #ffffff; font-size: 0.9em; font-weight: 500; font-family: 'Inter', sans-serif; margin: 0;">Humedad Exterior</h3>
+              </div>
+              <div style="color: #8b5cf6; font-size: 1.5em; font-weight: 600; margin-bottom: 8px;">${formatSensorValue(realtime.outdoor.humidity, '%')}</div>
+              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em;">Actualizado: ${formatSensorTime(realtime.outdoor.humidity)}</div>
             </div>
           `);
                 }
@@ -185,399 +181,553 @@ class PDFGenerator {
             if (realtime.pressure) {
                 if (realtime.pressure.relative) {
                     sensorCards.push(`
-            <div class="info-card">
-              <h3>Presión Relativa</h3>
-              <div class="value">${formatSensorValue(realtime.pressure.relative, 'hPa')}</div>
-              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.pressure.relative)}</div>
+            <div style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); border-radius: 12px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
+              <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                <div style="width: 8px; height: 8px; background: #ef4444; border-radius: 50%; margin-right: 12px;"></div>
+                <h3 style="color: #ffffff; font-size: 0.9em; font-weight: 500; font-family: 'Inter', sans-serif; margin: 0;">Presión Relativa</h3>
+              </div>
+              <div style="color: #ef4444; font-size: 1.5em; font-weight: 600; margin-bottom: 8px;">${formatSensorValue(realtime.pressure.relative, 'hPa')}</div>
+              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em;">Actualizado: ${formatSensorTime(realtime.pressure.relative)}</div>
             </div>
           `);
                 }
                 if (realtime.pressure.absolute) {
                     sensorCards.push(`
-            <div class="info-card">
-              <h3>Presión Absoluta</h3>
-              <div class="value">${formatSensorValue(realtime.pressure.absolute, 'hPa')}</div>
-              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.pressure.absolute)}</div>
+            <div style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); border-radius: 12px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
+              <div style="display: flex; align-items: center; margin-bottom: 12px;">
+                <div style="width: 8px; height: 8px; background: #ec4899; border-radius: 50%; margin-right: 12px;"></div>
+                <h3 style="color: #ffffff; font-size: 0.9em; font-weight: 500; font-family: 'Inter', sans-serif; margin: 0;">Presión Absoluta</h3>
+              </div>
+              <div style="color: #ec4899; font-size: 1.5em; font-weight: 600; margin-bottom: 8px;">${formatSensorValue(realtime.pressure.absolute, 'hPa')}</div>
+              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em;">Actualizado: ${formatSensorTime(realtime.pressure.absolute)}</div>
             </div>
           `);
                 }
             }
-            // Sensores de viento
-            if (realtime.wind) {
-                if (realtime.wind.wind_speed) {
-                    sensorCards.push(`
-            <div class="info-card">
-              <h3>Velocidad del Viento</h3>
-              <div class="value">${formatSensorValue(realtime.wind.wind_speed, 'km/h')}</div>
-              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.wind.wind_speed)}</div>
+            // Sensores de humedad del suelo
+            if (realtime.soil_ch1 && realtime.soil_ch1.soilmoisture) {
+                sensorCards.push(`
+          <div style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); border-radius: 12px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
+            <div style="display: flex; align-items: center; margin-bottom: 12px;">
+              <div style="width: 8px; height: 8px; background: #059669; border-radius: 50%; margin-right: 12px;"></div>
+              <h3 style="color: #ffffff; font-size: 0.9em; font-weight: 500; font-family: 'Inter', sans-serif; margin: 0;">Humedad del Suelo CH1</h3>
             </div>
-          `);
-                }
-                if (realtime.wind.wind_direction) {
-                    sensorCards.push(`
-            <div class="info-card">
-              <h3>Dirección del Viento</h3>
-              <div class="value">${formatSensorValue(realtime.wind.wind_direction, '°')}</div>
-              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.wind.wind_direction)}</div>
-            </div>
-          `);
-                }
-            }
-            // Sensores de lluvia
-            if (realtime.rainfall) {
-                if (realtime.rainfall.rain_rate) {
-                    sensorCards.push(`
-            <div class="info-card">
-              <h3>Tasa de Lluvia</h3>
-              <div class="value">${formatSensorValue(realtime.rainfall.rain_rate, 'mm/h')}</div>
-              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.rainfall.rain_rate)}</div>
-            </div>
-          `);
-                }
-                if (realtime.rainfall.daily) {
-                    sensorCards.push(`
-            <div class="info-card">
-              <h3>Lluvia Diaria</h3>
-              <div class="value">${formatSensorValue(realtime.rainfall.daily, 'mm')}</div>
-              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.rainfall.daily)}</div>
-            </div>
-          `);
-                }
-            }
-            // Sensores solares y UV
-            if (realtime.solar_and_uvi) {
-                if (realtime.solar_and_uvi.solar) {
-                    sensorCards.push(`
-            <div class="info-card">
-              <h3>Radiación Solar</h3>
-              <div class="value">${formatSensorValue(realtime.solar_and_uvi.solar, 'W/m²')}</div>
-              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.solar_and_uvi.solar)}</div>
-            </div>
-          `);
-                }
-                if (realtime.solar_and_uvi.uvi) {
-                    sensorCards.push(`
-            <div class="info-card">
-              <h3>Índice UV</h3>
-              <div class="value">${formatSensorValue(realtime.solar_and_uvi.uvi)}</div>
-              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.solar_and_uvi.uvi)}</div>
-            </div>
-          `);
-                }
-            }
-            // Sensores de suelo CH1
-            if (realtime.soil_ch1) {
-                if (realtime.soil_ch1.soilmoisture) {
-                    sensorCards.push(`
-            <div class="info-card">
-              <h3>Humedad del Suelo CH1</h3>
-              <div class="value">${formatSensorValue(realtime.soil_ch1.soilmoisture, '%')}</div>
-              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.soil_ch1.soilmoisture)}</div>
-            </div>
-          `);
-                }
-                if (realtime.soil_ch1.ad) {
-                    sensorCards.push(`
-            <div class="info-card">
-              <h3>Señal Analógica CH1</h3>
-              <div class="value">${formatSensorValue(realtime.soil_ch1.ad, 'V')}</div>
-              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.soil_ch1.ad)}</div>
-            </div>
-          `);
-                }
-            }
-            // Sensores de suelo CH9
-            if (realtime.soil_ch9) {
-                if (realtime.soil_ch9.soilmoisture) {
-                    sensorCards.push(`
-            <div class="info-card">
-              <h3>Humedad del Suelo CH9</h3>
-              <div class="value">${formatSensorValue(realtime.soil_ch9.soilmoisture, '%')}</div>
-              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.soil_ch9.soilmoisture)}</div>
-            </div>
-          `);
-                }
-                if (realtime.soil_ch9.ad) {
-                    sensorCards.push(`
-            <div class="info-card">
-              <h3>Señal Analógica CH9</h3>
-              <div class="value">${formatSensorValue(realtime.soil_ch9.ad, 'V')}</div>
-              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.soil_ch9.ad)}</div>
-            </div>
-          `);
-                }
-            }
-            // Sensores de batería
-            if (realtime.battery) {
-                if (realtime.battery.soilmoisture_sensor_ch1) {
-                    sensorCards.push(`
-            <div class="info-card">
-              <h3>Batería Sensor Suelo CH1</h3>
-              <div class="value">${formatSensorValue(realtime.battery.soilmoisture_sensor_ch1, 'V')}</div>
-              <div class="text-xs text-white/50">Actualizado: ${formatSensorTime(realtime.battery.soilmoisture_sensor_ch1)}</div>
-            </div>
-          `);
-                }
+            <div style="color: #059669; font-size: 1.5em; font-weight: 600; margin-bottom: 8px;">${formatSensorValue(realtime.soil_ch1.soilmoisture, '%')}</div>
+            <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em;">Actualizado: ${formatSensorTime(realtime.soil_ch1.soilmoisture)}</div>
+          </div>
+        `);
             }
             // ============================================================================
-            // ESTRUCTURA LEGACY (COMPATIBILIDAD)
+            // ESTRUCTURA LEGACY (PROPIEDADES PLANAS)
             // ============================================================================
-            // Temperatura y humedad exterior (formato legacy)
-            if (realtime.tempf !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Temperatura Exterior</h3><div class="value">${realtime.tempf}°F</div></div>`);
-            if (realtime.tempc !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Temperatura Exterior</h3><div class="value">${realtime.tempc}°C</div></div>`);
-            if (realtime.humidity !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Humedad Exterior</h3><div class="value">${realtime.humidity}%</div></div>`);
-            // Temperatura y humedad interior (formato legacy)
-            if (realtime.temp1f !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Temperatura Interior</h3><div class="value">${realtime.temp1f}°F</div></div>`);
-            if (realtime.temp1c !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Temperatura Interior</h3><div class="value">${realtime.temp1c}°C</div></div>`);
-            if (realtime.humidity1 !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Humedad Interior</h3><div class="value">${realtime.humidity1}%</div></div>`);
-            // Presión (formato legacy)
-            if (realtime.baromrelin !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Presión Relativa</h3><div class="value">${realtime.baromrelin} inHg</div></div>`);
-            if (realtime.baromabsin !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Presión Absoluta</h3><div class="value">${realtime.baromabsin} inHg</div></div>`);
-            // Viento (formato legacy)
-            if (realtime.winddir !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Dirección del Viento</h3><div class="value">${realtime.winddir}°</div></div>`);
-            if (realtime.windspeedmph !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Velocidad del Viento</h3><div class="value">${realtime.windspeedmph} mph</div></div>`);
-            if (realtime.windgustmph !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Ráfaga de Viento</h3><div class="value">${realtime.windgustmph} mph</div></div>`);
-            // Lluvia (formato legacy)
-            if (realtime.rainratein !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Tasa de Lluvia</h3><div class="value">${realtime.rainratein} in/h</div></div>`);
-            if (realtime.dailyrainin !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Lluvia Diaria</h3><div class="value">${realtime.dailyrainin} in</div></div>`);
-            // Radiación solar y UV (formato legacy)
-            if (realtime.solarradiation !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Radiación Solar</h3><div class="value">${realtime.solarradiation} W/m²</div></div>`);
-            if (realtime.uv !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Índice UV</h3><div class="value">${realtime.uv}</div></div>`);
-            // Calidad del aire (formato legacy)
-            if (realtime.pm25 !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>PM2.5</h3><div class="value">${realtime.pm25} µg/m³</div></div>`);
-            if (realtime.pm10 !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>PM10</h3><div class="value">${realtime.pm10} µg/m³</div></div>`);
-            if (realtime.co2 !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>CO₂</h3><div class="value">${realtime.co2} ppm</div></div>`);
-            // Suelo (formato legacy)
-            if (realtime.soilmoisture1 !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Humedad del Suelo CH1</h3><div class="value">${realtime.soilmoisture1}%</div></div>`);
-            if (realtime.soiltemp1f !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Temperatura del Suelo CH1</h3><div class="value">${realtime.soiltemp1f}°F</div></div>`);
-            // Batería y señal (formato legacy)
-            if (realtime.batt1 !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Batería Sensor 1</h3><div class="value">${realtime.batt1} V</div></div>`);
-            if (realtime.batt2 !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Batería Sensor 2</h3><div class="value">${realtime.batt2} V</div></div>`);
-            if (realtime.batt3 !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Batería Sensor 3</h3><div class="value">${realtime.batt3} V</div></div>`);
-            if (realtime.batt4 !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Batería Sensor 4</h3><div class="value">${realtime.batt4} V</div></div>`);
-            if (realtime.batt5 !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Batería Sensor 5</h3><div class="value">${realtime.batt5} V</div></div>`);
-            if (realtime.batt6 !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Batería Sensor 6</h3><div class="value">${realtime.batt6} V</div></div>`);
-            if (realtime.batt7 !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Batería Sensor 7</h3><div class="value">${realtime.batt7} V</div></div>`);
-            if (realtime.batt8 !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Batería Sensor 8</h3><div class="value">${realtime.batt8} V</div></div>`);
-            // Señal (formato legacy)
-            if (realtime.rssi !== undefined)
-                sensorCards.push(`<div class="info-card"><h3>Señal</h3><div class="value">${realtime.rssi} dBm</div></div>`);
         }
-        // Si no hay datos de sensores, mostrar mensaje más informativo
-        if (sensorCards.length === 0) {
-            sensorCards.push(`
-        <div class="info-card" style="background: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.3);">
-          <h3 style="color: #fbbf24;">⚠️ Estado del Dispositivo</h3>
-          <div class="value" style="color: #fbbf24;">No hay datos de sensores disponibles</div>
-          <div class="text-xs text-white/50">Última actualización: ${lastUpdate}</div>
-          <div class="text-xs text-white/50" style="margin-top: 10px;">El dispositivo puede estar desconectado o sin datos recientes</div>
-        </div>
-      `);
+        else if (realtime && typeof realtime === 'object') {
+            // Sensores de temperatura
+            if (realtime.temp1c) {
+                sensorCards.push(`
+          <div style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); border-radius: 12px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
+            <div style="display: flex; align-items: center; margin-bottom: 12px;">
+              <div style="width: 8px; height: 8px; background: #10b981; border-radius: 50%; margin-right: 12px;"></div>
+              <h3 style="color: #ffffff; font-size: 0.9em; font-weight: 500; font-family: 'Inter', sans-serif; margin: 0;">Temperatura</h3>
+            </div>
+            <div style="color: #10b981; font-size: 1.5em; font-weight: 600; margin-bottom: 8px;">${formatSensorValue(realtime.temp1c, '°C')}</div>
+            <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em;">Actualizado: ${formatSensorTime(realtime.temp1c)}</div>
+          </div>
+        `);
+            }
+            // Sensores de humedad
+            if (realtime.humidity1) {
+                sensorCards.push(`
+          <div style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); border-radius: 12px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
+            <div style="display: flex; align-items: center; margin-bottom: 12px;">
+              <div style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%; margin-right: 12px;"></div>
+              <h3 style="color: #ffffff; font-size: 0.9em; font-weight: 500; font-family: 'Inter', sans-serif; margin: 0;">Humedad</h3>
+            </div>
+            <div style="color: #3b82f6; font-size: 1.5em; font-weight: 600; margin-bottom: 8px;">${formatSensorValue(realtime.humidity1, '%')}</div>
+            <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em;">Actualizado: ${formatSensorTime(realtime.humidity1)}</div>
+          </div>
+        `);
+            }
+            // Sensores de presión
+            if (realtime.baromrelin) {
+                sensorCards.push(`
+          <div style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); border-radius: 12px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
+            <div style="display: flex; align-items: center; margin-bottom: 12px;">
+              <div style="width: 8px; height: 8px; background: #f59e0b; border-radius: 50%; margin-right: 12px;"></div>
+              <h3 style="color: #ffffff; font-size: 0.9em; font-weight: 500; font-family: 'Inter', sans-serif; margin: 0;">Presión</h3>
+            </div>
+            <div style="color: #f59e0b; font-size: 1.5em; font-weight: 600; margin-bottom: 8px;">${formatSensorValue(realtime.baromrelin, 'hPa')}</div>
+            <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em;">Actualizado: ${formatSensorTime(realtime.baromrelin)}</div>
+          </div>
+        `);
+            }
+            // Sensores de humedad del suelo
+            if (realtime.soilmoisture1) {
+                sensorCards.push(`
+          <div style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); border-radius: 12px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
+            <div style="display: flex; align-items: center; margin-bottom: 12px;">
+              <div style="width: 8px; height: 8px; background: #8b5cf6; border-radius: 50%; margin-right: 12px;"></div>
+              <h3 style="color: #ffffff; font-size: 0.9em; font-weight: 500; font-family: 'Inter', sans-serif; margin: 0;">Humedad del Suelo</h3>
+            </div>
+            <div style="color: #8b5cf6; font-size: 1.5em; font-weight: 600; margin-bottom: 8px;">${formatSensorValue(realtime.soilmoisture1, '%')}</div>
+            <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em;">Actualizado: ${formatSensorTime(realtime.soilmoisture1)}</div>
+          </div>
+        `);
+            }
         }
-        return `
+        const html = `
       <!DOCTYPE html>
       <html lang="es">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Reporte Completo de Dispositivo y Clima - AgriTech</title>
+        <title>Reporte de Dispositivo - ${device.name}</title>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet"/>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
         <style>
-          html, body { width: 100%; height: 100%; margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif !important; background: #18181b; color: #ffffff; }
-          body { min-height: 100vh; width: 100vw; padding: 0; margin: 0; overflow-x: hidden; }
-          .container { width: 100vw; min-height: 100vh; height: 100vh; background: rgba(24,24,27,1); border-radius: 0; border: none; box-shadow: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-          .header { background: #18181b; padding: 40px 30px 30px 30px; text-align: center; position: relative; overflow: hidden; border-radius: 0; }
-          .header h1 { font-family: 'Poppins', sans-serif !important; font-size: 3em; font-weight: 600; margin-bottom: 10px; color: #10b981; text-shadow: 0 2px 10px rgba(0,0,0,0.3); position: relative; z-index: 1; }
-          .header .subtitle { font-size: 1.3em; opacity: 0.95; font-weight: 300; position: relative; z-index: 1; font-family: 'Poppins', sans-serif !important; color: #fff; }
-          .content { flex: 1 1 auto; padding: 40px 30px; width: 100%; box-sizing: border-box; }
-          .section { margin-bottom: 40px; padding: 30px; border-radius: 20px; background: rgba(36,36,40,0.95); border: 2.5px solid #10b981; box-shadow: none; transition: all 0.3s ease; }
-          .section:hover { box-shadow: 0 8px 32px rgba(16,185,129,0.08); }
-          .section h2 { color: #10b981; margin-bottom: 20px; font-size: 1.8em; font-weight: 600; display: flex; align-items: center; font-family: 'Poppins', sans-serif !important; }
-          .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px; }
-          .info-card { background: rgba(255,255,255,0.04); padding: 25px; border-radius: 16px; border: 1.5px solid #10b98122; box-shadow: none; transition: all 0.3s ease; }
-          .info-card:hover { border-color: #10b981; }
-          .info-card h3 { color: #10b981; margin-bottom: 12px; font-size: 1.1em; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif !important; }
-          .info-card .value { font-size: 1.4em; font-weight: 600; color: #fff; font-family: 'Poppins', sans-serif !important; }
-          .weather-section, .forecast-section, .chart-section { background: rgba(36,36,40,0.95); border: 2.5px solid #10b981; }
-          .weather-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-top: 20px; }
-          .weather-card { background: rgba(255,255,255,0.04); padding: 25px; border-radius: 16px; text-align: center; border: 1.5px solid #10b98122; transition: all 0.3s ease; }
-          .weather-card .value { font-size: 2em; font-weight: 700; margin-bottom: 8px; color: #10b981; font-family: 'Poppins', sans-serif !important; }
-          .weather-card .label { font-size: 0.95em; opacity: 0.9; font-weight: 400; text-transform: uppercase; letter-spacing: 0.5px; }
-          .forecast-section h2 { color: #ec4899; }
-          .forecast-section { border-color: #ec4899; }
-          .forecast-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-top: 20px; }
-          .forecast-card { background: rgba(236,72,153,0.08); padding: 20px; border-radius: 16px; text-align: center; border: 1.5px solid #ec4899; transition: all 0.3s ease; }
-          .forecast-card .day { font-weight: 600; margin-bottom: 8px; color: #ec4899; font-size: 1.1em; }
-          .forecast-card .temp { font-size: 1.4em; margin-bottom: 5px; font-weight: 700; color: #fff; font-family: 'Poppins', sans-serif !important; }
-          .forecast-card .description { font-size: 0.85em; opacity: 0.9; font-weight: 400; }
-          .chart-section { border-color: #6366f1; }
-          .chart-section h2 { color: #6366f1; }
-          .chart-container {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            padding: 15px;
-            margin: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
           }
-          .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 25px; margin-top: 20px; }
-          .footer { background: #18181b; padding: 30px; text-align: center; color: rgba(255,255,255,0.7); border-top: 1px solid #10b98122; }
-          .timestamp { font-style: italic; color: rgba(255,255,255,0.6); margin-top: 15px; font-size: 0.9em; }
-          .status-indicator { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 10px; box-shadow: 0 0 10px currentColor; }
-          .status-online { background-color: #10b981; color: #10b981; }
-          .status-offline { background-color: #ef4444; color: #ef4444; }
-          .diagnostic-info {
-            background: rgba(255, 193, 7, 0.1);
-            border: 1px solid rgba(255, 193, 7, 0.3);
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 20px;
+          
+          body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            color: #ffffff;
+            line-height: 1.6;
+            min-height: 100vh;
           }
-          .diagnostic-info h3 {
-            color: #ffc107;
-            margin: 0 0 10px 0;
-            font-size: 16px;
+          
+          .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
           }
-          .diagnostic-info p {
-            margin: 0 0 10px 0;
+          
+          .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 40px 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+          }
+          
+          .header h1 {
+            font-size: 2.5em;
+            font-weight: 600;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #10b981, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+          }
+          
+          .header p {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1.1em;
+            font-weight: 400;
+          }
+          
+          .section {
+            margin-bottom: 40px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            border-radius: 16px;
+            padding: 32px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+          }
+          
+          .section h2 {
+            font-size: 1.4em;
+            font-weight: 600;
+            margin-bottom: 24px;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+          }
+          
+          .section h3 {
+            font-size: 1.1em;
+            font-weight: 500;
+            margin-bottom: 16px;
             color: #ffffff;
           }
-          .diagnostic-result {
-            background: rgba(40, 167, 69, 0.1);
-            border: 1px solid rgba(40, 167, 69, 0.3);
-            border-radius: 6px;
-            padding: 10px;
-            margin-top: 10px;
+          
+          .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
           }
-          .diagnostic-result strong {
-            color: #28a745;
+          
+          .info-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
           }
-          @media (max-width: 768px) { .container { margin: 0; border-radius: 0; } .header h1 { font-size: 2.2em; } .content { padding: 20px; } .section { padding: 20px; margin-bottom: 25px; } .info-grid { grid-template-columns: 1fr; gap: 15px; } .weather-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; } .chart-grid { grid-template-columns: 1fr; gap: 20px; } .forecast-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; } }
+          
+          .info-card h3 {
+            font-size: 0.9em;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 8px;
+          }
+          
+          .info-card .value {
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #10b981;
+            margin-bottom: 8px;
+          }
+          
+          .info-card .text-xs {
+            font-size: 0.8em;
+            color: rgba(255, 255, 255, 0.6);
+          }
+          
+          .weather-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+          }
+          
+          .weather-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            text-align: center;
+          }
+          
+          .weather-card .temp {
+            font-size: 2em;
+            font-weight: 600;
+            color: #10b981;
+            margin-bottom: 8px;
+          }
+          
+          .weather-card .description {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9em;
+            margin-bottom: 12px;
+          }
+          
+          .weather-card .details {
+            font-size: 0.8em;
+            color: rgba(255, 255, 255, 0.6);
+          }
+          
+          .chart-container {
+            margin-top: 24px;
+          }
+          
+          .metadata {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 24px;
+            font-size: 0.8em;
+            color: rgba(255, 255, 255, 0.6);
+          }
+          
+          @media (max-width: 768px) {
+            .container {
+              padding: 20px 10px;
+            }
+            
+            .header h1 {
+              font-size: 2em;
+            }
+            
+            .grid {
+              grid-template-columns: 1fr;
+            }
+            
+            .weather-grid {
+              grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+            
+            .forecast-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+              gap: 16px;
+              margin-top: 20px;
+            }
+            
+            .forecast-card {
+              background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+              border-radius: 12px;
+              padding: 20px;
+              border: 1px solid rgba(255, 255, 255, 0.08);
+              backdrop-filter: blur(20px);
+              text-align: center;
+              transition: transform 0.2s ease;
+            }
+            
+            .forecast-card:hover {
+              transform: translateY(-2px);
+            }
+            
+            .forecast-date {
+              margin-bottom: 16px;
+            }
+            
+            .day-name {
+              font-size: 0.9em;
+              font-weight: 500;
+              color: rgba(255, 255, 255, 0.8);
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            
+            .day-number {
+              font-size: 1.8em;
+              font-weight: 600;
+              color: #ffffff;
+              margin: 4px 0;
+            }
+            
+            .month {
+              font-size: 0.8em;
+              color: rgba(255, 255, 255, 0.6);
+              text-transform: uppercase;
+            }
+            
+            .forecast-weather {
+              margin-bottom: 16px;
+            }
+            
+            .weather-icon {
+              margin-bottom: 8px;
+            }
+            
+            .weather-desc {
+              font-size: 0.8em;
+              color: rgba(255, 255, 255, 0.7);
+              text-transform: capitalize;
+            }
+            
+            .forecast-temps {
+              display: flex;
+              justify-content: center;
+              gap: 16px;
+              margin-bottom: 16px;
+            }
+            
+            .temp-max {
+              font-size: 1.4em;
+              font-weight: 600;
+            }
+            
+            .temp-min {
+              font-size: 1.2em;
+              font-weight: 500;
+            }
+            
+            .forecast-details {
+              display: flex;
+              flex-direction: column;
+              gap: 8px;
+            }
+            
+            .detail-item {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              font-size: 0.8em;
+            }
+            
+            .detail-label {
+              color: rgba(255, 255, 255, 0.6);
+            }
+            
+            .detail-value {
+              color: rgba(255, 255, 255, 0.9);
+              font-weight: 500;
+            }
+            
+            .forecast-grid {
+              grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+          }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
-            <h1>Reporte Completo de Dispositivo y Clima</h1>
-            <div class="subtitle">
-              ${device.name} - ${new Date().toLocaleDateString('es-ES')}
+            <h1>Reporte de Dispositivo</h1>
+            <p>${device.name} - Generado el ${timestamp}</p>
+          </div>
+          
+          <div class="section">
+            <h2>Información del Dispositivo</h2>
+            <div class="grid">
+              <div class="info-card">
+                <h3>ID del Dispositivo</h3>
+                <div class="value">${device.characteristics.id}</div>
+              </div>
+              <div class="info-card">
+                <h3>Nombre</h3>
+                <div class="value">${device.characteristics.name}</div>
+              </div>
+              <div class="info-card">
+                <h3>Tipo de Estación</h3>
+                <div class="value">${device.characteristics.stationType}</div>
+              </div>
+              <div class="info-card">
+                <h3>MAC Address</h3>
+                <div class="value">${device.characteristics.mac}</div>
+              </div>
+              <div class="info-card">
+                <h3>Zona Horaria</h3>
+                <div class="value">${device.characteristics.timezone}</div>
+              </div>
+
             </div>
           </div>
-          <div class="content">
-            <!-- Información del Dispositivo -->
-            <div class="section device-section">
-              <h2>${svgDevice} Información del Dispositivo</h2>
-              <div class="info-grid">
-                <div class="info-card"><h3>Nombre</h3><div class="value">${device.name}</div></div>
-                <div class="info-card"><h3>Tipo/Modelo</h3><div class="value">${device.characteristics?.stationType || 'N/A'}</div></div>
-                <div class="info-card"><h3>Estado</h3><div class="value"><span class="status-indicator ${report.metadata.deviceOnline ? 'status-online' : 'status-offline'}"></span>${report.metadata.deviceOnline ? 'En línea' : 'Desconectado'}</div></div>
-                <div class="info-card"><h3>Ubicación</h3><div class="value">${device.characteristics?.location?.latitude || 'N/A'}°, ${device.characteristics?.location?.longitude || 'N/A'}°</div></div>
-                <div class="info-card"><h3>Última actualización</h3><div class="value">${lastUpdate}</div></div>
-              </div>
-            </div>
-            <!-- Clima Actual -->
-            ${weather ? `
-            <div class="section weather-section">
-              <h2>${svgWeather} Clima Actual</h2>
-              <div class="weather-grid">
-                <div class="weather-card"><div class="label">Temperatura</div><div class="value">${weather.current.temperature}°C</div></div>
-                <div class="weather-card"><div class="label">Sensación Térmica</div><div class="value">${weather.current.feelsLike}°C</div></div>
-                <div class="weather-card"><div class="label">Humedad</div><div class="value">${weather.current.humidity}%</div></div>
-                <div class="weather-card"><div class="label">Presión</div><div class="value">${weather.current.pressure} hPa</div></div>
-                <div class="weather-card"><div class="label">Viento</div><div class="value">${weather.current.windSpeed} m/s (${weather.current.windDirection}°)</div></div>
-                <div class="weather-card"><div class="label">Descripción</div><div class="value">${weather.current.weather[0]?.description || ''}</div></div>
-              </div>
-            </div>
-            ` : ''}
-            <!-- Pronóstico 7 días -->
-            ${weather?.forecast?.daily && weather.forecast.daily.length > 0 ? `
-            <div class="section forecast-section">
-              <h2>${svgForecast} Pronóstico de 7 Días</h2>
-              <div class="forecast-grid">
-                ${weather.forecast.daily.slice(0, 7).map(day => `
-                  <div class="forecast-card">
-                    <div class="day">${new Date(day.dt * 1000).toLocaleDateString('es-ES', { weekday: 'short' })}</div>
-                    <div class="temp">${Math.round(day.temp.max)}°C / ${Math.round(day.temp.min)}°C</div>
-                    <div class="description">${day.weather[0]?.description || ''}</div>
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-            ` : ''}
-            <!-- Datos del Sensor -->
-            <div class="section">
-              <h2>${svgSensor} Datos del Sensor</h2>
-              <div class="info-grid">
-                ${sensorCards.length > 0 ? sensorCards.join('') : '<div class="info-card"><div class="value">No hay datos de sensores disponibles.</div></div>'}
-              </div>
-            </div>
-            <!-- Histórico (opcional) -->
-            ${report.metadata.hasHistoricalData && deviceData.historical ? `
-            <div class="section chart-section">
-              <h2>${svgHistory} Histórico</h2>
-              ${deviceData.diagnostic && deviceData.diagnostic.performed ? `
-              <div class="diagnostic-info">
-                <h3>Información de Diagnóstico</h3>
-                <p>Se realizó diagnóstico automático para optimizar la recuperación de datos.</p>
-                ${deviceData.diagnostic.bestConfiguration ? `
-                <div class="diagnostic-result">
-                  <strong>Configuración óptima encontrada:</strong> ${deviceData.diagnostic.bestConfiguration.test}<br>
-                  <strong>Tipos de datos recuperados:</strong> ${deviceData.diagnostic.bestConfiguration.dataKeys.join(', ')}
+          
+          ${weather ? `
+          <div class="section">
+            <h2>Información Meteorológica</h2>
+            <div class="weather-grid">
+              <div class="weather-card">
+                <div class="temp">${weather.current.temperature.toFixed(1)}°C</div>
+                <div class="description">${weather.current.weather[0]?.description || 'N/A'}</div>
+                <div class="details">
+                  Sensación: ${weather.current.feelsLike.toFixed(1)}°C<br>
+                  Humedad: ${weather.current.humidity}%<br>
+                  Presión: ${weather.current.pressure} hPa
                 </div>
-                ` : ''}
               </div>
-              ` : ''}
-              <div class="chart-grid">
-                ${this.generateChartContainers(deviceData.historical)}
+              <div class="weather-card">
+                <div class="temp">${weather.current.windSpeed} km/h</div>
+                <div class="description">Velocidad del Viento</div>
+                <div class="details">
+                  Dirección: ${weather.current.windDirection}°<br>
+                  Visibilidad: ${weather.current.visibility} km<br>
+                  Nubes: ${weather.current.clouds}%
+                </div>
+              </div>
+              <div class="weather-card">
+                <div class="temp">${weather.current.uvi}</div>
+                <div class="description">Índice UV</div>
+                <div class="details">
+                  Amanecer: ${new Date(weather.current.sunrise * 1000).toLocaleTimeString('es-ES')}<br>
+                  Atardecer: ${new Date(weather.current.sunset * 1000).toLocaleTimeString('es-ES')}<br>
+                  Punto de rocío: ${weather.current.dewPoint.toFixed(1)}°C
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          ${weather.forecast && weather.forecast.daily && weather.forecast.daily.length > 0 ? `
+          <div class="section">
+            <h2>Pronóstico de 7 Días</h2>
+            <div class="forecast-grid">
+              ${weather.forecast.daily.slice(0, 7).map((day, index) => {
+            const date = new Date(day.dt * 1000);
+            const dayName = date.toLocaleDateString('es-ES', { weekday: 'short' });
+            const dayNumber = date.getDate();
+            const month = date.toLocaleDateString('es-ES', { month: 'short' });
+            const weatherIcon = day.weather[0]?.main?.toLowerCase() || 'unknown';
+            // Colores acordes al frontend
+            const getWeatherColor = (temp) => {
+                if (temp >= 30)
+                    return '#ef4444'; // Rojo para calor
+                if (temp >= 25)
+                    return '#f59e0b'; // Naranja para templado
+                if (temp >= 15)
+                    return '#10b981'; // Verde para fresco
+                if (temp >= 5)
+                    return '#3b82f6'; // Azul para frío
+                return '#8b5cf6'; // Púrpura para muy frío
+            };
+            const tempColor = getWeatherColor(day.temp.day);
+            return `
+                  <div class="forecast-card">
+                    <div class="forecast-date">
+                      <div class="day-name">${dayName}</div>
+                      <div class="day-number">${dayNumber}</div>
+                      <div class="month">${month}</div>
+                    </div>
+                    <div class="forecast-weather">
+                      <div class="weather-icon">${this.getWeatherIcon(weatherIcon)}</div>
+                      <div class="weather-desc">${day.weather[0]?.description || 'N/A'}</div>
+                    </div>
+                    <div class="forecast-temps">
+                      <div class="temp-max" style="color: ${tempColor};">${day.temp.max.toFixed(1)}°</div>
+                      <div class="temp-min" style="color: rgba(255, 255, 255, 0.6);">${day.temp.min.toFixed(1)}°</div>
+                    </div>
+                    <div class="forecast-details">
+                      <div class="detail-item">
+                        <span class="detail-label">Humedad</span>
+                        <span class="detail-value">${day.humidity}%</span>
+                      </div>
+                      <div class="detail-item">
+                        <span class="detail-label">Viento</span>
+                        <span class="detail-value">${day.wind_speed} km/h</span>
+                      </div>
+                      <div class="detail-item">
+                        <span class="detail-label">UV</span>
+                        <span class="detail-value">${day.uvi}</span>
+                      </div>
+                    </div>
+                  </div>
+                `;
+        }).join('')}
+            </div>
+          </div>
+          ` : ''}
+          ` : ''}
+          
+          ${sensorCards.length > 0 && sensorCards.some(card => card.trim() !== '') ? `
+          <div class="section">
+            <h2>Datos de Sensores en Tiempo Real</h2>
+            <div class="grid">
+              ${sensorCards.join('')}
+            </div>
+          </div>
+          ` : ''}
+          
+          ${deviceData.historical ? `
+          <div class="section">
+            <h2>Datos Históricos</h2>
+            ${report.timeRange ? `
+            <div style="text-align: center; margin-bottom: 20px; padding: 12px; background: rgba(16, 185, 129, 0.1); border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
+              <div style="color: #10b981; font-weight: 500; font-size: 0.9em;">
+                Período: ${report.timeRange.description}
+              </div>
+              <div style="color: rgba(255, 255, 255, 0.7); font-size: 0.8em; margin-top: 4px;">
+                ${new Date(report.timeRange.start).toLocaleDateString('es-ES')} - ${new Date(report.timeRange.end).toLocaleDateString('es-ES')}
               </div>
             </div>
             ` : ''}
+            ${this.generateChartContainers(deviceData.historical)}
           </div>
-          <div class="footer">
-            <div>Reporte generado automáticamente por AgriTech</div>
-            <div class="timestamp">Generado el: ${timestamp}</div>
-            ${report.timeRange ? `<div class="timestamp">Período: ${new Date(report.timeRange.start).toLocaleDateString('es-ES')} - ${new Date(report.timeRange.end).toLocaleDateString('es-ES')}</div>` : ''}
+          ` : ''}
+          
+          <div class="metadata">
+            <div>Reporte generado por AgriTech</div>
+            <div>${timestamp}</div>
           </div>
         </div>
-        ${report.metadata.hasHistoricalData && deviceData.historical ? `
+        
         <script>
-          Chart.defaults.color = '#ffffff';
-          Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
-          Chart.defaults.plugins.legend.labels.color = '#ffffff';
-          ${this.generateChartScripts(deviceData.historical, 0)}
+          ${this.generateChartScripts(deviceData.historical)}
         </script>
-        ` : ''}
       </body>
       </html>
     `;
+        return html;
     }
     /**
      * Helper: Convierte un objeto {list: {timestamp: value}} a un array de {time, value}
@@ -585,28 +735,30 @@ class PDFGenerator {
     static listToSeries(listObj) {
         if (!listObj)
             return [];
-        console.log('🔍 Debug listToSeries - Input:', JSON.stringify(listObj).substring(0, 200));
-        // Si listObj es directamente un objeto con timestamps como keys (estructura EcoWitt)
-        if (typeof listObj === 'object' && !listObj.list) {
+        // Nueva estructura: { unit: "ºF", data: { timestamp: value } }
+        if (listObj.data && typeof listObj.data === 'object') {
+            const result = Object.entries(listObj.data).map(([timestamp, value]) => ({
+                time: Number(timestamp) * 1000, // Convertir segundos a milisegundos
+                value: Number(value)
+            }));
+            return result;
+        }
+        // Si listObj es directamente un objeto con timestamps como keys (estructura EcoWitt antigua)
+        if (typeof listObj === 'object' && !listObj.list && !listObj.data) {
             const result = Object.entries(listObj).map(([timestamp, value]) => ({
                 time: Number(timestamp) * 1000, // Convertir segundos a milisegundos
                 value: Number(value)
             }));
-            console.log('🔍 Debug listToSeries - Direct object result:', result.length, 'entries');
-            console.log('🔍 Debug listToSeries - Sample times:', result.slice(0, 3).map(r => new Date(r.time).toISOString()));
             return result;
         }
-        // Si listObj tiene la estructura {list: {timestamp: value}}
+        // Si listObj tiene la estructura {list: {timestamp: value}} (estructura muy antigua)
         if (listObj.list && typeof listObj.list === 'object') {
             const result = Object.entries(listObj.list).map(([timestamp, value]) => ({
                 time: Number(timestamp) * 1000, // Convertir segundos a milisegundos
                 value: Number(value)
             }));
-            console.log('🔍 Debug listToSeries - Nested list result:', result.length, 'entries');
-            console.log('🔍 Debug listToSeries - Sample times:', result.slice(0, 3).map(r => new Date(r.time).toISOString()));
             return result;
         }
-        console.log('🔍 Debug listToSeries - No valid structure found');
         return [];
     }
     static calculateStats(series) {
@@ -622,77 +774,32 @@ class PDFGenerator {
     /**
      * Debug: Verificar estructura de datos históricos
      */
-    static debugHistoricalData(historicalData) {
-        if (!historicalData)
-            return 'No historical data provided';
-        const debug = {
-            hasData: !!historicalData,
-            dataType: typeof historicalData,
-            keys: Object.keys(historicalData),
-            indoor: historicalData.indoor ? {
-                hasIndoor: true,
-                keys: Object.keys(historicalData.indoor),
-                hasList: !!historicalData.indoor.list,
-                listKeys: historicalData.indoor.list ? Object.keys(historicalData.indoor.list) : [],
-                temperature: historicalData.indoor.list && historicalData.indoor.list.temperature ? {
-                    hasTemp: true,
-                    hasList: !!historicalData.indoor.list.temperature.list,
-                    listKeys: historicalData.indoor.list.temperature.list ? Object.keys(historicalData.indoor.list.temperature.list).slice(0, 5) : []
-                } : { hasTemp: false }
-            } : { hasIndoor: false },
-            outdoor: historicalData.outdoor ? {
-                hasOutdoor: true,
-                keys: Object.keys(historicalData.outdoor),
-                hasList: !!historicalData.outdoor.list,
-                listKeys: historicalData.outdoor.list ? Object.keys(historicalData.outdoor.list) : []
-            } : { hasOutdoor: false },
-            pressure: historicalData.pressure ? {
-                hasPressure: true,
-                keys: Object.keys(historicalData.pressure),
-                hasList: !!historicalData.pressure.list,
-                listKeys: historicalData.pressure.list ? Object.keys(historicalData.pressure.list) : []
-            } : { hasPressure: false },
-            soil: historicalData.soil_ch1 ? {
-                hasSoil: true,
-                keys: Object.keys(historicalData.soil_ch1),
-                hasList: !!historicalData.soil_ch1.list,
-                listKeys: historicalData.soil_ch1.list ? Object.keys(historicalData.soil_ch1.list) : []
-            } : { hasSoil: false }
-        };
-        return `
-      <div style="background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); border-radius: 8px; padding: 15px; margin: 15px 0;">
-        <h4 style="color: #ffc107; margin: 0 0 10px 0;">🔍 Debug: Estructura de Datos Históricos</h4>
-        <pre style="color: #ffffff; font-size: 12px; overflow-x: auto;">${JSON.stringify(debug, null, 2)}</pre>
-      </div>
-    `;
-    }
     /**
      * Genera contenedores de gráficos para datos históricos
      * CORREGIDO para manejar la estructura EcoWitt {timestamp: value}
      */
     static generateChartContainers(historicalData, deviceIndex = 0) {
-        console.log('🔍 Debug generateChartContainers - Input historicalData keys:', Object.keys(historicalData || {}));
-        console.log('🔍 Debug generateChartContainers - Full historicalData structure:', JSON.stringify(historicalData, null, 2));
         if (!historicalData || typeof historicalData !== 'object') {
             return `
-        <div class="chart-container" style="background: rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 20px; margin: 15px 0; border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
+        <div class="chart-container" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); border-radius: 12px; padding: 24px; margin: 16px 0; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
           <div style="text-align: center; padding: 40px;">
-            <h3 style="color: #fbbf24; font-size: 1.3em; font-weight: 600; font-family: 'Poppins', sans-serif;">📊 Datos Históricos</h3>
-            <p style="color: rgba(255, 255, 255, 0.7); margin-top: 10px;">No hay datos históricos disponibles para este período</p>
+            <h3 style="color: #fbbf24; font-size: 1.2em; font-weight: 500; font-family: 'Inter', sans-serif; margin: 0;">Datos Históricos</h3>
+            <p style="color: rgba(255, 255, 255, 0.6); margin-top: 8px; font-size: 0.9em;">No hay datos históricos disponibles para este período</p>
           </div>
         </div>
       `;
         }
         let debugHtml = '';
-        // Mostrar debug siempre para diagnosticar el problema
-        debugHtml = this.debugHistoricalData(historicalData);
         // Procesar datos según la estructura EcoWitt
         let tempSeries = [];
         let humSeries = [];
         let pressureSeries = [];
         let soilMoistureSeries = [];
-        // Buscar datos de temperatura (manejar estructura anidada)
-        if (historicalData.indoor && historicalData.indoor.list) {
+        // Buscar datos de temperatura (nueva estructura: historical.temperature.data)
+        if (historicalData.temperature && historicalData.temperature.data) {
+            tempSeries = this.listToSeries(historicalData.temperature);
+        }
+        else if (historicalData.indoor && historicalData.indoor.list) {
             // Estructura: indoor.list.indoor.temperature.list
             if (historicalData.indoor.list.indoor && historicalData.indoor.list.indoor.temperature && historicalData.indoor.list.indoor.temperature.list) {
                 tempSeries = this.listToSeries(historicalData.indoor.list.indoor.temperature.list);
@@ -708,8 +815,12 @@ class PDFGenerator {
         else if (historicalData.tempf) {
             tempSeries = this.listToSeries(historicalData.tempf);
         }
-        // Buscar datos de humedad (manejar estructura anidada)
-        if (historicalData.indoor && historicalData.indoor.list) {
+        // Buscar datos de humedad (nueva estructura: historical.humidity.data)
+        if (historicalData.humidity && historicalData.humidity.data) {
+            humSeries = this.listToSeries(historicalData.humidity);
+            console.log('🔍 Debug Hum - Using historical.humidity.data, series length:', humSeries.length);
+        }
+        else if (historicalData.indoor && historicalData.indoor.list) {
             // Estructura: indoor.list.indoor.humidity.list
             if (historicalData.indoor.list.indoor && historicalData.indoor.list.indoor.humidity && historicalData.indoor.list.indoor.humidity.list) {
                 humSeries = this.listToSeries(historicalData.indoor.list.indoor.humidity.list);
@@ -727,13 +838,48 @@ class PDFGenerator {
         }
         // Buscar datos de presión (múltiples fuentes)
         console.log('🔍 Debug Pressure - historicalData.pressure:', historicalData.pressure);
-        if (historicalData.pressure && historicalData.pressure.list && historicalData.pressure.list.relative) {
-            pressureSeries = this.listToSeries(historicalData.pressure.list.relative);
-            console.log('🔍 Debug Pressure - Using pressure.relative, series length:', pressureSeries.length);
+        if (historicalData.pressure && historicalData.pressure.data) {
+            // Estructura: historical.pressure.data
+            pressureSeries = this.listToSeries(historicalData.pressure.data);
+            console.log('🔍 Debug Pressure - Using historical.pressure.data, series length:', pressureSeries.length);
         }
-        else if (historicalData.pressure && historicalData.pressure.list && historicalData.pressure.list.absolute) {
-            pressureSeries = this.listToSeries(historicalData.pressure.list.absolute);
-            console.log('🔍 Debug Pressure - Using pressure.absolute, series length:', pressureSeries.length);
+        else if (historicalData.pressure && historicalData.pressure.pressure) {
+            // Estructura: pressure.pressure.relative.list o pressure.pressure.absolute.list
+            if (historicalData.pressure.pressure.relative && historicalData.pressure.pressure.relative.list) {
+                pressureSeries = this.listToSeries(historicalData.pressure.pressure.relative);
+                console.log('🔍 Debug Pressure - Using pressure.pressure.relative.list, series length:', pressureSeries.length);
+            }
+            else if (historicalData.pressure.pressure.absolute && historicalData.pressure.pressure.absolute.list) {
+                pressureSeries = this.listToSeries(historicalData.pressure.pressure.absolute);
+                console.log('🔍 Debug Pressure - Using pressure.pressure.absolute.list, series length:', pressureSeries.length);
+            }
+        }
+        else if (historicalData.pressure && historicalData.pressure.list) {
+            // Estructura: pressure.list.pressure.relative.list
+            if (historicalData.pressure.list.pressure && historicalData.pressure.list.pressure.relative && historicalData.pressure.list.pressure.relative.list) {
+                pressureSeries = this.listToSeries(historicalData.pressure.list.pressure.relative.list);
+                console.log('🔍 Debug Pressure - Using pressure.list.pressure.relative.list, series length:', pressureSeries.length);
+            }
+            else if (historicalData.pressure.list.pressure && historicalData.pressure.list.pressure.absolute && historicalData.pressure.list.pressure.absolute.list) {
+                pressureSeries = this.listToSeries(historicalData.pressure.list.pressure.absolute.list);
+                console.log('🔍 Debug Pressure - Using pressure.list.pressure.absolute.list, series length:', pressureSeries.length);
+            }
+            else if (historicalData.pressure.list.relative && historicalData.pressure.list.relative.list) {
+                pressureSeries = this.listToSeries(historicalData.pressure.list.relative.list);
+                console.log('🔍 Debug Pressure - Using pressure.list.relative.list, series length:', pressureSeries.length);
+            }
+            else if (historicalData.pressure.list.absolute && historicalData.pressure.list.absolute.list) {
+                pressureSeries = this.listToSeries(historicalData.pressure.list.absolute.list);
+                console.log('🔍 Debug Pressure - Using pressure.list.absolute.list, series length:', pressureSeries.length);
+            }
+            else if (historicalData.pressure.list.relative) {
+                pressureSeries = this.listToSeries(historicalData.pressure.list.relative);
+                console.log('🔍 Debug Pressure - Using pressure.list.relative, series length:', pressureSeries.length);
+            }
+            else if (historicalData.pressure.list.absolute) {
+                pressureSeries = this.listToSeries(historicalData.pressure.list.absolute);
+                console.log('🔍 Debug Pressure - Using pressure.list.absolute, series length:', pressureSeries.length);
+            }
         }
         else if (historicalData.baromrelin) {
             pressureSeries = this.listToSeries(historicalData.baromrelin);
@@ -746,23 +892,61 @@ class PDFGenerator {
         else {
             console.log('🔍 Debug Pressure - No pressure data found');
         }
-        // Buscar datos de humedad del suelo (múltiples canales)
+        // Buscar datos de humedad del suelo (múltiples fuentes)
         console.log('🔍 Debug Soil - Available soil channels:', Object.keys(historicalData).filter(key => key.startsWith('soil_')));
-        if (historicalData.soil_ch1 && historicalData.soil_ch1.list && historicalData.soil_ch1.list.soilmoisture) {
-            soilMoistureSeries = this.listToSeries(historicalData.soil_ch1.list.soilmoisture);
-            console.log('🔍 Debug Soil - Using soil_ch1 soilmoisture, series length:', soilMoistureSeries.length);
+        console.log('🔍 Debug Soil - historicalData.soilMoisture:', historicalData.soilMoisture);
+        // Nueva estructura procesada desde el backend
+        if (historicalData.soilMoisture && historicalData.soilMoisture.data) {
+            // Estructura: historical.soilMoisture.data (nueva estructura procesada)
+            soilMoistureSeries = this.listToSeries(historicalData.soilMoisture);
+            console.log('🔍 Debug Soil - Using historical.soilMoisture.data, series length:', soilMoistureSeries.length);
         }
-        else if (historicalData.soil_ch2 && historicalData.soil_ch2.list && historicalData.soil_ch2.list.soilmoisture) {
-            soilMoistureSeries = this.listToSeries(historicalData.soil_ch2.list.soilmoisture);
-            console.log('🔍 Debug Soil - Using soil_ch2 soilmoisture, series length:', soilMoistureSeries.length);
+        else if (historicalData.soilMoisture && historicalData.soilMoisture.primary && historicalData.soilMoisture.primary.data) {
+            // Estructura: historical.soilMoisture.primary.data
+            soilMoistureSeries = this.listToSeries(historicalData.soilMoisture.primary.data);
+            console.log('🔍 Debug Soil - Using historical.soilMoisture.primary.data, series length:', soilMoistureSeries.length);
+            console.log('🔍 Debug Soil - Sample data:', Object.keys(historicalData.soilMoisture.primary.data).slice(0, 5));
         }
-        else if (historicalData.soil_ch3 && historicalData.soil_ch3.list && historicalData.soil_ch3.list.soilmoisture) {
-            soilMoistureSeries = this.listToSeries(historicalData.soil_ch3.list.soilmoisture);
-            console.log('🔍 Debug Soil - Using soil_ch3 soilmoisture, series length:', soilMoistureSeries.length);
+        else if (historicalData.soil_ch1 && historicalData.soil_ch1.list) {
+            // Estructura: soil_ch1.list.soilmoisture.list
+            if (historicalData.soil_ch1.list.soilmoisture && historicalData.soil_ch1.list.soilmoisture.list) {
+                soilMoistureSeries = this.listToSeries(historicalData.soil_ch1.list.soilmoisture.list);
+                console.log('🔍 Debug Soil - Using soil_ch1.list.soilmoisture.list, series length:', soilMoistureSeries.length);
+            }
+            else if (historicalData.soil_ch1.list.soilmoisture) {
+                soilMoistureSeries = this.listToSeries(historicalData.soil_ch1.list.soilmoisture);
+                console.log('🔍 Debug Soil - Using soil_ch1.list.soilmoisture, series length:', soilMoistureSeries.length);
+            }
         }
-        else if (historicalData.soil_ch4 && historicalData.soil_ch4.list && historicalData.soil_ch4.list.soilmoisture) {
-            soilMoistureSeries = this.listToSeries(historicalData.soil_ch4.list.soilmoisture);
-            console.log('🔍 Debug Soil - Using soil_ch4 soilmoisture, series length:', soilMoistureSeries.length);
+        else if (historicalData.soil_ch2 && historicalData.soil_ch2.list) {
+            if (historicalData.soil_ch2.list.soilmoisture && historicalData.soil_ch2.list.soilmoisture.list) {
+                soilMoistureSeries = this.listToSeries(historicalData.soil_ch2.list.soilmoisture.list);
+                console.log('🔍 Debug Soil - Using soil_ch2.list.soilmoisture.list, series length:', soilMoistureSeries.length);
+            }
+            else if (historicalData.soil_ch2.list.soilmoisture) {
+                soilMoistureSeries = this.listToSeries(historicalData.soil_ch2.list.soilmoisture);
+                console.log('🔍 Debug Soil - Using soil_ch2.list.soilmoisture, series length:', soilMoistureSeries.length);
+            }
+        }
+        else if (historicalData.soil_ch3 && historicalData.soil_ch3.list) {
+            if (historicalData.soil_ch3.list.soilmoisture && historicalData.soil_ch3.list.soilmoisture.list) {
+                soilMoistureSeries = this.listToSeries(historicalData.soil_ch3.list.soilmoisture.list);
+                console.log('🔍 Debug Soil - Using soil_ch3.list.soilmoisture.list, series length:', soilMoistureSeries.length);
+            }
+            else if (historicalData.soil_ch3.list.soilmoisture) {
+                soilMoistureSeries = this.listToSeries(historicalData.soil_ch3.list.soilmoisture);
+                console.log('🔍 Debug Soil - Using soil_ch3.list.soilmoisture, series length:', soilMoistureSeries.length);
+            }
+        }
+        else if (historicalData.soil_ch4 && historicalData.soil_ch4.list) {
+            if (historicalData.soil_ch4.list.soilmoisture && historicalData.soil_ch4.list.soilmoisture.list) {
+                soilMoistureSeries = this.listToSeries(historicalData.soil_ch4.list.soilmoisture.list);
+                console.log('🔍 Debug Soil - Using soil_ch4.list.soilmoisture.list, series length:', soilMoistureSeries.length);
+            }
+            else if (historicalData.soil_ch4.list.soilmoisture) {
+                soilMoistureSeries = this.listToSeries(historicalData.soil_ch4.list.soilmoisture);
+                console.log('🔍 Debug Soil - Using soil_ch4.list.soilmoisture, series length:', soilMoistureSeries.length);
+            }
         }
         else if (historicalData.soilmoisture1) {
             soilMoistureSeries = this.listToSeries(historicalData.soilmoisture1);
@@ -782,6 +966,7 @@ class PDFGenerator {
         }
         else {
             console.log('🔍 Debug Soil - No soil moisture data found');
+            console.log('🔍 Debug Soil - Available keys in historicalData:', Object.keys(historicalData));
         }
         let html = debugHtml;
         let hasAnyData = false;
@@ -789,29 +974,29 @@ class PDFGenerator {
             hasAnyData = true;
             const tempStats = this.calculateStats(tempSeries);
             html += `
-        <div class="chart-container" style="background: rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 20px; margin: 15px 0; border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-            <h3 style="color: #10b981; font-size: 1.3em; font-weight: 600; font-family: 'Poppins', sans-serif;">🌡️ Temperatura</h3>
-            <div style="display: flex; gap: 10px; align-items: center;">
-              <div style="width: 12px; height: 12px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 50%;"></div>
-              <span style="font-size: 0.9em; color: rgba(255, 255, 255, 0.7);">Datos históricos</span>
+        <div class="chart-container" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); border-radius: 12px; padding: 28px; margin: 20px 0; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+            <h3 style="color: #10b981; font-size: 1.4em; font-weight: 600; font-family: 'Inter', sans-serif; margin: 0; padding: 4px 0;">Temperatura</h3>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <div style="width: 8px; height: 8px; background: #10b981; border-radius: 50%;"></div>
+              <span style="font-size: 0.8em; color: rgba(255, 255, 255, 0.6);">Datos históricos</span>
             </div>
           </div>
-          <div style="position: relative; height: 300px;">
-            <canvas id="tempChart_${deviceIndex}" width="400" height="300"></canvas>
+          <div style="position: relative; height: 280px; width: 100%;">
+            <canvas id="tempChart_${deviceIndex}" style="width: 100%; height: 100%; max-width: 100%;"></canvas>
           </div>
-          <div style="display: flex; justify-content: space-between; margin-top: 20px; padding: 15px; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
+          <div style="display: flex; justify-content: space-between; margin-top: 16px; padding: 16px; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
             <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.7); font-size: 0.9em; margin-bottom: 5px;">MÍNIMO</div>
-              <div style="color: #10b981; font-size: 1.2em; font-weight: 600;">${tempStats.min.toFixed(1)}°C</div>
+              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">MÍNIMO</div>
+              <div style="color: #10b981; font-size: 1.1em; font-weight: 500;">${tempStats.min.toFixed(1)}°C</div>
             </div>
             <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.7); font-size: 0.9em; margin-bottom: 5px;">MÁXIMO</div>
-              <div style="color: #10b981; font-size: 1.2em; font-weight: 600;">${tempStats.max.toFixed(1)}°C</div>
+              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">MÁXIMO</div>
+              <div style="color: #10b981; font-size: 1.1em; font-weight: 500;">${tempStats.max.toFixed(1)}°C</div>
             </div>
             <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.7); font-size: 0.9em; margin-bottom: 5px;">PROMEDIO</div>
-              <div style="color: #10b981; font-size: 1.2em; font-weight: 600;">${tempStats.avg.toFixed(1)}°C</div>
+              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">PROMEDIO</div>
+              <div style="color: #10b981; font-size: 1.1em; font-weight: 500;">${tempStats.avg.toFixed(1)}°C</div>
             </div>
           </div>
         </div>
@@ -821,29 +1006,29 @@ class PDFGenerator {
             hasAnyData = true;
             const humStats = this.calculateStats(humSeries);
             html += `
-        <div class="chart-container" style="background: rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 20px; margin: 15px 0; border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-            <h3 style="color: #3b82f6; font-size: 1.3em; font-weight: 600; font-family: 'Poppins', sans-serif;">💧 Humedad</h3>
-            <div style="display: flex; gap: 10px; align-items: center;">
-              <div style="width: 12px; height: 12px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border-radius: 50%;"></div>
-              <span style="font-size: 0.9em; color: rgba(255, 255, 255, 0.7);">Datos históricos</span>
+        <div class="chart-container" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); border-radius: 12px; padding: 28px; margin: 20px 0; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+            <h3 style="color: #3b82f6; font-size: 1.4em; font-weight: 600; font-family: 'Inter', sans-serif; margin: 0; padding: 4px 0;">Humedad del Aire</h3>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <div style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%;"></div>
+              <span style="font-size: 0.8em; color: rgba(255, 255, 255, 0.6);">Datos históricos</span>
             </div>
           </div>
-          <div style="position: relative; height: 300px;">
-            <canvas id="humChart_${deviceIndex}" width="400" height="300"></canvas>
+          <div style="position: relative; height: 280px; width: 100%;">
+            <canvas id="humChart_${deviceIndex}" style="width: 100%; height: 100%; max-width: 100%;"></canvas>
           </div>
-          <div style="display: flex; justify-content: space-between; margin-top: 20px; padding: 15px; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
+          <div style="display: flex; justify-content: space-between; margin-top: 16px; padding: 16px; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
             <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.7); font-size: 0.9em; margin-bottom: 5px;">MÍNIMO</div>
-              <div style="color: #3b82f6; font-size: 1.2em; font-weight: 600;">${humStats.min.toFixed(1)}%</div>
+              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">MÍNIMO</div>
+              <div style="color: #3b82f6; font-size: 1.1em; font-weight: 500;">${humStats.min.toFixed(1)}%</div>
             </div>
             <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.7); font-size: 0.9em; margin-bottom: 5px;">MÁXIMO</div>
-              <div style="color: #3b82f6; font-size: 1.2em; font-weight: 600;">${humStats.max.toFixed(1)}%</div>
+              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">MÁXIMO</div>
+              <div style="color: #3b82f6; font-size: 1.1em; font-weight: 500;">${humStats.max.toFixed(1)}%</div>
             </div>
             <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.7); font-size: 0.9em; margin-bottom: 5px;">PROMEDIO</div>
-              <div style="color: #3b82f6; font-size: 1.2em; font-weight: 600;">${humStats.avg.toFixed(1)}%</div>
+              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">PROMEDIO</div>
+              <div style="color: #3b82f6; font-size: 1.1em; font-weight: 500;">${humStats.avg.toFixed(1)}%</div>
             </div>
           </div>
         </div>
@@ -853,29 +1038,29 @@ class PDFGenerator {
             hasAnyData = true;
             const pressureStats = this.calculateStats(pressureSeries);
             html += `
-        <div class="chart-container" style="background: rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 20px; margin: 15px 0; border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-            <h3 style="color: #f59e0b; font-size: 1.3em; font-weight: 600; font-family: 'Poppins', sans-serif;">🌪️ Presión</h3>
-            <div style="display: flex; gap: 10px; align-items: center;">
-              <div style="width: 12px; height: 12px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 50%;"></div>
-              <span style="font-size: 0.9em; color: rgba(255, 255, 255, 0.7);">Datos históricos</span>
+        <div class="chart-container" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); border-radius: 12px; padding: 28px; margin: 20px 0; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+            <h3 style="color: #f59e0b; font-size: 1.4em; font-weight: 600; font-family: 'Inter', sans-serif; margin: 0; padding: 4px 0;">Presión Atmosférica</h3>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <div style="width: 8px; height: 8px; background: #f59e0b; border-radius: 50%;"></div>
+              <span style="font-size: 0.8em; color: rgba(255, 255, 255, 0.6);">Datos históricos</span>
             </div>
           </div>
-          <div style="position: relative; height: 300px;">
-            <canvas id="pressureChart_${deviceIndex}" width="400" height="300"></canvas>
+          <div style="position: relative; height: 280px; width: 100%;">
+            <canvas id="pressureChart_${deviceIndex}" style="width: 100%; height: 100%; max-width: 100%;"></canvas>
           </div>
-          <div style="display: flex; justify-content: space-between; margin-top: 20px; padding: 15px; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
+          <div style="display: flex; justify-content: space-between; margin-top: 16px; padding: 16px; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
             <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.7); font-size: 0.9em; margin-bottom: 5px;">MÍNIMO</div>
-              <div style="color: #f59e0b; font-size: 1.2em; font-weight: 600;">${pressureStats.min.toFixed(1)} hPa</div>
+              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">MÍNIMO</div>
+              <div style="color: #f59e0b; font-size: 1.1em; font-weight: 500;">${pressureStats.min.toFixed(1)} hPa</div>
             </div>
             <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.7); font-size: 0.9em; margin-bottom: 5px;">MÁXIMO</div>
-              <div style="color: #f59e0b; font-size: 1.2em; font-weight: 600;">${pressureStats.max.toFixed(1)} hPa</div>
+              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">MÁXIMO</div>
+              <div style="color: #f59e0b; font-size: 1.1em; font-weight: 500;">${pressureStats.max.toFixed(1)} hPa</div>
             </div>
             <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.7); font-size: 0.9em; margin-bottom: 5px;">PROMEDIO</div>
-              <div style="color: #f59e0b; font-size: 1.2em; font-weight: 600;">${pressureStats.avg.toFixed(1)} hPa</div>
+              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">PROMEDIO</div>
+              <div style="color: #f59e0b; font-size: 1.1em; font-weight: 500;">${pressureStats.avg.toFixed(1)} hPa</div>
             </div>
           </div>
         </div>
@@ -885,29 +1070,29 @@ class PDFGenerator {
             hasAnyData = true;
             const soilStats = this.calculateStats(soilMoistureSeries);
             html += `
-        <div class="chart-container" style="background: rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 20px; margin: 15px 0; border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-            <h3 style="color: #8b5cf6; font-size: 1.3em; font-weight: 600; font-family: 'Poppins', sans-serif;">🌱 Humedad del Suelo</h3>
-            <div style="display: flex; gap: 10px; align-items: center;">
-              <div style="width: 12px; height: 12px; background: linear-gradient(135deg, #8b5cf6, #7c3aed); border-radius: 50%;"></div>
-              <span style="font-size: 0.9em; color: rgba(255, 255, 255, 0.7);">Datos históricos</span>
+        <div class="chart-container" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); border-radius: 12px; padding: 28px; margin: 20px 0; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+            <h3 style="color: #8b5cf6; font-size: 1.4em; font-weight: 600; font-family: 'Inter', sans-serif; margin: 0; padding: 4px 0;">Humedad del Suelo</h3>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <div style="width: 8px; height: 8px; background: #8b5cf6; border-radius: 50%;"></div>
+              <span style="font-size: 0.8em; color: rgba(255, 255, 255, 0.6);">Datos históricos</span>
             </div>
           </div>
-          <div style="position: relative; height: 300px;">
-            <canvas id="soilChart_${deviceIndex}" width="400" height="300"></canvas>
+          <div style="position: relative; height: 280px; width: 100%;">
+            <canvas id="soilChart_${deviceIndex}" style="width: 100%; height: 100%; max-width: 100%;"></canvas>
           </div>
-          <div style="display: flex; justify-content: space-between; margin-top: 20px; padding: 15px; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
+          <div style="display: flex; justify-content: space-between; margin-top: 16px; padding: 16px; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
             <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.7); font-size: 0.9em; margin-bottom: 5px;">MÍNIMO</div>
-              <div style="color: #8b5cf6; font-size: 1.2em; font-weight: 600;">${soilStats.min.toFixed(1)}%</div>
+              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">MÍNIMO</div>
+              <div style="color: #8b5cf6; font-size: 1.1em; font-weight: 500;">${soilStats.min.toFixed(1)}%</div>
             </div>
             <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.7); font-size: 0.9em; margin-bottom: 5px;">MÁXIMO</div>
-              <div style="color: #8b5cf6; font-size: 1.2em; font-weight: 600;">${soilStats.max.toFixed(1)}%</div>
+              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">MÁXIMO</div>
+              <div style="color: #8b5cf6; font-size: 1.1em; font-weight: 500;">${soilStats.max.toFixed(1)}%</div>
             </div>
             <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.7); font-size: 0.9em; margin-bottom: 5px;">PROMEDIO</div>
-              <div style="color: #8b5cf6; font-size: 1.2em; font-weight: 600;">${soilStats.avg.toFixed(1)}%</div>
+              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">PROMEDIO</div>
+              <div style="color: #8b5cf6; font-size: 1.1em; font-weight: 500;">${soilStats.avg.toFixed(1)}%</div>
             </div>
           </div>
         </div>
@@ -915,10 +1100,10 @@ class PDFGenerator {
         }
         if (!hasAnyData) {
             html += `
-        <div class="chart-container" style="background: rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 20px; margin: 15px 0; border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
+        <div class="chart-container" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); border-radius: 12px; padding: 24px; margin: 16px 0; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
           <div style="text-align: center; padding: 40px;">
-            <h3 style="color: #fbbf24; font-size: 1.3em; font-weight: 600; font-family: 'Poppins', sans-serif;">📊 Datos Históricos</h3>
-            <p style="color: rgba(255, 255, 255, 0.7); margin-top: 10px;">No hay datos históricos disponibles para este período</p>
+            <h3 style="color: #fbbf24; font-size: 1.2em; font-weight: 500; font-family: 'Inter', sans-serif; margin: 0;">Datos Históricos</h3>
+            <p style="color: rgba(255, 255, 255, 0.6); margin-top: 8px; font-size: 0.9em;">No hay datos históricos disponibles para este período</p>
           </div>
         </div>
       `;
@@ -931,63 +1116,105 @@ class PDFGenerator {
      */
     static generateChartScripts(historicalData, deviceIndex = 0) {
         console.log('🔍 Debug generateChartScripts - Input historicalData keys:', Object.keys(historicalData || {}));
-        console.log('🔍 Debug generateChartScripts - Full historicalData structure:', JSON.stringify(historicalData, null, 2));
         // Procesar datos según la estructura EcoWitt
         let tempSeries = [];
         let humSeries = [];
         let pressureSeries = [];
         let soilSeries = [];
-        // Buscar datos de temperatura (manejar estructura anidada)
-        if (historicalData.indoor && historicalData.indoor.list) {
+        // Buscar datos de temperatura (nueva estructura: historical.temperature.data)
+        if (historicalData.temperature && historicalData.temperature.data) {
+            tempSeries = this.listToSeries(historicalData.temperature);
+            console.log('🔍 Debug Temp Scripts - Using historical.temperature.data, series length:', tempSeries.length);
+        }
+        else if (historicalData.indoor && historicalData.indoor.list) {
             // Estructura: indoor.list.indoor.temperature.list
             if (historicalData.indoor.list.indoor && historicalData.indoor.list.indoor.temperature && historicalData.indoor.list.indoor.temperature.list) {
                 tempSeries = this.listToSeries(historicalData.indoor.list.indoor.temperature.list);
-                console.log('🔍 Debug Temp - Using indoor.list.indoor.temperature, series length:', tempSeries.length);
+                console.log('🔍 Debug Temp Scripts - Using indoor.list.indoor.temperature, series length:', tempSeries.length);
             }
             // Estructura: indoor.list.temperature.list
             else if (historicalData.indoor.list.temperature && historicalData.indoor.list.temperature.list) {
                 tempSeries = this.listToSeries(historicalData.indoor.list.temperature.list);
-                console.log('🔍 Debug Temp - Using indoor.list.temperature, series length:', tempSeries.length);
+                console.log('🔍 Debug Temp Scripts - Using indoor.list.temperature, series length:', tempSeries.length);
             }
         }
         else if (historicalData.temp1c) {
             tempSeries = this.listToSeries(historicalData.temp1c);
-            console.log('🔍 Debug Temp - Using temp1c, series length:', tempSeries.length);
+            console.log('🔍 Debug Temp Scripts - Using temp1c, series length:', tempSeries.length);
         }
         else if (historicalData.tempf) {
             tempSeries = this.listToSeries(historicalData.tempf);
-            console.log('🔍 Debug Temp - Using tempf, series length:', tempSeries.length);
+            console.log('🔍 Debug Temp Scripts - Using tempf, series length:', tempSeries.length);
         }
-        // Buscar datos de humedad (manejar estructura anidada)
-        if (historicalData.indoor && historicalData.indoor.list) {
+        // Buscar datos de humedad (nueva estructura: historical.humidity.data)
+        if (historicalData.humidity && historicalData.humidity.data) {
+            humSeries = this.listToSeries(historicalData.humidity);
+            console.log('🔍 Debug Hum Scripts - Using historical.humidity.data, series length:', humSeries.length);
+        }
+        else if (historicalData.indoor && historicalData.indoor.list) {
             // Estructura: indoor.list.indoor.humidity.list
             if (historicalData.indoor.list.indoor && historicalData.indoor.list.indoor.humidity && historicalData.indoor.list.indoor.humidity.list) {
                 humSeries = this.listToSeries(historicalData.indoor.list.indoor.humidity.list);
-                console.log('🔍 Debug Hum - Using indoor.list.indoor.humidity, series length:', humSeries.length);
+                console.log('🔍 Debug Hum Scripts - Using indoor.list.indoor.humidity, series length:', humSeries.length);
             }
             // Estructura: indoor.list.humidity.list
             else if (historicalData.indoor.list.humidity && historicalData.indoor.list.humidity.list) {
                 humSeries = this.listToSeries(historicalData.indoor.list.humidity.list);
-                console.log('🔍 Debug Hum - Using indoor.list.humidity, series length:', humSeries.length);
+                console.log('🔍 Debug Hum Scripts - Using indoor.list.humidity, series length:', humSeries.length);
             }
         }
         else if (historicalData.humidity1) {
             humSeries = this.listToSeries(historicalData.humidity1);
-            console.log('🔍 Debug Hum - Using humidity1, series length:', humSeries.length);
+            console.log('🔍 Debug Hum Scripts - Using humidity1, series length:', humSeries.length);
         }
         else if (historicalData.humidity) {
             humSeries = this.listToSeries(historicalData.humidity);
-            console.log('🔍 Debug Hum - Using humidity, series length:', humSeries.length);
+            console.log('🔍 Debug Hum Scripts - Using humidity, series length:', humSeries.length);
         }
         // Buscar datos de presión (múltiples fuentes)
         console.log('🔍 Debug Pressure Scripts - historicalData.pressure:', historicalData.pressure);
-        if (historicalData.pressure && historicalData.pressure.list && historicalData.pressure.list.relative) {
-            pressureSeries = this.listToSeries(historicalData.pressure.list.relative);
-            console.log('🔍 Debug Pressure Scripts - Using pressure relative, series length:', pressureSeries.length);
+        if (historicalData.pressure && historicalData.pressure.data) {
+            // Estructura: historical.pressure.data
+            pressureSeries = this.listToSeries(historicalData.pressure.data);
+            console.log('🔍 Debug Pressure Scripts - Using historical.pressure.data, series length:', pressureSeries.length);
         }
-        else if (historicalData.pressure && historicalData.pressure.list && historicalData.pressure.list.absolute) {
-            pressureSeries = this.listToSeries(historicalData.pressure.list.absolute);
-            console.log('🔍 Debug Pressure Scripts - Using pressure absolute, series length:', pressureSeries.length);
+        else if (historicalData.pressure && historicalData.pressure.pressure) {
+            // Estructura: pressure.pressure.relative.list o pressure.pressure.absolute.list
+            if (historicalData.pressure.pressure.relative && historicalData.pressure.pressure.relative.list) {
+                pressureSeries = this.listToSeries(historicalData.pressure.pressure.relative);
+                console.log('🔍 Debug Pressure Scripts - Using pressure.pressure.relative.list, series length:', pressureSeries.length);
+            }
+            else if (historicalData.pressure.pressure.absolute && historicalData.pressure.pressure.absolute.list) {
+                pressureSeries = this.listToSeries(historicalData.pressure.pressure.absolute);
+                console.log('🔍 Debug Pressure Scripts - Using pressure.pressure.absolute.list, series length:', pressureSeries.length);
+            }
+        }
+        else if (historicalData.pressure && historicalData.pressure.list) {
+            // Estructura: pressure.list.pressure.relative.list
+            if (historicalData.pressure.list.pressure && historicalData.pressure.list.pressure.relative && historicalData.pressure.list.pressure.relative.list) {
+                pressureSeries = this.listToSeries(historicalData.pressure.list.pressure.relative.list);
+                console.log('🔍 Debug Pressure Scripts - Using pressure.list.pressure.relative.list, series length:', pressureSeries.length);
+            }
+            else if (historicalData.pressure.list.pressure && historicalData.pressure.list.pressure.absolute && historicalData.pressure.list.pressure.absolute.list) {
+                pressureSeries = this.listToSeries(historicalData.pressure.list.pressure.absolute.list);
+                console.log('🔍 Debug Pressure Scripts - Using pressure.list.pressure.absolute.list, series length:', pressureSeries.length);
+            }
+            else if (historicalData.pressure.list.relative && historicalData.pressure.list.relative.list) {
+                pressureSeries = this.listToSeries(historicalData.pressure.list.relative.list);
+                console.log('🔍 Debug Pressure Scripts - Using pressure.list.relative.list, series length:', pressureSeries.length);
+            }
+            else if (historicalData.pressure.list.absolute && historicalData.pressure.list.absolute.list) {
+                pressureSeries = this.listToSeries(historicalData.pressure.list.absolute.list);
+                console.log('🔍 Debug Pressure Scripts - Using pressure.list.absolute.list, series length:', pressureSeries.length);
+            }
+            else if (historicalData.pressure.list.relative) {
+                pressureSeries = this.listToSeries(historicalData.pressure.list.relative);
+                console.log('🔍 Debug Pressure Scripts - Using pressure.list.relative, series length:', pressureSeries.length);
+            }
+            else if (historicalData.pressure.list.absolute) {
+                pressureSeries = this.listToSeries(historicalData.pressure.list.absolute);
+                console.log('🔍 Debug Pressure Scripts - Using pressure.list.absolute, series length:', pressureSeries.length);
+            }
         }
         else if (historicalData.baromrelin) {
             pressureSeries = this.listToSeries(historicalData.baromrelin);
@@ -1000,23 +1227,61 @@ class PDFGenerator {
         else {
             console.log('🔍 Debug Pressure Scripts - No pressure data found');
         }
-        // Buscar datos de humedad del suelo (múltiples canales)
+        // Buscar datos de humedad del suelo (múltiples fuentes)
         console.log('🔍 Debug Soil Scripts - Available soil channels:', Object.keys(historicalData).filter(key => key.startsWith('soil_')));
-        if (historicalData.soil_ch1 && historicalData.soil_ch1.list && historicalData.soil_ch1.list.soilmoisture) {
-            soilSeries = this.listToSeries(historicalData.soil_ch1.list.soilmoisture);
-            console.log('🔍 Debug Soil Scripts - Using soil_ch1 soilmoisture, series length:', soilSeries.length);
+        console.log('🔍 Debug Soil Scripts - historicalData.soilMoisture:', historicalData.soilMoisture);
+        // Nueva estructura procesada desde el backend
+        if (historicalData.soilMoisture && historicalData.soilMoisture.data) {
+            // Estructura: historical.soilMoisture.data (nueva estructura procesada)
+            soilSeries = this.listToSeries(historicalData.soilMoisture);
+            console.log('🔍 Debug Soil Scripts - Using historical.soilMoisture.data, series length:', soilSeries.length);
         }
-        else if (historicalData.soil_ch2 && historicalData.soil_ch2.list && historicalData.soil_ch2.list.soilmoisture) {
-            soilSeries = this.listToSeries(historicalData.soil_ch2.list.soilmoisture);
-            console.log('🔍 Debug Soil Scripts - Using soil_ch2 soilmoisture, series length:', soilSeries.length);
+        else if (historicalData.soilMoisture && historicalData.soilMoisture.primary && historicalData.soilMoisture.primary.data) {
+            // Estructura: historical.soilMoisture.primary.data
+            soilSeries = this.listToSeries(historicalData.soilMoisture.primary.data);
+            console.log('🔍 Debug Soil Scripts - Using historical.soilMoisture.primary.data, series length:', soilSeries.length);
+            console.log('🔍 Debug Soil Scripts - Sample data:', Object.keys(historicalData.soilMoisture.primary.data).slice(0, 5));
         }
-        else if (historicalData.soil_ch3 && historicalData.soil_ch3.list && historicalData.soil_ch3.list.soilmoisture) {
-            soilSeries = this.listToSeries(historicalData.soil_ch3.list.soilmoisture);
-            console.log('🔍 Debug Soil Scripts - Using soil_ch3 soilmoisture, series length:', soilSeries.length);
+        else if (historicalData.soil_ch1 && historicalData.soil_ch1.list) {
+            // Estructura: soil_ch1.list.soilmoisture.list
+            if (historicalData.soil_ch1.list.soilmoisture && historicalData.soil_ch1.list.soilmoisture.list) {
+                soilSeries = this.listToSeries(historicalData.soil_ch1.list.soilmoisture.list);
+                console.log('🔍 Debug Soil Scripts - Using soil_ch1.list.soilmoisture.list, series length:', soilSeries.length);
+            }
+            else if (historicalData.soil_ch1.list.soilmoisture) {
+                soilSeries = this.listToSeries(historicalData.soil_ch1.list.soilmoisture);
+                console.log('🔍 Debug Soil Scripts - Using soil_ch1.list.soilmoisture, series length:', soilSeries.length);
+            }
         }
-        else if (historicalData.soil_ch4 && historicalData.soil_ch4.list && historicalData.soil_ch4.list.soilmoisture) {
-            soilSeries = this.listToSeries(historicalData.soil_ch4.list.soilmoisture);
-            console.log('🔍 Debug Soil Scripts - Using soil_ch4 soilmoisture, series length:', soilSeries.length);
+        else if (historicalData.soil_ch2 && historicalData.soil_ch2.list) {
+            if (historicalData.soil_ch2.list.soilmoisture && historicalData.soil_ch2.list.soilmoisture.list) {
+                soilSeries = this.listToSeries(historicalData.soil_ch2.list.soilmoisture.list);
+                console.log('🔍 Debug Soil Scripts - Using soil_ch2.list.soilmoisture.list, series length:', soilSeries.length);
+            }
+            else if (historicalData.soil_ch2.list.soilmoisture) {
+                soilSeries = this.listToSeries(historicalData.soil_ch2.list.soilmoisture);
+                console.log('🔍 Debug Soil Scripts - Using soil_ch2.list.soilmoisture, series length:', soilSeries.length);
+            }
+        }
+        else if (historicalData.soil_ch3 && historicalData.soil_ch3.list) {
+            if (historicalData.soil_ch3.list.soilmoisture && historicalData.soil_ch3.list.soilmoisture.list) {
+                soilSeries = this.listToSeries(historicalData.soil_ch3.list.soilmoisture.list);
+                console.log('🔍 Debug Soil Scripts - Using soil_ch3.list.soilmoisture.list, series length:', soilSeries.length);
+            }
+            else if (historicalData.soil_ch3.list.soilmoisture) {
+                soilSeries = this.listToSeries(historicalData.soil_ch3.list.soilmoisture);
+                console.log('🔍 Debug Soil Scripts - Using soil_ch3.list.soilmoisture, series length:', soilSeries.length);
+            }
+        }
+        else if (historicalData.soil_ch4 && historicalData.soil_ch4.list) {
+            if (historicalData.soil_ch4.list.soilmoisture && historicalData.soil_ch4.list.soilmoisture.list) {
+                soilSeries = this.listToSeries(historicalData.soil_ch4.list.soilmoisture.list);
+                console.log('🔍 Debug Soil Scripts - Using soil_ch4.list.soilmoisture.list, series length:', soilSeries.length);
+            }
+            else if (historicalData.soil_ch4.list.soilmoisture) {
+                soilSeries = this.listToSeries(historicalData.soil_ch4.list.soilmoisture);
+                console.log('🔍 Debug Soil Scripts - Using soil_ch4.list.soilmoisture, series length:', soilSeries.length);
+            }
         }
         else if (historicalData.soilmoisture1) {
             soilSeries = this.listToSeries(historicalData.soilmoisture1);
@@ -1036,6 +1301,7 @@ class PDFGenerator {
         }
         else {
             console.log('🔍 Debug Soil Scripts - No soil moisture data found');
+            console.log('🔍 Debug Soil Scripts - Available keys in historicalData:', Object.keys(historicalData));
         }
         // Generar etiquetas y valores
         const tempLabels = tempSeries.map(p => new Date(p.time).toLocaleString('es-ES', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }));
@@ -1050,11 +1316,69 @@ class PDFGenerator {
         console.log('🔍 Debug Temp - Values sample:', tempValues.slice(0, 3));
         console.log('🔍 Debug Hum - Labels sample:', humLabels.slice(0, 3));
         console.log('🔍 Debug Hum - Values sample:', humValues.slice(0, 3));
-        // Generar script único para todos los gráficos
+        // Generar script único para todos los gráficos con estilo minimalista
         let scripts = `
       function createCharts_${deviceIndex}() {
         try {
           console.log('🔍 Starting chart creation for device ${deviceIndex}...');
+          
+          // Configuración común para todos los gráficos
+          const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: true,
+                labels: { 
+                  color: '#ffffff',
+                  font: { family: 'Inter', size: 11 },
+                  usePointStyle: true,
+                  pointStyle: 'circle'
+                }
+              },
+              tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                titleColor: '#ffffff',
+                bodyColor: '#ffffff',
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+                borderWidth: 1,
+                cornerRadius: 8,
+                displayColors: false
+              }
+            },
+            scales: {
+              x: {
+                ticks: { 
+                  color: 'rgba(255, 255, 255, 0.7)',
+                  font: { family: 'Inter', size: 10 }
+                },
+                grid: { 
+                  color: 'rgba(255, 255, 255, 0.1)',
+                  drawBorder: false
+                }
+              },
+              y: {
+                ticks: { 
+                  color: 'rgba(255, 255, 255, 0.7)',
+                  font: { family: 'Inter', size: 10 }
+                },
+                grid: { 
+                  color: 'rgba(255, 255, 255, 0.1)',
+                  drawBorder: false
+                }
+              }
+            },
+            elements: {
+              point: {
+                radius: 0,
+                hoverRadius: 4,
+                hoverBorderWidth: 2
+              },
+              line: {
+                tension: 0.4
+              }
+            }
+          };
           
           // Gráfico de temperatura
           const tempCtx = document.getElementById('tempChart_${deviceIndex}');
@@ -1068,29 +1392,19 @@ class PDFGenerator {
                   label: 'Temperatura (°C)',
                   data: ${JSON.stringify(tempValues)},
                   borderColor: '#10b981',
-                  backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                  backgroundColor: 'rgba(16, 185, 129, 0.08)',
                   borderWidth: 2,
                   fill: true,
                   tension: 0.4
                 }]
               },
               options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                ...commonOptions,
                 plugins: {
+                  ...commonOptions.plugins,
                   legend: {
-                    display: true,
-                    labels: { color: '#ffffff' }
-                  }
-                },
-                scales: {
-                  x: {
-                    ticks: { color: '#ffffff' },
-                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
-                  },
-                  y: {
-                    ticks: { color: '#ffffff' },
-                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                    ...commonOptions.plugins.legend,
+                    labels: { ...commonOptions.plugins.legend.labels, color: '#10b981' }
                   }
                 }
               }
@@ -1107,32 +1421,22 @@ class PDFGenerator {
               data: {
                 labels: ${JSON.stringify(humLabels)},
                 datasets: [{
-                  label: 'Humedad (%)',
+                  label: 'Humedad del Aire (%)',
                   data: ${JSON.stringify(humValues)},
                   borderColor: '#3b82f6',
-                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                  backgroundColor: 'rgba(59, 130, 246, 0.08)',
                   borderWidth: 2,
                   fill: true,
                   tension: 0.4
                 }]
               },
               options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                ...commonOptions,
                 plugins: {
+                  ...commonOptions.plugins,
                   legend: {
-                    display: true,
-                    labels: { color: '#ffffff' }
-                  }
-                },
-                scales: {
-                  x: {
-                    ticks: { color: '#ffffff' },
-                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
-                  },
-                  y: {
-                    ticks: { color: '#ffffff' },
-                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                    ...commonOptions.plugins.legend,
+                    labels: { ...commonOptions.plugins.legend.labels, color: '#3b82f6' }
                   }
                 }
               }
@@ -1149,32 +1453,22 @@ class PDFGenerator {
               data: {
                 labels: ${JSON.stringify(pressureLabels)},
                 datasets: [{
-                  label: 'Presión (hPa)',
+                  label: 'Presión Atmosférica (hPa)',
                   data: ${JSON.stringify(pressureValues)},
                   borderColor: '#f59e0b',
-                  backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                  backgroundColor: 'rgba(245, 158, 11, 0.08)',
                   borderWidth: 2,
                   fill: true,
                   tension: 0.4
                 }]
               },
               options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                ...commonOptions,
                 plugins: {
+                  ...commonOptions.plugins,
                   legend: {
-                    display: true,
-                    labels: { color: '#ffffff' }
-                  }
-                },
-                scales: {
-                  x: {
-                    ticks: { color: '#ffffff' },
-                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
-                  },
-                  y: {
-                    ticks: { color: '#ffffff' },
-                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                    ...commonOptions.plugins.legend,
+                    labels: { ...commonOptions.plugins.legend.labels, color: '#f59e0b' }
                   }
                 }
               }
@@ -1194,65 +1488,37 @@ class PDFGenerator {
                   label: 'Humedad del Suelo (%)',
                   data: ${JSON.stringify(soilValues)},
                   borderColor: '#8b5cf6',
-                  backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                  backgroundColor: 'rgba(139, 92, 246, 0.08)',
                   borderWidth: 2,
                   fill: true,
                   tension: 0.4
                 }]
               },
               options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                ...commonOptions,
                 plugins: {
+                  ...commonOptions.plugins,
                   legend: {
-                    display: true,
-                    labels: { color: '#ffffff' }
-                  }
-                },
-                scales: {
-                  x: {
-                    ticks: { color: '#ffffff' },
-                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
-                  },
-                  y: {
-                    ticks: { color: '#ffffff' },
-                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                    ...commonOptions.plugins.legend,
+                    labels: { ...commonOptions.plugins.legend.labels, color: '#8b5cf6' }
                   }
                 }
               }
             });
             console.log('🔍 Soil moisture chart created successfully');
           }
+          
+          console.log('🔍 All charts created successfully for device ${deviceIndex}');
         } catch (error) {
-          console.error('🔍 Error creating charts for device ${deviceIndex}:', error);
+          console.error('❌ Error creating charts for device ${deviceIndex}:', error);
         }
-      };
+      }
       
-      // Ejecutar cuando el DOM esté listo
+      // Ejecutar la creación de gráficos cuando el DOM esté listo
       if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-          console.log('🔍 DOM Content Loaded');
-          setTimeout(function() {
-            if (typeof Chart !== 'undefined') {
-              console.log('🔍 Chart.js available in DOMContentLoaded');
-              createCharts_${deviceIndex}();
-            } else {
-              console.log('🔍 Chart.js not available, waiting...');
-              setTimeout(createCharts_${deviceIndex}, 500);
-            }
-          }, 300);
-        });
+        document.addEventListener('DOMContentLoaded', createCharts_${deviceIndex});
       } else {
-        // DOM ya está listo
-        setTimeout(function() {
-          if (typeof Chart !== 'undefined') {
-            console.log('🔍 Chart.js available, creating charts...');
-            createCharts_${deviceIndex}();
-          } else {
-            console.log('🔍 Chart.js not available, waiting...');
-            setTimeout(createCharts_${deviceIndex}, 500);
-          }
-        }, 200);
+        createCharts_${deviceIndex}();
       }
     `;
         return scripts;
@@ -1422,7 +1688,6 @@ class PDFGenerator {
                     lastUpdate: null
                 };
             }
-            const lastUpdate = device.characteristics?.lastUpdate ? new Date(device.characteristics.lastUpdate).toLocaleString('es-ES') : 'N/A';
             // Generar sensores dinámicamente
             let { realtime } = deviceDataInfo;
             const sensorCards = [];
@@ -1617,10 +1882,7 @@ class PDFGenerator {
                       <h3>Tipo</h3>
                       <div class="value">${device.type}</div>
                     </div>
-                    <div class="info-card">
-                      <h3>Última Actualización</h3>
-                      <div class="value">${lastUpdate}</div>
-                    </div>
+
                   </div>
 
                               <!-- Datos en Tiempo Real -->
@@ -1684,17 +1946,7 @@ class PDFGenerator {
                     return `
                         <div class="section chart-section">
                           <h2>📊 Datos Históricos</h2>
-                          ${deviceDataInfo.diagnostic && deviceDataInfo.diagnostic.performed ? `
-                          <div class="diagnostic-info">
-                            <h3>🔧 Información de Diagnóstico</h3>
-                            <p><strong>Diagnóstico realizado:</strong> ${deviceDataInfo.diagnostic.performed ? 'Sí' : 'No'}</p>
-                            ${deviceDataInfo.diagnostic.summary ? `
-                            <div class="diagnostic-result">
-                              <strong>Resumen:</strong> ${JSON.stringify(deviceDataInfo.diagnostic.summary, null, 2)}
-                            </div>
-                            ` : ''}
-                          </div>
-                          ` : ''}
+
                           <div class="chart-grid">
                             ${this.generateChartContainers(historicalData, index)}
                           </div>
@@ -1708,25 +1960,14 @@ class PDFGenerator {
                           <div class="info-card">
                             <h3>Estado de Datos Históricos</h3>
                             <div class="value text-yellow-400">No hay datos históricos disponibles para este período</div>
-                            <div class="text-xs text-white/50">Última actualización: ${lastUpdate}</div>
+
                           </div>
                         </div>
                       `;
                 }
             })()}
 
-                  <!-- Información de Diagnóstico -->
-                  ${deviceDataInfo.diagnostic ? `
-                  <div class="diagnostic-info">
-                    <h3>🔧 Información de Diagnóstico</h3>
-                    <p><strong>Diagnóstico realizado:</strong> ${deviceDataInfo.diagnostic.performed ? 'Sí' : 'No'}</p>
-                    ${deviceDataInfo.diagnostic.summary ? `
-                    <div class="diagnostic-result">
-                      <strong>Resumen:</strong> ${JSON.stringify(deviceDataInfo.diagnostic.summary, null, 2)}
-                    </div>
-                    ` : ''}
-                  </div>
-                  ` : ''}
+
                 </div>
               `;
         }).join('')}
@@ -2712,6 +2953,73 @@ class PDFGenerator {
       </body>
       </html>
     `;
+    }
+    /**
+     * Obtiene el icono SVG del clima basado en el tipo de clima
+     */
+    static getWeatherIcon(weatherType) {
+        const icons = {
+            'clear': `<svg width="24" height="24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="5"/>
+        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+      </svg>`,
+            'clouds': `<svg width="24" height="24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+      </svg>`,
+            'rain': `<svg width="24" height="24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+        <path d="M8 14v6M16 14v6"/>
+      </svg>`,
+            'snow': `<svg width="24" height="24" fill="none" stroke="#e2e8f0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+        <path d="M8 14l3 3 3-3M8 17l3 3 3-3"/>
+      </svg>`,
+            'thunderstorm': `<svg width="24" height="24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+      </svg>`,
+            'drizzle': `<svg width="24" height="24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+        <path d="M8 14v3M12 14v3M16 14v3"/>
+      </svg>`,
+            'mist': `<svg width="24" height="24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+        <path d="M8 14v2M12 14v2M16 14v2"/>
+      </svg>`,
+            'fog': `<svg width="24" height="24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+        <path d="M8 14v1M12 14v1M16 14v1"/>
+      </svg>`,
+            'haze': `<svg width="24" height="24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+        <path d="M8 14v1M12 14v1M16 14v1"/>
+      </svg>`,
+            'smoke': `<svg width="24" height="24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+        <path d="M8 14v1M12 14v1M16 14v1"/>
+      </svg>`,
+            'dust': `<svg width="24" height="24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+        <path d="M8 14v1M12 14v1M16 14v1"/>
+      </svg>`,
+            'sand': `<svg width="24" height="24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+        <path d="M8 14v1M12 14v1M16 14v1"/>
+      </svg>`,
+            'ash': `<svg width="24" height="24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+        <path d="M8 14v1M12 14v1M16 14v1"/>
+      </svg>`,
+            'squall': `<svg width="24" height="24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+        <path d="M8 14v3M12 14v3M16 14v3"/>
+      </svg>`,
+            'tornado': `<svg width="24" height="24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
+        <path d="M8 14v3M12 14v3M16 14v3"/>
+      </svg>`
+        };
+        return icons[weatherType] || icons['clear'];
     }
 }
 exports.PDFGenerator = PDFGenerator;

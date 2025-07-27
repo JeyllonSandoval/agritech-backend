@@ -57,7 +57,18 @@ async function deviceRoutes(fastify) {
     }, device_1.DeviceController.getMultipleDevicesRealtime);
     // Ruta para información completa del dispositivo
     fastify.get('/devices/:deviceId/complete', {
-        preHandler: authToken_1.authenticateToken
+        preHandler: authToken_1.authenticateToken,
+        schema: {
+            querystring: {
+                type: 'object',
+                properties: {
+                    rangeType: {
+                        type: 'string',
+                        enum: ['one_hour', 'hourly', 'one_day', 'daily', 'one_week', 'weekly', 'one_month', 'monthly', 'three_months', 'yearly']
+                    }
+                }
+            }
+        }
     }, device_1.DeviceController.getDeviceCompleteInfo);
     // Ruta para diagnosticar sensores de suelo
     fastify.get('/devices/:deviceId/diagnose-soil', {

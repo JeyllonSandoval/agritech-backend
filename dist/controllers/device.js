@@ -8,6 +8,7 @@ const ecowitt_1 = require("../db/services/ecowitt");
 const zod_1 = require("zod");
 const uuid_1 = require("uuid");
 const timeRanges_1 = require("../utils/timeRanges");
+const validationRange_1 = require("../utils/validationRange");
 const axios_1 = __importDefault(require("axios"));
 // Importar funciones helper de la documentación para validaciones adicionales
 const realtime_request_types_1 = require("../docs/ecowitt-parameters/realtime-request.types");
@@ -985,32 +986,25 @@ class DeviceController {
             // 4. Obtener datos históricos (si se especifica rangeType)
             let historicalData = null;
             let soilMoistureData = null;
-            let specificPressureData = null;
             let timeRange = null;
             if (rangeType) {
                 try {
-                    const { startTime, endTime } = (0, timeRanges_1.getTimeRange)(rangeType);
+                    // Usar validateTimeRange para obtener el rango de tiempo
+                    const { start, end } = (0, validationRange_1.validateTimeRange)(undefined, undefined, rangeType);
                     timeRange = {
                         type: rangeType,
-                        startTime,
-                        endTime,
+                        startTime: start,
+                        endTime: end,
                         description: (0, timeRanges_1.getTimeRangeDescription)(rangeType)
                     };
                     // Obtener datos históricos generales
-                    historicalData = await ecowitt_1.EcowittService.getDeviceHistoryComplete(device.DeviceApplicationKey, device.DeviceApiKey, device.DeviceMac, startTime, endTime);
+                    historicalData = await ecowitt_1.EcowittService.getDeviceHistoryComplete(device.DeviceApplicationKey, device.DeviceApiKey, device.DeviceMac, start, end);
                     // Obtener datos específicos de humedad del suelo
                     try {
-                        soilMoistureData = await ecowitt_1.EcowittService.getSoilMoistureHistory(device.DeviceApplicationKey, device.DeviceApiKey, device.DeviceMac, startTime, endTime);
+                        soilMoistureData = await ecowitt_1.EcowittService.getSoilMoistureHistory(device.DeviceApplicationKey, device.DeviceApiKey, device.DeviceMac, start, end);
                     }
                     catch (soilError) {
                         console.warn('Error getting soil moisture data:', soilError);
-                    }
-                    // Intentar obtener datos de presión específicamente
-                    try {
-                        specificPressureData = await ecowitt_1.EcowittService.getDeviceHistory(device.DeviceApplicationKey, device.DeviceApiKey, device.DeviceMac, startTime, endTime);
-                    }
-                    catch (pressureError) {
-                        console.warn('Error getting pressure data:', pressureError);
                     }
                 }
                 catch (historyError) {
@@ -1052,9 +1046,12 @@ class DeviceController {
             if (historicalData && historicalData.data) {
                 const data = historicalData.data;
                 // Los datos de suelo se procesarán más adelante en el código
-                // Extraer datos de temperatura
+                // Extraer datos de temperatura (nueva estructura directa)
                 let temperatureData = null;
-                if (data.indoor?.indoor?.temperature?.list) {
+                if (data.temperature) {
+                    temperatureData = data.temperature;
+                }
+                else if (data.indoor?.indoor?.temperature?.list) {
                     temperatureData = {
                         unit: data.indoor.indoor.temperature.unit || '°F',
                         data: data.indoor.indoor.temperature.list
@@ -1072,9 +1069,12 @@ class DeviceController {
                         data: data.indoor.list.temperature.list
                     };
                 }
-                // Extraer datos de humedad
+                // Extraer datos de humedad (nueva estructura directa)
                 let humidityData = null;
-                if (data.indoor?.indoor?.humidity?.list) {
+                if (data.humidity) {
+                    humidityData = data.humidity;
+                }
+                else if (data.indoor?.indoor?.humidity?.list) {
                     humidityData = {
                         unit: data.indoor.indoor.humidity.unit || '%',
                         data: data.indoor.indoor.humidity.list
@@ -1092,119 +1092,114 @@ class DeviceController {
                         data: data.indoor.list.humidity.list
                     };
                 }
-                // Extraer datos de presión
+                // Extraer datos de presión (nueva estructura directa)
                 let pressureData = null;
-                // Primero intentar usar los datos obtenidos específicamente
-                if (specificPressureData && specificPressureData.data && specificPressureData.data.pressure) {
-                    const pressureInfo = specificPressureData.data.pressure;
-                    if (pressureInfo.list?.relative?.list) {
-                        pressureData = {
-                            unit: pressureInfo.list.relative.unit || 'inHg',
-                            data: pressureInfo.list.relative.list
-                        };
-                    }
-                    else if (pressureInfo.list?.absolute?.list) {
-                        pressureData = {
-                            unit: pressureInfo.list.absolute.unit || 'inHg',
-                            data: pressureInfo.list.absolute.list
-                        };
-                    }
+                // Debug: Ver qué estructura tienen los datos de presión
+                console.log('🔍 Debug Pressure - data.pressure:', data.pressure);
+                console.log('🔍 Debug Pressure - data.keys:', Object.keys(data));
+                if (data.pressure) {
+                    pressureData = data.pressure;
                 }
-                // Si no hay datos específicos, buscar en los datos combinados
-                if (!pressureData) {
-                    // Verificar estructura correcta: data.pressure.pressure.relative.list
-                    if (data.pressure?.pressure?.relative?.list) {
-                        pressureData = {
-                            unit: data.pressure.pressure.relative.unit || 'inHg',
-                            data: data.pressure.pressure.relative.list
-                        };
-                    }
-                    else if (data.pressure?.pressure?.absolute?.list) {
-                        pressureData = {
-                            unit: data.pressure.pressure.absolute.unit || 'inHg',
-                            data: data.pressure.pressure.absolute.list
-                        };
-                    }
-                    else if (data.pressure?.list?.relative?.list) {
-                        pressureData = {
-                            unit: data.pressure.list.relative.unit || 'inHg',
-                            data: data.pressure.list.relative.list
-                        };
-                    }
-                    else if (data.pressure?.list?.absolute?.list) {
-                        pressureData = {
-                            unit: data.pressure.list.absolute.unit || 'inHg',
-                            data: data.pressure.list.absolute.list
-                        };
-                    }
-                    else if (data.pressure?.list?.pressure?.list) {
-                        pressureData = {
-                            unit: data.pressure.list.pressure.unit || 'inHg',
-                            data: data.pressure.list.pressure.list
-                        };
-                    }
-                }
-                // Extraer datos de humedad del suelo (múltiples canales)
-                let processedSoilMoistureData = null;
-                const soilMoistureChannels = [];
-                // Primero intentar usar los datos obtenidos por separado
-                if (soilMoistureData && soilMoistureData.data && soilMoistureData.data.soil_ch1) {
-                    const soilData = soilMoistureData.data.soil_ch1;
-                    // Verificar estructura directa (soilData.soilmoisture)
-                    if (soilData.soilmoisture?.list) {
-                        soilMoistureChannels.push({
-                            channel: 1,
-                            unit: soilData.soilmoisture.unit || '%',
-                            data: soilData.soilmoisture.list,
-                            ad: soilData.ad?.list || null
-                        });
-                    }
-                    // Verificar estructura anidada (soilData.list.soilmoisture)
-                    else if (soilData.list?.soilmoisture?.list) {
-                        soilMoistureChannels.push({
-                            channel: 1,
-                            unit: soilData.list.soilmoisture.unit || '%',
-                            data: soilData.list.soilmoisture.list,
-                            ad: soilData.list?.ad?.list || null
-                        });
-                    }
-                }
-                // Si no hay datos de suelo obtenidos por separado, buscar en los datos combinados
-                if (soilMoistureChannels.length === 0) {
-                    for (let i = 1; i <= 16; i++) {
-                        const channelKey = `soil_ch${i}`;
-                        // Verificar estructura directa
-                        if (data[channelKey]?.soilmoisture?.list) {
-                            soilMoistureChannels.push({
-                                channel: i,
-                                unit: data[channelKey].soilmoisture.unit || '%',
-                                data: data[channelKey].soilmoisture.list,
-                                ad: data[channelKey].ad?.list || null
-                            });
-                        }
-                        // Verificar estructura anidada
-                        else if (data[channelKey]?.list?.soilmoisture?.list) {
-                            soilMoistureChannels.push({
-                                channel: i,
-                                unit: data[channelKey].list.soilmoisture.unit || '%',
-                                data: data[channelKey].list.soilmoisture.list,
-                                ad: data[channelKey].list?.ad?.list || null
-                            });
-                        }
-                    }
-                }
-                // Si hay canales de suelo con datos, usar el primero como principal
-                if (soilMoistureChannels.length > 0) {
-                    processedSoilMoistureData = {
-                        primary: soilMoistureChannels[0],
-                        channelCount: soilMoistureChannels.length,
-                        summary: {
-                            totalReadings: Object.keys(soilMoistureChannels[0].data).length,
-                            averageMoisture: Object.values(soilMoistureChannels[0].data).reduce((sum, val) => sum + parseFloat(val), 0) / Object.keys(soilMoistureChannels[0].data).length,
-                            minMoisture: Math.min(...Object.values(soilMoistureChannels[0].data).map((val) => parseFloat(val))),
-                            maxMoisture: Math.max(...Object.values(soilMoistureChannels[0].data).map((val) => parseFloat(val)))
-                        }
+                else if (data.pressure?.pressure?.relative?.list) {
+                    pressureData = {
+                        unit: data.pressure.pressure.relative.unit || 'inHg',
+                        data: data.pressure.pressure.relative.list
                     };
+                }
+                else if (data.pressure?.pressure?.absolute?.list) {
+                    pressureData = {
+                        unit: data.pressure.pressure.absolute.unit || 'inHg',
+                        data: data.pressure.pressure.absolute.list
+                    };
+                }
+                else if (data.pressure?.list?.relative?.list) {
+                    pressureData = {
+                        unit: data.pressure.list.relative.unit || 'inHg',
+                        data: data.pressure.list.relative.list
+                    };
+                }
+                else if (data.pressure?.list?.absolute?.list) {
+                    pressureData = {
+                        unit: data.pressure.list.absolute.unit || 'inHg',
+                        data: data.pressure.list.absolute.list
+                    };
+                }
+                else if (data.pressure?.list?.pressure?.list) {
+                    pressureData = {
+                        unit: data.pressure.list.pressure.unit || 'inHg',
+                        data: data.pressure.list.pressure.list
+                    };
+                }
+                // Debug: Verificar si se encontraron datos de presión
+                console.log('🔍 Debug Pressure - pressureData found:', !!pressureData);
+                // Extraer datos de humedad del suelo (nueva estructura directa)
+                let processedSoilMoistureData = null;
+                // Usar la nueva estructura directa
+                if (data.soilMoisture) {
+                    processedSoilMoistureData = data.soilMoisture;
+                }
+                else {
+                    // Fallback a la estructura antigua
+                    const soilMoistureChannels = [];
+                    // Primero intentar usar los datos obtenidos por separado
+                    if (soilMoistureData && soilMoistureData.data && soilMoistureData.data.soil_ch1) {
+                        const soilData = soilMoistureData.data.soil_ch1;
+                        // Verificar estructura directa (soilData.soilmoisture)
+                        if (soilData.soilmoisture?.list) {
+                            soilMoistureChannels.push({
+                                channel: 1,
+                                unit: soilData.soilmoisture.unit || '%',
+                                data: soilData.soilmoisture.list,
+                                ad: soilData.ad?.list || null
+                            });
+                        }
+                        // Verificar estructura anidada (soilData.list.soilmoisture)
+                        else if (soilData.list?.soilmoisture?.list) {
+                            soilMoistureChannels.push({
+                                channel: 1,
+                                unit: soilData.list.soilmoisture.unit || '%',
+                                data: soilData.list.soilmoisture.list,
+                                ad: soilData.list?.ad?.list || null
+                            });
+                        }
+                    }
+                    // Si no hay datos de suelo obtenidos por separado, buscar en los datos combinados
+                    if (soilMoistureChannels.length === 0) {
+                        for (let i = 1; i <= 16; i++) {
+                            const channelKey = `soil_ch${i}`;
+                            // Verificar estructura directa
+                            if (data[channelKey]?.soilmoisture?.list) {
+                                soilMoistureChannels.push({
+                                    channel: i,
+                                    unit: data[channelKey].soilmoisture.unit || '%',
+                                    data: data[channelKey].soilmoisture.list,
+                                    ad: data[channelKey].ad?.list || null
+                                });
+                            }
+                            // Verificar estructura anidada
+                            else if (data[channelKey]?.list?.soilmoisture?.list) {
+                                soilMoistureChannels.push({
+                                    channel: i,
+                                    unit: data[channelKey].list.soilmoisture.unit || '%',
+                                    data: data[channelKey].list.soilmoisture.list,
+                                    ad: data[channelKey].list?.ad?.list || null
+                                });
+                            }
+                        }
+                    }
+                    // Si hay canales de suelo con datos, usar el primero como principal
+                    if (soilMoistureChannels.length > 0) {
+                        processedSoilMoistureData = {
+                            primary: soilMoistureChannels[0],
+                            channelCount: soilMoistureChannels.length,
+                            summary: {
+                                totalReadings: Object.keys(soilMoistureChannels[0].data).length,
+                                averageMoisture: Object.values(soilMoistureChannels[0].data).reduce((sum, val) => sum + parseFloat(val), 0) / Object.keys(soilMoistureChannels[0].data).length,
+                                minMoisture: Math.min(...Object.values(soilMoistureChannels[0].data).map((val) => parseFloat(val))),
+                                maxMoisture: Math.max(...Object.values(soilMoistureChannels[0].data).map((val) => parseFloat(val)))
+                            }
+                        };
+                    }
                 }
                 processedHistoricalData = {
                     temperature: temperatureData,
