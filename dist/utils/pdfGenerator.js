@@ -127,13 +127,10 @@ class PDFGenerator {
             if (realtime.indoor) {
                 if (realtime.indoor.temperature) {
                     sensorCards.push(`
-            <div style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); border-radius: 12px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
-              <div style="display: flex; align-items: center; margin-bottom: 12px;">
-                <div style="width: 8px; height: 8px; background: #10b981; border-radius: 50%; margin-right: 12px;"></div>
-                <h3 style="color: #ffffff; font-size: 0.9em; font-weight: 500; font-family: 'Inter', sans-serif; margin: 0;">Temperatura Interior</h3>
-              </div>
-              <div style="color: #10b981; font-size: 1.5em; font-weight: 600; margin-bottom: 8px;">${formatSensorValue(realtime.indoor.temperature, '°C')}</div>
-              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em;">Actualizado: ${formatSensorTime(realtime.indoor.temperature)}</div>
+            <div class="info-card">
+              <h3>Temperatura Interior</h3>
+              <div class="value">${formatSensorValue(realtime.indoor.temperature, '°C')}</div>
+              <div style="font-size: 0.8em; color: rgba(255, 255, 255, 0.6); margin-top: 4px;">Actualizado: ${formatSensorTime(realtime.indoor.temperature)}</div>
             </div>
           `);
                 }
@@ -283,7 +280,7 @@ class PDFGenerator {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Reporte de Dispositivo - ${device.name}</title>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
         <style>
           * {
             margin: 0;
@@ -292,142 +289,288 @@ class PDFGenerator {
           }
           
           body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
             color: #ffffff;
-            line-height: 1.6;
+            line-height: 1.5;
             min-height: 100vh;
           }
           
           .container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 40px 20px;
+            padding: 24px;
           }
           
+          /* Header */
           .header {
             text-align: center;
-            margin-bottom: 40px;
-            padding: 40px 0;
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            margin-bottom: 32px;
+            padding: 32px 24px;
+            background: rgba(45, 45, 45, 0.8);
             border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
           }
           
           .header h1 {
             font-size: 2.5em;
             font-weight: 600;
             margin-bottom: 8px;
-            background: linear-gradient(135deg, #10b981, #3b82f6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: #10b981;
           }
           
           .header p {
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 1.1em;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1em;
             font-weight: 400;
           }
           
+          /* Sections */
           .section {
-            margin-bottom: 40px;
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
-            border-radius: 16px;
-            padding: 32px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(20px);
+            margin-bottom: 24px;
+            background: rgba(45, 45, 45, 0.6);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
           }
           
           .section h2 {
-            font-size: 1.4em;
+            font-size: 1.3em;
             font-weight: 600;
-            margin-bottom: 24px;
-            color: #ffffff;
-            display: flex;
-            align-items: center;
-            gap: 12px;
+            margin-bottom: 20px;
+            color: #10b981;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 8px;
           }
           
-          .section h3 {
-            font-size: 1.1em;
-            font-weight: 500;
-            margin-bottom: 16px;
-            color: #ffffff;
-          }
-          
-          .grid {
+          /* Weather Current Style (like the image) */
+          .weather-main {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: 1fr 1fr;
             gap: 20px;
             margin-bottom: 24px;
           }
           
+          .current-weather {
+            background: rgba(60, 70, 85, 0.8);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+          }
+          
+          .current-temp {
+            font-size: 3em;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 8px;
+          }
+          
+          .weather-desc {
+            font-size: 1.1em;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 16px;
+          }
+          
+          .weather-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            font-size: 0.9em;
+          }
+          
+          .weather-detail {
+            color: rgba(255, 255, 255, 0.7);
+          }
+          
+          .weather-detail .label {
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 2px;
+          }
+          
+          .weather-detail .value {
+            color: #ffffff;
+            font-weight: 500;
+          }
+          
+          /* Side panels (like wind, UV, sun) */
+          .weather-side {
+            display: grid;
+            gap: 12px;
+          }
+          
+          .weather-panel {
+            background: rgba(75, 85, 95, 0.8);
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+          }
+          
+          .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 500;
+          }
+          
+          .panel-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          
+          .panel-main-value {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #ffffff;
+          }
+          
+          .panel-secondary {
+            font-size: 0.8em;
+            color: rgba(255, 255, 255, 0.6);
+          }
+          
+          /* Info Cards Grid */
+          .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+          }
+          
           .info-card {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            background: rgba(55, 65, 80, 0.6);
             border-radius: 12px;
             padding: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
           }
           
           .info-card h3 {
-            font-size: 0.9em;
+            font-size: 0.85em;
             font-weight: 500;
-            color: rgba(255, 255, 255, 0.8);
+            color: rgba(255, 255, 255, 0.7);
             margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
           }
           
           .info-card .value {
-            font-size: 1.5em;
+            font-size: 1.6em;
             font-weight: 600;
             color: #10b981;
-            margin-bottom: 8px;
           }
           
-          .info-card .text-xs {
-            font-size: 0.8em;
-            color: rgba(255, 255, 255, 0.6);
-          }
-          
-          .weather-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-          }
-          
-          .weather-card {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
-            border-radius: 12px;
-            padding: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(20px);
+          /* Period Info */
+          .period-info {
             text-align: center;
+            margin-bottom: 20px;
+            padding: 16px;
+            background: rgba(55, 65, 80, 0.6);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
           }
           
-          .weather-card .temp {
-            font-size: 2em;
-            font-weight: 600;
+          .period-title {
             color: #10b981;
-            margin-bottom: 8px;
-          }
-          
-          .weather-card .description {
-            color: rgba(255, 255, 255, 0.8);
+            font-weight: 600;
             font-size: 0.9em;
-            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
           }
           
-          .weather-card .details {
+          .period-dates {
+            color: rgba(255, 255, 255, 0.8);
             font-size: 0.8em;
+            margin-top: 4px;
+          }
+          
+          /* Chart Containers */
+          .chart-box {
+            background: rgba(55, 65, 80, 0.6);
+            border-radius: 12px;
+            padding: 24px;
+            margin: 16px 0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+          }
+          
+          .chart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          }
+          
+          .chart-title {
+            color: #10b981;
+            font-size: 1.2em;
+            font-weight: 600;
+            margin: 0;
+          }
+          
+          .chart-indicator {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+          }
+          
+          .chart-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+          }
+          
+          .chart-label {
+            font-size: 0.8em;
+            color: rgba(255, 255, 255, 0.7);
+            font-weight: 500;
+          }
+          
+          .chart-canvas {
+            position: relative;
+            height: 280px;
+            width: 100%;
+            margin-bottom: 16px;
+          }
+          
+          .chart-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 16px;
+            padding: 16px;
+            background: rgba(45, 45, 45, 0.4);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+          }
+          
+          .stat-item {
+            text-align: center;
+            flex: 1;
+          }
+          
+          .stat-label {
             color: rgba(255, 255, 255, 0.6);
+            font-size: 0.75em;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
           }
           
-          .chart-container {
-            margin-top: 24px;
+          .stat-value {
+            font-size: 1em;
+            font-weight: 600;
           }
           
+          .stat-value.temp { color: #10b981; }
+          .stat-value.humidity { color: #3b82f6; }
+          .stat-value.pressure { color: #f59e0b; }
+          .stat-value.soil { color: #8b5cf6; }
+          
+          /* Metadata */
           .metadata {
             display: flex;
             justify-content: space-between;
@@ -439,124 +582,132 @@ class PDFGenerator {
             color: rgba(255, 255, 255, 0.6);
           }
           
+          /* Forecast Section */
+          .forecast-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+          }
+          
+          .forecast-card {
+            background: rgba(55, 65, 80, 0.6);
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+          }
+          
+          .forecast-date {
+            margin-bottom: 12px;
+          }
+          
+          .day-name {
+            font-size: 0.8em;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.7);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+          }
+          
+          .day-number {
+            font-size: 1.8em;
+            font-weight: 600;
+            color: #ffffff;
+            margin: 2px 0;
+            line-height: 1;
+          }
+          
+          .month {
+            font-size: 0.75em;
+            color: rgba(255, 255, 255, 0.6);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+          }
+          
+          .forecast-weather {
+            margin-bottom: 12px;
+          }
+          
+          .weather-icon {
+            font-size: 1.2em;
+            margin-bottom: 6px;
+          }
+          
+          .weather-desc {
+            font-size: 0.75em;
+            color: rgba(255, 255, 255, 0.8);
+            text-transform: capitalize;
+            line-height: 1.2;
+            margin-bottom: 8px;
+            min-height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          
+          .forecast-temps {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            align-items: baseline;
+          }
+          
+          .temp-max {
+            font-size: 1.3em;
+            font-weight: 600;
+          }
+          
+          .temp-min {
+            font-size: 1em;
+            font-weight: 500;
+          }
+          
+          .forecast-details {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 0.75em;
+          }
+          
+          .detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          
+          .detail-label {
+            color: rgba(255, 255, 255, 0.6);
+          }
+          
+          .detail-value {
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 500;
+          }
+          
+          /* Responsive */
           @media (max-width: 768px) {
             .container {
-              padding: 20px 10px;
+              padding: 16px;
+            }
+            
+            .weather-main {
+              grid-template-columns: 1fr;
             }
             
             .header h1 {
               font-size: 2em;
             }
             
-            .grid {
+            .info-grid {
               grid-template-columns: 1fr;
             }
             
-            .weather-grid {
-              grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            }
-            
             .forecast-grid {
-              display: grid;
-              grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-              gap: 16px;
-              margin-top: 20px;
-            }
-            
-            .forecast-card {
-              background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
-              border-radius: 12px;
-              padding: 20px;
-              border: 1px solid rgba(255, 255, 255, 0.08);
-              backdrop-filter: blur(20px);
-              text-align: center;
-              transition: transform 0.2s ease;
-            }
-            
-            .forecast-card:hover {
-              transform: translateY(-2px);
-            }
-            
-            .forecast-date {
-              margin-bottom: 16px;
-            }
-            
-            .day-name {
-              font-size: 0.9em;
-              font-weight: 500;
-              color: rgba(255, 255, 255, 0.8);
-              text-transform: uppercase;
-              letter-spacing: 0.5px;
-            }
-            
-            .day-number {
-              font-size: 1.8em;
-              font-weight: 600;
-              color: #ffffff;
-              margin: 4px 0;
-            }
-            
-            .month {
-              font-size: 0.8em;
-              color: rgba(255, 255, 255, 0.6);
-              text-transform: uppercase;
-            }
-            
-            .forecast-weather {
-              margin-bottom: 16px;
-            }
-            
-            .weather-icon {
-              margin-bottom: 8px;
-            }
-            
-            .weather-desc {
-              font-size: 0.8em;
-              color: rgba(255, 255, 255, 0.7);
-              text-transform: capitalize;
-            }
-            
-            .forecast-temps {
-              display: flex;
-              justify-content: center;
-              gap: 16px;
-              margin-bottom: 16px;
-            }
-            
-            .temp-max {
-              font-size: 1.4em;
-              font-weight: 600;
-            }
-            
-            .temp-min {
-              font-size: 1.2em;
-              font-weight: 500;
-            }
-            
-            .forecast-details {
-              display: flex;
-              flex-direction: column;
-              gap: 8px;
-            }
-            
-            .detail-item {
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              font-size: 0.8em;
-            }
-            
-            .detail-label {
-              color: rgba(255, 255, 255, 0.6);
-            }
-            
-            .detail-value {
-              color: rgba(255, 255, 255, 0.9);
-              font-weight: 500;
-            }
-            
-            .forecast-grid {
-              grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+              grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+              gap: 10px;
             }
           }
         </style>
@@ -565,12 +716,12 @@ class PDFGenerator {
         <div class="container">
           <div class="header">
             <h1>Reporte de Dispositivo</h1>
-            <p>${device.name} - Generado el ${timestamp}</p>
+            <p>${device.name} • ${timestamp}</p>
           </div>
           
           <div class="section">
             <h2>Información del Dispositivo</h2>
-            <div class="grid">
+            <div class="info-grid">
               <div class="info-card">
                 <h3>ID del Dispositivo</h3>
                 <div class="value">${device.characteristics.id}</div>
@@ -598,32 +749,55 @@ class PDFGenerator {
           ${weather ? `
           <div class="section">
             <h2>Información Meteorológica</h2>
-            <div class="weather-grid">
-              <div class="weather-card">
-                <div class="temp">${weather.current.temperature.toFixed(1)}°C</div>
-                <div class="description">${weather.current.weather[0]?.description || 'N/A'}</div>
-                <div class="details">
-                  Sensación: ${weather.current.feelsLike.toFixed(1)}°C<br>
-                  Humedad: ${weather.current.humidity}%<br>
-                  Presión: ${weather.current.pressure} hPa
+            <div class="weather-main">
+              <div class="current-weather">
+                <div class="current-temp">${weather.current.temperature.toFixed(1)}°C</div>
+                <div class="weather-desc">${weather.current.weather[0]?.description || 'N/A'}</div>
+                <div class="weather-details">
+                  <div class="weather-detail">
+                    <div class="label">Sensación:</div>
+                    <div class="value">${weather.current.feelsLike.toFixed(1)}°C</div>
+                  </div>
+                  <div class="weather-detail">
+                    <div class="label">Humedad:</div>
+                    <div class="value">${weather.current.humidity}%</div>
+                  </div>
+                  <div class="weather-detail">
+                    <div class="label">Presión:</div>
+                    <div class="value">${weather.current.pressure} hPa</div>
+                  </div>
                 </div>
               </div>
-              <div class="weather-card">
-                <div class="temp">${weather.current.windSpeed} km/h</div>
-                <div class="description">Velocidad del Viento</div>
-                <div class="details">
-                  Dirección: ${weather.current.windDirection}°<br>
-                  Visibilidad: ${weather.current.visibility} km<br>
-                  Nubes: ${weather.current.clouds}%
+              <div class="weather-side">
+                <div class="weather-panel">
+                  <div class="panel-header">
+                    <div class="panel-main-value">${weather.current.windSpeed} km/h</div>
+                    <div class="panel-secondary">Velocidad del Viento</div>
+                  </div>
+                  <div class="panel-content">
+                    <div class="panel-main-value">${weather.current.windDirection}°</div>
+                    <div class="panel-secondary">Dirección del Viento</div>
+                  </div>
                 </div>
-              </div>
-              <div class="weather-card">
-                <div class="temp">${weather.current.uvi}</div>
-                <div class="description">Índice UV</div>
-                <div class="details">
-                  Amanecer: ${new Date(weather.current.sunrise * 1000).toLocaleTimeString('es-ES')}<br>
-                  Atardecer: ${new Date(weather.current.sunset * 1000).toLocaleTimeString('es-ES')}<br>
-                  Punto de rocío: ${weather.current.dewPoint.toFixed(1)}°C
+                <div class="weather-panel">
+                  <div class="panel-header">
+                    <div class="panel-main-value">${weather.current.uvi}</div>
+                    <div class="panel-secondary">Índice UV</div>
+                  </div>
+                  <div class="panel-content">
+                    <div class="panel-main-value">${new Date(weather.current.sunrise * 1000).toLocaleTimeString('es-ES')}</div>
+                    <div class="panel-secondary">Amanecer</div>
+                  </div>
+                </div>
+                <div class="weather-panel">
+                  <div class="panel-header">
+                    <div class="panel-main-value">${new Date(weather.current.sunset * 1000).toLocaleTimeString('es-ES')}</div>
+                    <div class="panel-secondary">Atardecer</div>
+                  </div>
+                  <div class="panel-content">
+                    <div class="panel-main-value">${weather.current.dewPoint.toFixed(1)}°C</div>
+                    <div class="panel-secondary">Punto de rocío</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -655,16 +829,16 @@ class PDFGenerator {
             return `
                   <div class="forecast-card">
                     <div class="forecast-date">
-                      <div class="day-name">${dayName}</div>
+                      <div class="day-name">${dayName.toUpperCase()}</div>
                       <div class="day-number">${dayNumber}</div>
-                      <div class="month">${month}</div>
+                      <div class="month">${month.toUpperCase()}</div>
                     </div>
                     <div class="forecast-weather">
                       <div class="weather-icon">${this.getWeatherIcon(weatherIcon)}</div>
                       <div class="weather-desc">${day.weather[0]?.description || 'N/A'}</div>
                     </div>
                     <div class="forecast-temps">
-                      <div class="temp-max" style="color: ${tempColor};">${day.temp.max.toFixed(1)}°</div>
+                      <div class="temp-max" style="color: #ef4444;">${day.temp.max.toFixed(1)}°</div>
                       <div class="temp-min" style="color: rgba(255, 255, 255, 0.6);">${day.temp.min.toFixed(1)}°</div>
                     </div>
                     <div class="forecast-details">
@@ -674,11 +848,11 @@ class PDFGenerator {
                       </div>
                       <div class="detail-item">
                         <span class="detail-label">Viento</span>
-                        <span class="detail-value">${day.wind_speed} km/h</span>
+                        <span class="detail-value">${(day.wind_speed * 3.6).toFixed(1)} km/h</span>
                       </div>
                       <div class="detail-item">
                         <span class="detail-label">UV</span>
-                        <span class="detail-value">${day.uvi}</span>
+                        <span class="detail-value">${day.uvi.toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
@@ -692,7 +866,7 @@ class PDFGenerator {
           ${sensorCards.length > 0 && sensorCards.some(card => card.trim() !== '') ? `
           <div class="section">
             <h2>Datos de Sensores en Tiempo Real</h2>
-            <div class="grid">
+            <div class="info-grid">
               ${sensorCards.join('')}
             </div>
           </div>
@@ -702,11 +876,11 @@ class PDFGenerator {
           <div class="section">
             <h2>Datos Históricos</h2>
             ${report.timeRange ? `
-            <div style="text-align: center; margin-bottom: 20px; padding: 12px; background: rgba(16, 185, 129, 0.1); border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
-              <div style="color: #10b981; font-weight: 500; font-size: 0.9em;">
+            <div class="period-info">
+              <div class="period-title">
                 Período: ${report.timeRange.description}
               </div>
-              <div style="color: rgba(255, 255, 255, 0.7); font-size: 0.8em; margin-top: 4px;">
+              <div class="period-dates">
                 ${new Date(report.timeRange.start).toLocaleDateString('es-ES')} - ${new Date(report.timeRange.end).toLocaleDateString('es-ES')}
               </div>
             </div>
@@ -974,29 +1148,29 @@ class PDFGenerator {
             hasAnyData = true;
             const tempStats = this.calculateStats(tempSeries);
             html += `
-        <div class="chart-container" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); border-radius: 12px; padding: 28px; margin: 20px 0; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
-            <h3 style="color: #10b981; font-size: 1.4em; font-weight: 600; font-family: 'Inter', sans-serif; margin: 0; padding: 4px 0;">Temperatura</h3>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <div style="width: 8px; height: 8px; background: #10b981; border-radius: 50%;"></div>
-              <span style="font-size: 0.8em; color: rgba(255, 255, 255, 0.6);">Datos históricos</span>
+        <div class="chart-box">
+          <div class="chart-header">
+            <h3 class="chart-title">Temperatura</h3>
+            <div class="chart-indicator">
+              <div class="chart-dot" style="background: #10b981;"></div>
+              <span class="chart-label">Datos históricos</span>
             </div>
           </div>
-          <div style="position: relative; height: 280px; width: 100%;">
+          <div class="chart-canvas">
             <canvas id="tempChart_${deviceIndex}" style="width: 100%; height: 100%; max-width: 100%;"></canvas>
           </div>
-          <div style="display: flex; justify-content: space-between; margin-top: 16px; padding: 16px; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
-            <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">MÍNIMO</div>
-              <div style="color: #10b981; font-size: 1.1em; font-weight: 500;">${tempStats.min.toFixed(1)}°C</div>
+          <div class="chart-stats">
+            <div class="stat-item">
+              <div class="stat-label">MÍNIMO</div>
+              <div class="stat-value temp">${tempStats.min.toFixed(1)}°C</div>
             </div>
-            <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">MÁXIMO</div>
-              <div style="color: #10b981; font-size: 1.1em; font-weight: 500;">${tempStats.max.toFixed(1)}°C</div>
+            <div class="stat-item">
+              <div class="stat-label">MÁXIMO</div>
+              <div class="stat-value temp">${tempStats.max.toFixed(1)}°C</div>
             </div>
-            <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">PROMEDIO</div>
-              <div style="color: #10b981; font-size: 1.1em; font-weight: 500;">${tempStats.avg.toFixed(1)}°C</div>
+            <div class="stat-item">
+              <div class="stat-label">PROMEDIO</div>
+              <div class="stat-value temp">${tempStats.avg.toFixed(1)}°C</div>
             </div>
           </div>
         </div>
@@ -1006,29 +1180,29 @@ class PDFGenerator {
             hasAnyData = true;
             const humStats = this.calculateStats(humSeries);
             html += `
-        <div class="chart-container" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); border-radius: 12px; padding: 28px; margin: 20px 0; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
-            <h3 style="color: #3b82f6; font-size: 1.4em; font-weight: 600; font-family: 'Inter', sans-serif; margin: 0; padding: 4px 0;">Humedad del Aire</h3>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <div style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%;"></div>
-              <span style="font-size: 0.8em; color: rgba(255, 255, 255, 0.6);">Datos históricos</span>
+        <div class="chart-box">
+          <div class="chart-header">
+            <h3 class="chart-title" style="color: #3b82f6;">Humedad del Aire</h3>
+            <div class="chart-indicator">
+              <div class="chart-dot" style="background: #3b82f6;"></div>
+              <span class="chart-label">Datos históricos</span>
             </div>
           </div>
-          <div style="position: relative; height: 280px; width: 100%;">
+          <div class="chart-canvas">
             <canvas id="humChart_${deviceIndex}" style="width: 100%; height: 100%; max-width: 100%;"></canvas>
           </div>
-          <div style="display: flex; justify-content: space-between; margin-top: 16px; padding: 16px; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
-            <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">MÍNIMO</div>
-              <div style="color: #3b82f6; font-size: 1.1em; font-weight: 500;">${humStats.min.toFixed(1)}%</div>
+          <div class="chart-stats">
+            <div class="stat-item">
+              <div class="stat-label">MÍNIMO</div>
+              <div class="stat-value humidity">${humStats.min.toFixed(1)}%</div>
             </div>
-            <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">MÁXIMO</div>
-              <div style="color: #3b82f6; font-size: 1.1em; font-weight: 500;">${humStats.max.toFixed(1)}%</div>
+            <div class="stat-item">
+              <div class="stat-label">MÁXIMO</div>
+              <div class="stat-value humidity">${humStats.max.toFixed(1)}%</div>
             </div>
-            <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">PROMEDIO</div>
-              <div style="color: #3b82f6; font-size: 1.1em; font-weight: 500;">${humStats.avg.toFixed(1)}%</div>
+            <div class="stat-item">
+              <div class="stat-label">PROMEDIO</div>
+              <div class="stat-value humidity">${humStats.avg.toFixed(1)}%</div>
             </div>
           </div>
         </div>
@@ -1038,29 +1212,29 @@ class PDFGenerator {
             hasAnyData = true;
             const pressureStats = this.calculateStats(pressureSeries);
             html += `
-        <div class="chart-container" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); border-radius: 12px; padding: 28px; margin: 20px 0; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
-            <h3 style="color: #f59e0b; font-size: 1.4em; font-weight: 600; font-family: 'Inter', sans-serif; margin: 0; padding: 4px 0;">Presión Atmosférica</h3>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <div style="width: 8px; height: 8px; background: #f59e0b; border-radius: 50%;"></div>
-              <span style="font-size: 0.8em; color: rgba(255, 255, 255, 0.6);">Datos históricos</span>
+        <div class="chart-box">
+          <div class="chart-header">
+            <h3 class="chart-title" style="color: #f59e0b;">Presión Atmosférica</h3>
+            <div class="chart-indicator">
+              <div class="chart-dot" style="background: #f59e0b;"></div>
+              <span class="chart-label">Datos históricos</span>
             </div>
           </div>
-          <div style="position: relative; height: 280px; width: 100%;">
+          <div class="chart-canvas">
             <canvas id="pressureChart_${deviceIndex}" style="width: 100%; height: 100%; max-width: 100%;"></canvas>
           </div>
-          <div style="display: flex; justify-content: space-between; margin-top: 16px; padding: 16px; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
-            <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">MÍNIMO</div>
-              <div style="color: #f59e0b; font-size: 1.1em; font-weight: 500;">${pressureStats.min.toFixed(1)} hPa</div>
+          <div class="chart-stats">
+            <div class="stat-item">
+              <div class="stat-label">MÍNIMO</div>
+              <div class="stat-value pressure">${pressureStats.min.toFixed(1)} hPa</div>
             </div>
-            <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">MÁXIMO</div>
-              <div style="color: #f59e0b; font-size: 1.1em; font-weight: 500;">${pressureStats.max.toFixed(1)} hPa</div>
+            <div class="stat-item">
+              <div class="stat-label">MÁXIMO</div>
+              <div class="stat-value pressure">${pressureStats.max.toFixed(1)} hPa</div>
             </div>
-            <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">PROMEDIO</div>
-              <div style="color: #f59e0b; font-size: 1.1em; font-weight: 500;">${pressureStats.avg.toFixed(1)} hPa</div>
+            <div class="stat-item">
+              <div class="stat-label">PROMEDIO</div>
+              <div class="stat-value pressure">${pressureStats.avg.toFixed(1)} hPa</div>
             </div>
           </div>
         </div>
@@ -1070,29 +1244,29 @@ class PDFGenerator {
             hasAnyData = true;
             const soilStats = this.calculateStats(soilMoistureSeries);
             html += `
-        <div class="chart-container" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)); border-radius: 12px; padding: 28px; margin: 20px 0; border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
-            <h3 style="color: #8b5cf6; font-size: 1.4em; font-weight: 600; font-family: 'Inter', sans-serif; margin: 0; padding: 4px 0;">Humedad del Suelo</h3>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <div style="width: 8px; height: 8px; background: #8b5cf6; border-radius: 50%;"></div>
-              <span style="font-size: 0.8em; color: rgba(255, 255, 255, 0.6);">Datos históricos</span>
+        <div class="chart-box">
+          <div class="chart-header">
+            <h3 class="chart-title" style="color: #8b5cf6;">Humedad del Suelo</h3>
+            <div class="chart-indicator">
+              <div class="chart-dot" style="background: #8b5cf6;"></div>
+              <span class="chart-label">Datos históricos</span>
             </div>
           </div>
-          <div style="position: relative; height: 280px; width: 100%;">
+          <div class="chart-canvas">
             <canvas id="soilChart_${deviceIndex}" style="width: 100%; height: 100%; max-width: 100%;"></canvas>
           </div>
-          <div style="display: flex; justify-content: space-between; margin-top: 16px; padding: 16px; background: rgba(255, 255, 255, 0.03); border-radius: 8px;">
-            <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">MÍNIMO</div>
-              <div style="color: #8b5cf6; font-size: 1.1em; font-weight: 500;">${soilStats.min.toFixed(1)}%</div>
+          <div class="chart-stats">
+            <div class="stat-item">
+              <div class="stat-label">MÍNIMO</div>
+              <div class="stat-value soil">${soilStats.min.toFixed(1)}%</div>
             </div>
-            <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">MÁXIMO</div>
-              <div style="color: #8b5cf6; font-size: 1.1em; font-weight: 500;">${soilStats.max.toFixed(1)}%</div>
+            <div class="stat-item">
+              <div class="stat-label">MÁXIMO</div>
+              <div class="stat-value soil">${soilStats.max.toFixed(1)}%</div>
             </div>
-            <div style="text-align: center;">
-              <div style="color: rgba(255, 255, 255, 0.6); font-size: 0.8em; margin-bottom: 4px;">PROMEDIO</div>
-              <div style="color: #8b5cf6; font-size: 1.1em; font-weight: 500;">${soilStats.avg.toFixed(1)}%</div>
+            <div class="stat-item">
+              <div class="stat-label">PROMEDIO</div>
+              <div class="stat-value soil">${soilStats.avg.toFixed(1)}%</div>
             </div>
           </div>
         </div>
@@ -1535,93 +1709,381 @@ class PDFGenerator {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Reporte Completo de Grupo y Clima - AgriTech</title>
+        <title>Reporte de Grupo - ${group.name}</title>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet"/>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
         <style>
-          html, body { width: 100%; height: 100%; margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif !important; background: #18181b; color: #ffffff; }
-          body { min-height: 100vh; width: 100vw; padding: 0; margin: 0; overflow-x: hidden; }
-          .container { width: 100vw; min-height: 100vh; height: 100vh; background: rgba(24,24,27,1); border-radius: 0; border: none; box-shadow: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-          .header { background: #18181b; padding: 40px 30px 30px 30px; text-align: center; position: relative; overflow: hidden; border-radius: 0; }
-          .header h1 { font-family: 'Poppins', sans-serif !important; font-size: 3em; font-weight: 600; margin-bottom: 10px; color: #10b981; text-shadow: 0 2px 10px rgba(0,0,0,0.3); position: relative; z-index: 1; }
-          .header .subtitle { font-size: 1.3em; opacity: 0.95; font-weight: 300; position: relative; z-index: 1; font-family: 'Poppins', sans-serif !important; color: #fff; }
-          .content { flex: 1 1 auto; padding: 40px 30px; width: 100%; box-sizing: border-box; }
-          .section { margin-bottom: 40px; padding: 30px; border-radius: 20px; background: rgba(36,36,40,0.95); border: 2.5px solid #10b981; box-shadow: none; transition: all 0.3s ease; }
-          .section:hover { box-shadow: 0 8px 32px rgba(16,185,129,0.08); }
-          .section h2 { color: #10b981; margin-bottom: 20px; font-size: 1.8em; font-weight: 600; display: flex; align-items: center; font-family: 'Poppins', sans-serif !important; }
-          .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px; }
-          .info-card { background: rgba(255,255,255,0.04); padding: 25px; border-radius: 16px; border: 1.5px solid #10b98122; box-shadow: none; transition: all 0.3s ease; }
-          .info-card:hover { border-color: #10b981; }
-          .info-card h3 { color: #10b981; margin-bottom: 12px; font-size: 1.1em; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Poppins', sans-serif !important; }
-          .info-card .value { font-size: 1.4em; font-weight: 600; color: #fff; font-family: 'Poppins', sans-serif !important; }
-          .weather-section, .forecast-section, .chart-section { background: rgba(36,36,40,0.95); border: 2.5px solid #10b981; }
-          .weather-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-top: 20px; }
-          .weather-card { background: rgba(255,255,255,0.04); padding: 25px; border-radius: 16px; text-align: center; border: 1.5px solid #10b98122; transition: all 0.3s ease; }
-          .weather-card .value { font-size: 2em; font-weight: 700; margin-bottom: 8px; color: #10b981; font-family: 'Poppins', sans-serif !important; }
-          .weather-card .label { font-size: 0.95em; opacity: 0.9; font-weight: 400; text-transform: uppercase; letter-spacing: 0.5px; }
-          .forecast-section h2 { color: #ec4899; }
-          .forecast-section { border-color: #ec4899; }
-          .forecast-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-top: 20px; }
-          .forecast-card { background: rgba(236,72,153,0.08); padding: 20px; border-radius: 16px; text-align: center; border: 1.5px solid #ec4899; transition: all 0.3s ease; }
-          .forecast-card .day { font-weight: 600; margin-bottom: 8px; color: #ec4899; font-size: 1.1em; }
-          .forecast-card .temp { font-size: 1.4em; margin-bottom: 5px; font-weight: 700; color: #fff; font-family: 'Poppins', sans-serif !important; }
-          .forecast-card .description { font-size: 0.85em; opacity: 0.9; font-weight: 400; }
-          .chart-section { border-color: #6366f1; }
-          .chart-section h2 { color: #6366f1; }
-          .chart-container {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            padding: 15px;
-            margin: 10px;
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          
+          body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #ffffff;
+            line-height: 1.5;
+            min-height: 100vh;
+          }
+          
+          .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+          }
+          
+          /* Header */
+          .header {
+            text-align: center;
+            margin-bottom: 32px;
+            padding: 32px 24px;
+            background: rgba(45, 45, 45, 0.8);
+            border-radius: 16px;
             border: 1px solid rgba(255, 255, 255, 0.1);
           }
-          .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 25px; margin-top: 20px; }
-          .device-section { background: rgba(36,36,40,0.95); border: 2.5px solid #10b981; }
-          .device-detail-section { background: rgba(36,36,40,0.95); border: 2.5px solid #10b981; margin-bottom: 30px; }
-          .device-detail-section h3 { color: #10b981; margin-bottom: 20px; font-size: 1.6em; font-weight: 600; font-family: 'Poppins', sans-serif !important; }
-          .error-section { background: rgba(36,36,40,0.95); border: 2.5px solid #ef4444; }
-          .error-section h2 { color: #ef4444; }
-          .error-card { background: rgba(239,68,68,0.1); padding: 20px; border-radius: 12px; border: 1px solid #ef444422; margin-bottom: 15px; }
-          .error-card h4 { color: #ef4444; margin-bottom: 8px; font-size: 1.1em; }
-          .error-card .error-message { color: #fca5a5; font-size: 0.9em; }
-          .footer { background: #18181b; padding: 30px; text-align: center; color: rgba(255,255,255,0.7); border-top: 1px solid #10b98122; }
-          .timestamp { font-style: italic; color: rgba(255,255,255,0.6); margin-top: 15px; font-size: 0.9em; }
-          .status-indicator { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 10px; box-shadow: 0 0 10px currentColor; }
-          .status-online { background-color: #10b981; color: #10b981; }
-          .status-offline { background-color: #ef4444; color: #ef4444; }
-          .diagnostic-info {
-            background: rgba(255, 193, 7, 0.1);
-            border: 1px solid rgba(255, 193, 7, 0.3);
-            border-radius: 8px;
-            padding: 15px;
+          
+          .header h1 {
+            font-size: 2.5em;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #10b981;
+          }
+          
+          .header .subtitle {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1em;
+            font-weight: 400;
+            margin-bottom: 4px;
+          }
+          
+          /* Content */
+          .content {
+            max-width: 100%;
+          }
+          
+          /* Sections */
+          .section {
+            margin-bottom: 24px;
+            background: rgba(45, 45, 45, 0.6);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+          }
+          
+          .section h2 {
+            font-size: 1.3em;
+            font-weight: 600;
             margin-bottom: 20px;
+            color: #10b981;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 8px;
           }
-          .diagnostic-info h3 {
-            color: #ffc107;
-            margin: 0 0 10px 0;
-            font-size: 16px;
+          
+          .section h3 {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #10b981;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 8px;
           }
-          .diagnostic-info p {
-            margin: 0 0 10px 0;
+          
+          /* Info Grid */
+          .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+          }
+          
+          /* Info Cards */
+          .info-card {
+            background: rgba(55, 65, 80, 0.6);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+          }
+          
+          .info-card h3 {
+            font-size: 0.85em;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: none;
+            padding: 0;
+          }
+          
+          .info-card .value {
+            font-size: 1.6em;
+            font-weight: 600;
+            color: #10b981;
+          }
+          
+          /* Device Sections */
+          .device-section, .device-detail-section {
+            background: rgba(45, 45, 45, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 24px;
+          }
+          
+          .device-detail-section h3 {
+            color: #10b981;
+            margin-bottom: 16px;
+            font-size: 1.2em;
+            font-weight: 600;
+          }
+          
+          /* Weather Grid */
+          .weather-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+          }
+          
+          .weather-card {
+            background: rgba(55, 65, 80, 0.6);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+          }
+          
+          .weather-card .value {
+            font-size: 2em;
+            font-weight: 600;
+            color: #10b981;
+            margin-bottom: 8px;
+          }
+          
+          .weather-card .label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9em;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          
+          /* Status Indicators */
+          .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+          }
+          
+          .status-online {
+            background-color: #10b981;
+          }
+          
+          .status-offline {
+            background-color: #ef4444;
+          }
+          
+          /* Error Sections */
+          .error-section {
+            background: rgba(45, 45, 45, 0.6);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+          }
+          
+          .error-section h2 {
+            color: #ef4444;
+          }
+          
+          .error-card {
+            background: rgba(239, 68, 68, 0.1);
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            margin-bottom: 12px;
+          }
+          
+          .error-card h4 {
+            color: #ef4444;
+            margin-bottom: 6px;
+            font-size: 1em;
+          }
+          
+          .error-card .error-message {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9em;
+          }
+          
+          /* Data Items */
+          .data-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: rgba(55, 65, 80, 0.4);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 8px;
+          }
+          
+          .data-label {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9em;
+            font-weight: 500;
+          }
+          
+          .data-value {
+            color: #10b981;
+            font-weight: 600;
+          }
+          
+          /* Footer */
+          .footer {
+            background: rgba(45, 45, 45, 0.6);
+            padding: 24px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            margin-top: 32px;
+          }
+          
+          /* Forecast Section */
+          .forecast-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+          }
+          
+          .forecast-card {
+            background: rgba(55, 65, 80, 0.6);
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+          }
+          
+          .forecast-date {
+            margin-bottom: 12px;
+          }
+          
+          .day-name {
+            font-size: 0.8em;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.7);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+          }
+          
+          .day-number {
+            font-size: 1.8em;
+            font-weight: 600;
             color: #ffffff;
+            margin: 2px 0;
+            line-height: 1;
           }
-          .diagnostic-result {
-            background: rgba(40, 167, 69, 0.1);
-            border: 1px solid rgba(40, 167, 69, 0.3);
-            border-radius: 6px;
-            padding: 10px;
-            margin-top: 10px;
+          
+          .month {
+            font-size: 0.75em;
+            color: rgba(255, 255, 255, 0.6);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
           }
-          .diagnostic-result strong {
-            color: #28a745;
+          
+          .forecast-weather {
+            margin-bottom: 12px;
           }
-          @media (max-width: 768px) { .container { margin: 0; border-radius: 0; } .header h1 { font-size: 2.2em; } .content { padding: 20px; } .section { padding: 20px; margin-bottom: 25px; } .info-grid { grid-template-columns: 1fr; gap: 15px; } .weather-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; } .chart-grid { grid-template-columns: 1fr; gap: 20px; } .forecast-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; } }
+          
+          .weather-icon {
+            font-size: 1.2em;
+            margin-bottom: 6px;
+          }
+          
+          .weather-desc {
+            font-size: 0.75em;
+            color: rgba(255, 255, 255, 0.8);
+            text-transform: capitalize;
+            line-height: 1.2;
+            margin-bottom: 8px;
+            min-height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          
+          .forecast-temps {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            align-items: baseline;
+          }
+          
+          .temp-max {
+            font-size: 1.3em;
+            font-weight: 600;
+          }
+          
+          .temp-min {
+            font-size: 1em;
+            font-weight: 500;
+          }
+          
+          .forecast-details {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 0.75em;
+          }
+          
+          .detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          
+          .detail-label {
+            color: rgba(255, 255, 255, 0.6);
+          }
+          
+          .detail-value {
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 500;
+          }
+          
+          /* Responsive */
+          @media (max-width: 768px) {
+            .container {
+              padding: 16px;
+            }
+            
+            .header h1 {
+              font-size: 2em;
+            }
+            
+            .info-grid {
+              grid-template-columns: 1fr;
+              gap: 12px;
+            }
+            
+            .weather-grid {
+              grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+              gap: 12px;
+            }
+            
+            .forecast-grid {
+              grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+              gap: 10px;
+            }
+          }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
-            <h1>📊 Reporte de Grupo - ${group.name}</h1>
+            <h1>Reporte de Grupo</h1>
+            <div class="subtitle">${group.name}</div>
             <div class="subtitle">Análisis completo de dispositivos y clima</div>
             <div class="subtitle">Generado el ${timestamp}</div>
           </div>
@@ -2959,65 +3421,21 @@ class PDFGenerator {
      */
     static getWeatherIcon(weatherType) {
         const icons = {
-            'clear': `<svg width="24" height="24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="5"/>
-        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-      </svg>`,
-            'clouds': `<svg width="24" height="24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
-      </svg>`,
-            'rain': `<svg width="24" height="24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
-        <path d="M8 14v6M16 14v6"/>
-      </svg>`,
-            'snow': `<svg width="24" height="24" fill="none" stroke="#e2e8f0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
-        <path d="M8 14l3 3 3-3M8 17l3 3 3-3"/>
-      </svg>`,
-            'thunderstorm': `<svg width="24" height="24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
-        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-      </svg>`,
-            'drizzle': `<svg width="24" height="24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
-        <path d="M8 14v3M12 14v3M16 14v3"/>
-      </svg>`,
-            'mist': `<svg width="24" height="24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
-        <path d="M8 14v2M12 14v2M16 14v2"/>
-      </svg>`,
-            'fog': `<svg width="24" height="24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
-        <path d="M8 14v1M12 14v1M16 14v1"/>
-      </svg>`,
-            'haze': `<svg width="24" height="24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
-        <path d="M8 14v1M12 14v1M16 14v1"/>
-      </svg>`,
-            'smoke': `<svg width="24" height="24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
-        <path d="M8 14v1M12 14v1M16 14v1"/>
-      </svg>`,
-            'dust': `<svg width="24" height="24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
-        <path d="M8 14v1M12 14v1M16 14v1"/>
-      </svg>`,
-            'sand': `<svg width="24" height="24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
-        <path d="M8 14v1M12 14v1M16 14v1"/>
-      </svg>`,
-            'ash': `<svg width="24" height="24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
-        <path d="M8 14v1M12 14v1M16 14v1"/>
-      </svg>`,
-            'squall': `<svg width="24" height="24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
-        <path d="M8 14v3M12 14v3M16 14v3"/>
-      </svg>`,
-            'tornado': `<svg width="24" height="24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
-        <path d="M8 14v3M12 14v3M16 14v3"/>
-      </svg>`
+            'clear': `<div style="color: #3b82f6; font-size: 1.4em;">☀️</div>`,
+            'clouds': `<div style="color: #6b7280; font-size: 1.4em;">☁️</div>`,
+            'rain': `<div style="color: #3b82f6; font-size: 1.4em;">🌧️</div>`,
+            'snow': `<div style="color: #e2e8f0; font-size: 1.4em;">❄️</div>`,
+            'thunderstorm': `<div style="color: #f59e0b; font-size: 1.4em;">⛈️</div>`,
+            'drizzle': `<div style="color: #60a5fa; font-size: 1.4em;">🌦️</div>`,
+            'mist': `<div style="color: #94a3b8; font-size: 1.4em;">🌫️</div>`,
+            'fog': `<div style="color: #94a3b8; font-size: 1.4em;">🌫️</div>`,
+            'haze': `<div style="color: #94a3b8; font-size: 1.4em;">🌫️</div>`,
+            'smoke': `<div style="color: #6b7280; font-size: 1.4em;">🌫️</div>`,
+            'dust': `<div style="color: #d97706; font-size: 1.4em;">🌪️</div>`,
+            'sand': `<div style="color: #d97706; font-size: 1.4em;">🌪️</div>`,
+            'ash': `<div style="color: #6b7280; font-size: 1.4em;">🌋</div>`,
+            'squall': `<div style="color: #ef4444; font-size: 1.4em;">💨</div>`,
+            'tornado': `<div style="color: #ef4444; font-size: 1.4em;">🌪️</div>`
         };
         return icons[weatherType] || icons['clear'];
     }
