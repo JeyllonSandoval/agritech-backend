@@ -572,7 +572,7 @@ class PDFGenerator {
           Chart.defaults.color = '#ffffff';
           Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
           Chart.defaults.plugins.legend.labels.color = '#ffffff';
-          ${this.generateChartScripts(deviceData.historical)}
+          ${this.generateChartScripts(deviceData.historical, 0)}
         </script>
         ` : ''}
       </body>
@@ -671,6 +671,8 @@ class PDFGenerator {
      * CORREGIDO para manejar la estructura EcoWitt {timestamp: value}
      */
     static generateChartContainers(historicalData, deviceIndex = 0) {
+        console.log('🔍 Debug generateChartContainers - Input historicalData keys:', Object.keys(historicalData || {}));
+        console.log('🔍 Debug generateChartContainers - Full historicalData structure:', JSON.stringify(historicalData, null, 2));
         if (!historicalData || typeof historicalData !== 'object') {
             return `
         <div class="chart-container" style="background: rgba(255, 255, 255, 0.05); border-radius: 16px; padding: 20px; margin: 15px 0; border: 1px solid rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px);">
@@ -689,9 +691,16 @@ class PDFGenerator {
         let humSeries = [];
         let pressureSeries = [];
         let soilMoistureSeries = [];
-        // Buscar datos de temperatura
-        if (historicalData.indoor && historicalData.indoor.list && historicalData.indoor.list.temperature) {
-            tempSeries = this.listToSeries(historicalData.indoor.list.temperature);
+        // Buscar datos de temperatura (manejar estructura anidada)
+        if (historicalData.indoor && historicalData.indoor.list) {
+            // Estructura: indoor.list.indoor.temperature.list
+            if (historicalData.indoor.list.indoor && historicalData.indoor.list.indoor.temperature && historicalData.indoor.list.indoor.temperature.list) {
+                tempSeries = this.listToSeries(historicalData.indoor.list.indoor.temperature.list);
+            }
+            // Estructura: indoor.list.temperature.list
+            else if (historicalData.indoor.list.temperature && historicalData.indoor.list.temperature.list) {
+                tempSeries = this.listToSeries(historicalData.indoor.list.temperature.list);
+            }
         }
         else if (historicalData.temp1c) {
             tempSeries = this.listToSeries(historicalData.temp1c);
@@ -699,9 +708,16 @@ class PDFGenerator {
         else if (historicalData.tempf) {
             tempSeries = this.listToSeries(historicalData.tempf);
         }
-        // Buscar datos de humedad
-        if (historicalData.indoor && historicalData.indoor.list && historicalData.indoor.list.humidity) {
-            humSeries = this.listToSeries(historicalData.indoor.list.humidity);
+        // Buscar datos de humedad (manejar estructura anidada)
+        if (historicalData.indoor && historicalData.indoor.list) {
+            // Estructura: indoor.list.indoor.humidity.list
+            if (historicalData.indoor.list.indoor && historicalData.indoor.list.indoor.humidity && historicalData.indoor.list.indoor.humidity.list) {
+                humSeries = this.listToSeries(historicalData.indoor.list.indoor.humidity.list);
+            }
+            // Estructura: indoor.list.humidity.list
+            else if (historicalData.indoor.list.humidity && historicalData.indoor.list.humidity.list) {
+                humSeries = this.listToSeries(historicalData.indoor.list.humidity.list);
+            }
         }
         else if (historicalData.humidity1) {
             humSeries = this.listToSeries(historicalData.humidity1);
@@ -709,19 +725,63 @@ class PDFGenerator {
         else if (historicalData.humidity) {
             humSeries = this.listToSeries(historicalData.humidity);
         }
-        // Buscar datos de presión
+        // Buscar datos de presión (múltiples fuentes)
+        console.log('🔍 Debug Pressure - historicalData.pressure:', historicalData.pressure);
         if (historicalData.pressure && historicalData.pressure.list && historicalData.pressure.list.relative) {
             pressureSeries = this.listToSeries(historicalData.pressure.list.relative);
+            console.log('🔍 Debug Pressure - Using pressure.relative, series length:', pressureSeries.length);
+        }
+        else if (historicalData.pressure && historicalData.pressure.list && historicalData.pressure.list.absolute) {
+            pressureSeries = this.listToSeries(historicalData.pressure.list.absolute);
+            console.log('🔍 Debug Pressure - Using pressure.absolute, series length:', pressureSeries.length);
         }
         else if (historicalData.baromrelin) {
             pressureSeries = this.listToSeries(historicalData.baromrelin);
+            console.log('🔍 Debug Pressure - Using baromrelin, series length:', pressureSeries.length);
         }
-        // Buscar datos de humedad del suelo
+        else if (historicalData.baromabsin) {
+            pressureSeries = this.listToSeries(historicalData.baromabsin);
+            console.log('🔍 Debug Pressure - Using baromabsin, series length:', pressureSeries.length);
+        }
+        else {
+            console.log('🔍 Debug Pressure - No pressure data found');
+        }
+        // Buscar datos de humedad del suelo (múltiples canales)
+        console.log('🔍 Debug Soil - Available soil channels:', Object.keys(historicalData).filter(key => key.startsWith('soil_')));
         if (historicalData.soil_ch1 && historicalData.soil_ch1.list && historicalData.soil_ch1.list.soilmoisture) {
             soilMoistureSeries = this.listToSeries(historicalData.soil_ch1.list.soilmoisture);
+            console.log('🔍 Debug Soil - Using soil_ch1 soilmoisture, series length:', soilMoistureSeries.length);
+        }
+        else if (historicalData.soil_ch2 && historicalData.soil_ch2.list && historicalData.soil_ch2.list.soilmoisture) {
+            soilMoistureSeries = this.listToSeries(historicalData.soil_ch2.list.soilmoisture);
+            console.log('🔍 Debug Soil - Using soil_ch2 soilmoisture, series length:', soilMoistureSeries.length);
+        }
+        else if (historicalData.soil_ch3 && historicalData.soil_ch3.list && historicalData.soil_ch3.list.soilmoisture) {
+            soilMoistureSeries = this.listToSeries(historicalData.soil_ch3.list.soilmoisture);
+            console.log('🔍 Debug Soil - Using soil_ch3 soilmoisture, series length:', soilMoistureSeries.length);
+        }
+        else if (historicalData.soil_ch4 && historicalData.soil_ch4.list && historicalData.soil_ch4.list.soilmoisture) {
+            soilMoistureSeries = this.listToSeries(historicalData.soil_ch4.list.soilmoisture);
+            console.log('🔍 Debug Soil - Using soil_ch4 soilmoisture, series length:', soilMoistureSeries.length);
         }
         else if (historicalData.soilmoisture1) {
             soilMoistureSeries = this.listToSeries(historicalData.soilmoisture1);
+            console.log('🔍 Debug Soil - Using soilmoisture1, series length:', soilMoistureSeries.length);
+        }
+        else if (historicalData.soilmoisture2) {
+            soilMoistureSeries = this.listToSeries(historicalData.soilmoisture2);
+            console.log('🔍 Debug Soil - Using soilmoisture2, series length:', soilMoistureSeries.length);
+        }
+        else if (historicalData.soilmoisture3) {
+            soilMoistureSeries = this.listToSeries(historicalData.soilmoisture3);
+            console.log('🔍 Debug Soil - Using soilmoisture3, series length:', soilMoistureSeries.length);
+        }
+        else if (historicalData.soilmoisture4) {
+            soilMoistureSeries = this.listToSeries(historicalData.soilmoisture4);
+            console.log('🔍 Debug Soil - Using soilmoisture4, series length:', soilMoistureSeries.length);
+        }
+        else {
+            console.log('🔍 Debug Soil - No soil moisture data found');
         }
         let html = debugHtml;
         let hasAnyData = false;
@@ -871,15 +931,24 @@ class PDFGenerator {
      */
     static generateChartScripts(historicalData, deviceIndex = 0) {
         console.log('🔍 Debug generateChartScripts - Input historicalData keys:', Object.keys(historicalData || {}));
+        console.log('🔍 Debug generateChartScripts - Full historicalData structure:', JSON.stringify(historicalData, null, 2));
         // Procesar datos según la estructura EcoWitt
         let tempSeries = [];
         let humSeries = [];
         let pressureSeries = [];
         let soilSeries = [];
-        // Buscar datos de temperatura
-        if (historicalData.indoor && historicalData.indoor.list && historicalData.indoor.list.temperature) {
-            tempSeries = this.listToSeries(historicalData.indoor.list.temperature);
-            console.log('🔍 Debug Temp - Using indoor temperature, series length:', tempSeries.length);
+        // Buscar datos de temperatura (manejar estructura anidada)
+        if (historicalData.indoor && historicalData.indoor.list) {
+            // Estructura: indoor.list.indoor.temperature.list
+            if (historicalData.indoor.list.indoor && historicalData.indoor.list.indoor.temperature && historicalData.indoor.list.indoor.temperature.list) {
+                tempSeries = this.listToSeries(historicalData.indoor.list.indoor.temperature.list);
+                console.log('🔍 Debug Temp - Using indoor.list.indoor.temperature, series length:', tempSeries.length);
+            }
+            // Estructura: indoor.list.temperature.list
+            else if (historicalData.indoor.list.temperature && historicalData.indoor.list.temperature.list) {
+                tempSeries = this.listToSeries(historicalData.indoor.list.temperature.list);
+                console.log('🔍 Debug Temp - Using indoor.list.temperature, series length:', tempSeries.length);
+            }
         }
         else if (historicalData.temp1c) {
             tempSeries = this.listToSeries(historicalData.temp1c);
@@ -889,10 +958,18 @@ class PDFGenerator {
             tempSeries = this.listToSeries(historicalData.tempf);
             console.log('🔍 Debug Temp - Using tempf, series length:', tempSeries.length);
         }
-        // Buscar datos de humedad
-        if (historicalData.indoor && historicalData.indoor.list && historicalData.indoor.list.humidity) {
-            humSeries = this.listToSeries(historicalData.indoor.list.humidity);
-            console.log('🔍 Debug Hum - Using indoor humidity, series length:', humSeries.length);
+        // Buscar datos de humedad (manejar estructura anidada)
+        if (historicalData.indoor && historicalData.indoor.list) {
+            // Estructura: indoor.list.indoor.humidity.list
+            if (historicalData.indoor.list.indoor && historicalData.indoor.list.indoor.humidity && historicalData.indoor.list.indoor.humidity.list) {
+                humSeries = this.listToSeries(historicalData.indoor.list.indoor.humidity.list);
+                console.log('🔍 Debug Hum - Using indoor.list.indoor.humidity, series length:', humSeries.length);
+            }
+            // Estructura: indoor.list.humidity.list
+            else if (historicalData.indoor.list.humidity && historicalData.indoor.list.humidity.list) {
+                humSeries = this.listToSeries(historicalData.indoor.list.humidity.list);
+                console.log('🔍 Debug Hum - Using indoor.list.humidity, series length:', humSeries.length);
+            }
         }
         else if (historicalData.humidity1) {
             humSeries = this.listToSeries(historicalData.humidity1);
@@ -902,23 +979,63 @@ class PDFGenerator {
             humSeries = this.listToSeries(historicalData.humidity);
             console.log('🔍 Debug Hum - Using humidity, series length:', humSeries.length);
         }
-        // Buscar datos de presión
+        // Buscar datos de presión (múltiples fuentes)
+        console.log('🔍 Debug Pressure Scripts - historicalData.pressure:', historicalData.pressure);
         if (historicalData.pressure && historicalData.pressure.list && historicalData.pressure.list.relative) {
             pressureSeries = this.listToSeries(historicalData.pressure.list.relative);
-            console.log('🔍 Debug Pressure - Using pressure relative, series length:', pressureSeries.length);
+            console.log('🔍 Debug Pressure Scripts - Using pressure relative, series length:', pressureSeries.length);
+        }
+        else if (historicalData.pressure && historicalData.pressure.list && historicalData.pressure.list.absolute) {
+            pressureSeries = this.listToSeries(historicalData.pressure.list.absolute);
+            console.log('🔍 Debug Pressure Scripts - Using pressure absolute, series length:', pressureSeries.length);
         }
         else if (historicalData.baromrelin) {
             pressureSeries = this.listToSeries(historicalData.baromrelin);
-            console.log('🔍 Debug Pressure - Using baromrelin, series length:', pressureSeries.length);
+            console.log('🔍 Debug Pressure Scripts - Using baromrelin, series length:', pressureSeries.length);
         }
-        // Buscar datos de humedad del suelo
+        else if (historicalData.baromabsin) {
+            pressureSeries = this.listToSeries(historicalData.baromabsin);
+            console.log('🔍 Debug Pressure Scripts - Using baromabsin, series length:', pressureSeries.length);
+        }
+        else {
+            console.log('🔍 Debug Pressure Scripts - No pressure data found');
+        }
+        // Buscar datos de humedad del suelo (múltiples canales)
+        console.log('🔍 Debug Soil Scripts - Available soil channels:', Object.keys(historicalData).filter(key => key.startsWith('soil_')));
         if (historicalData.soil_ch1 && historicalData.soil_ch1.list && historicalData.soil_ch1.list.soilmoisture) {
             soilSeries = this.listToSeries(historicalData.soil_ch1.list.soilmoisture);
-            console.log('🔍 Debug Soil - Using soil_ch1 soilmoisture, series length:', soilSeries.length);
+            console.log('🔍 Debug Soil Scripts - Using soil_ch1 soilmoisture, series length:', soilSeries.length);
+        }
+        else if (historicalData.soil_ch2 && historicalData.soil_ch2.list && historicalData.soil_ch2.list.soilmoisture) {
+            soilSeries = this.listToSeries(historicalData.soil_ch2.list.soilmoisture);
+            console.log('🔍 Debug Soil Scripts - Using soil_ch2 soilmoisture, series length:', soilSeries.length);
+        }
+        else if (historicalData.soil_ch3 && historicalData.soil_ch3.list && historicalData.soil_ch3.list.soilmoisture) {
+            soilSeries = this.listToSeries(historicalData.soil_ch3.list.soilmoisture);
+            console.log('🔍 Debug Soil Scripts - Using soil_ch3 soilmoisture, series length:', soilSeries.length);
+        }
+        else if (historicalData.soil_ch4 && historicalData.soil_ch4.list && historicalData.soil_ch4.list.soilmoisture) {
+            soilSeries = this.listToSeries(historicalData.soil_ch4.list.soilmoisture);
+            console.log('🔍 Debug Soil Scripts - Using soil_ch4 soilmoisture, series length:', soilSeries.length);
         }
         else if (historicalData.soilmoisture1) {
             soilSeries = this.listToSeries(historicalData.soilmoisture1);
-            console.log('🔍 Debug Soil - Using soilmoisture1, series length:', soilSeries.length);
+            console.log('🔍 Debug Soil Scripts - Using soilmoisture1, series length:', soilSeries.length);
+        }
+        else if (historicalData.soilmoisture2) {
+            soilSeries = this.listToSeries(historicalData.soilmoisture2);
+            console.log('🔍 Debug Soil Scripts - Using soilmoisture2, series length:', soilSeries.length);
+        }
+        else if (historicalData.soilmoisture3) {
+            soilSeries = this.listToSeries(historicalData.soilmoisture3);
+            console.log('🔍 Debug Soil Scripts - Using soilmoisture3, series length:', soilSeries.length);
+        }
+        else if (historicalData.soilmoisture4) {
+            soilSeries = this.listToSeries(historicalData.soilmoisture4);
+            console.log('🔍 Debug Soil Scripts - Using soilmoisture4, series length:', soilSeries.length);
+        }
+        else {
+            console.log('🔍 Debug Soil Scripts - No soil moisture data found');
         }
         // Generar etiquetas y valores
         const tempLabels = tempSeries.map(p => new Date(p.time).toLocaleString('es-ES', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }));
@@ -1307,8 +1424,15 @@ class PDFGenerator {
             }
             const lastUpdate = device.characteristics?.lastUpdate ? new Date(device.characteristics.lastUpdate).toLocaleString('es-ES') : 'N/A';
             // Generar sensores dinámicamente
-            const { realtime } = deviceDataInfo;
+            let { realtime } = deviceDataInfo;
             const sensorCards = [];
+            // Robustez: si recibimos el objeto completo, extraer 'data'
+            if (realtime && typeof realtime === 'object' && 'data' in realtime && 'code' in realtime) {
+                // Si es la respuesta completa de EcoWitt, extraer solo los datos
+                if (realtime.code === 0 && realtime.msg === 'success') {
+                    realtime = realtime.data;
+                }
+            }
             // Función para extraer datos de sensores de la estructura EcoWitt
             const extractSensorData = (data) => {
                 if (!data || typeof data !== 'object')

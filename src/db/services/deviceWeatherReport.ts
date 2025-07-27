@@ -73,13 +73,14 @@ export class DeviceWeatherReportService {
         }
       }
 
-      // 5. Obtener datos históricos si se solicita (CON MEJORAS)
+      // 5. Obtener datos históricos si se solicita (INCLUYENDO PRESIÓN Y HUMEDAD DEL SUELO)
       let historicalData = null;
       let historicalDiagnostic = null;
       
       if (includeHistory && historyRange) {
         try {
-          historicalData = await EcowittService.getDeviceHistory(
+          // Usar el nuevo método que incluye presión y humedad del suelo
+          historicalData = await EcowittService.getDeviceHistoryComplete(
             device.DeviceApplicationKey,
             device.DeviceApiKey,
             device.DeviceMac,
@@ -288,7 +289,8 @@ export class DeviceWeatherReportService {
 
     for (const config of configurations) {
       try {
-        const response = await EcowittService.getDeviceHistory(
+        // Usar el método completo que incluye presión y humedad del suelo
+        const response = await EcowittService.getDeviceHistoryComplete(
           applicationKey,
           apiKey,
           mac,

@@ -96,4 +96,31 @@ export default async function deviceRoutes(fastify: FastifyInstance) {
     },
     DeviceController.getMultipleDevicesRealtime
   );
+
+  // Ruta para información completa del dispositivo
+  fastify.get(
+    '/devices/:deviceId/complete',
+    {
+      preHandler: authenticateToken
+    },
+    DeviceController.getDeviceCompleteInfo
+  );
+
+  // Ruta para diagnosticar sensores de suelo
+  fastify.get(
+    '/devices/:deviceId/diagnose-soil',
+    {
+      preHandler: authenticateToken
+    },
+    DeviceController.diagnoseSoilSensors
+  );
+
+  // Ruta para probar datos de humedad del suelo
+  fastify.get(
+    '/devices/:deviceId/test-soil',
+    {
+      preHandler: authenticateToken
+    },
+    DeviceController.testSoilMoisture
+  );
 }

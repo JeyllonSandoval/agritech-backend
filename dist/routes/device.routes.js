@@ -55,5 +55,17 @@ async function deviceRoutes(fastify) {
     fastify.get('/devices/realtime', {
         preHandler: authToken_1.authenticateToken
     }, device_1.DeviceController.getMultipleDevicesRealtime);
+    // Ruta para información completa del dispositivo
+    fastify.get('/devices/:deviceId/complete', {
+        preHandler: authToken_1.authenticateToken
+    }, device_1.DeviceController.getDeviceCompleteInfo);
+    // Ruta para diagnosticar sensores de suelo
+    fastify.get('/devices/:deviceId/diagnose-soil', {
+        preHandler: authToken_1.authenticateToken
+    }, device_1.DeviceController.diagnoseSoilSensors);
+    // Ruta para probar datos de humedad del suelo
+    fastify.get('/devices/:deviceId/test-soil', {
+        preHandler: authToken_1.authenticateToken
+    }, device_1.DeviceController.testSoilMoisture);
 }
 //# sourceMappingURL=device.routes.js.map

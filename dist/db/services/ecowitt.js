@@ -317,6 +317,137 @@ class EcowittService {
         }
     }
     /**
+     * Obtener datos históricos completos incluyendo presión y humedad del suelo
+     * NUEVO MÉTODO: Combina múltiples llamadas para obtener todos los datos disponibles
+     */
+    static async getDeviceHistoryComplete(applicationKey, apiKey, mac, startTime, endTime) {
+        try {
+            // Array para almacenar todas las respuestas
+            const allResponses = [];
+            // Lista de call_back values a probar para obtener todos los datos disponibles
+            const callBackValues = [
+                'indoor', // Datos interiores (temperatura, humedad)
+                'outdoor', // Datos exteriores (temperatura, humedad, presión)
+                'pressure', // Datos específicos de presión
+                'soil_ch1' // Sensor de suelo canal 1 (sabemos que funciona)
+            ];
+            // Realizar llamadas paralelas para obtener todos los datos disponibles
+            const promises = callBackValues.map(async (callBack) => {
+                try {
+                    const params = (0, history_request_types_1.createHistoryRequestParams)(applicationKey, apiKey, startTime, endTime, callBack, mac);
+                    const response = await axios_1.default.get(`${ECOWITT_API_BASE}/device/history`, {
+                        params
+                    });
+                    const responseData = response.data;
+                    // Manejar rate limiting con reintento
+                    if (responseData.code === -1 && responseData.msg === 'Operation too frequent') {
+                        // Esperar 2 segundos y reintentar una vez
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        const retryResponse = await axios_1.default.get(`${ECOWITT_API_BASE}/device/history`, {
+                            params
+                        });
+                        const retryData = retryResponse.data;
+                        // Si aún hay error, continuar con el siguiente
+                        if (retryData.code === -1) {
+                            return null;
+                        }
+                        // Usar los datos del reintento
+                        if (retryData.code === 0 && retryData.msg === 'success' &&
+                            retryData.data && Object.keys(retryData.data).length > 0) {
+                            return { callBack, cycleType: 'auto', data: retryData };
+                        }
+                    }
+                    // Solo incluir respuestas exitosas con datos
+                    if (responseData.code === 0 && responseData.msg === 'success' &&
+                        responseData.data && Object.keys(responseData.data).length > 0) {
+                        return { callBack, cycleType: 'auto', data: responseData };
+                    }
+                    return null;
+                }
+                catch (error) {
+                    // Silenciar errores individuales y continuar con otros call_back values
+                    return null;
+                }
+            });
+            // Esperar todas las llamadas
+            const results = await Promise.all(promises);
+            // Filtrar respuestas exitosas
+            const successfulResponses = results.filter(result => result !== null);
+            if (successfulResponses.length === 0) {
+                // Si no hay datos, intentar con la estrategia original
+                return await this.getDeviceHistory(applicationKey, apiKey, mac, startTime, endTime);
+            }
+            // Combinar todos los datos en una sola respuesta
+            const combinedData = {};
+            successfulResponses.forEach(({ callBack, cycleType, data }) => {
+                if (data.data) {
+                    // Combinar los datos por call_back
+                    combinedData[callBack] = data.data;
+                }
+            });
+            // Crear respuesta combinada
+            const combinedResponse = {
+                code: 0,
+                msg: 'success',
+                time: new Date().toISOString(),
+                data: combinedData,
+                _diagnostic: {
+                    message: 'Combined historical data from multiple call_back values',
+                    successfulCallBacks: successfulResponses.map(r => ({ callBack: r.callBack, cycleType: r.cycleType })),
+                    totalCallBacks: callBackValues.length,
+                    successfulResponses: successfulResponses.length,
+                    timestamp: new Date().toISOString()
+                }
+            };
+            return combinedResponse;
+        }
+        catch (error) {
+            if (axios_1.default.isAxiosError(error)) {
+                throw new Error(`Ecowitt API Error: ${error.response?.data?.message || error.message}`);
+            }
+            throw error;
+        }
+    }
+    /**
+     * Obtener datos históricos específicos de humedad del suelo
+     * Usando la configuración que sabemos que funciona
+     */
+    static async getSoilMoistureHistory(applicationKey, apiKey, mac, startTime, endTime) {
+        try {
+            const params = {
+                application_key: applicationKey,
+                api_key: apiKey,
+                mac: mac,
+                start_date: startTime,
+                end_date: endTime,
+                call_back: 'soil_ch1',
+                cycle_type: 'auto'
+            };
+            const response = await axios_1.default.get(`${ECOWITT_API_BASE}/device/history`, {
+                params
+            });
+            const responseData = response.data;
+            // Manejar rate limiting con reintento
+            if (responseData.code === -1 && responseData.msg === 'Operation too frequent') {
+                // Esperar 2 segundos y reintentar una vez
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                const retryResponse = await axios_1.default.get(`${ECOWITT_API_BASE}/device/history`, {
+                    params
+                });
+                const retryData = retryResponse.data;
+                // Si aún hay error, devolver el error original
+                if (retryData.code === -1) {
+                    return responseData;
+                }
+                return retryData;
+            }
+            return responseData;
+        }
+        catch (error) {
+            throw error;
+        }
+    }
+    /**
      * Obtener datos históricos de múltiples dispositivos
      * Nota: La API de EcoWitt requiere una llamada individual por dispositivo
      */
