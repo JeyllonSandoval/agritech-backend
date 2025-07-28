@@ -26,7 +26,7 @@ export const generateToken = (user: TokenPayload): string => {
             },
             JWT_SECRET,
             {
-                expiresIn: '24h',
+                expiresIn: '180d' // Token expires in 6 months
             }
         );
     } catch (error) {
