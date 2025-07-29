@@ -6,7 +6,7 @@ import messageTable from "@/db/schemas/messageSchema";
 import { v4 as uuidv4 } from "uuid";
 import { v2 as cloudinary } from 'cloudinary';
 import { UploadApiResponse } from 'cloudinary';
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB en bytes
@@ -343,14 +343,22 @@ const deleteAllUserFiles = async (
             });
         }
 
-        // Delete all files for the user
+        // First, delete all messages associated with these files
+        const fileIds = userFiles.map(file => file.FileID);
+        if (fileIds.length > 0) {
+            await db
+                .delete(messageTable)
+                .where(inArray(messageTable.FileID, fileIds));
+        }
+
+        // Then delete all files for the user
         const deletedFiles = await db
             .delete(filesTable)
             .where(eq(filesTable.UserID, UserID))
             .returning();
 
         return reply.status(200).send({
-            message: "All user files deleted successfully",
+            message: "All user files and associated messages deleted successfully",
             deletedFiles
         });
     } catch (error) {

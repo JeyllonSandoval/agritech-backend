@@ -299,13 +299,20 @@ const deleteAllUserFiles = async (req, reply) => {
                 message: "No files found for this user"
             });
         }
-        // Delete all files for the user
+        // First, delete all messages associated with these files
+        const fileIds = userFiles.map(file => file.FileID);
+        if (fileIds.length > 0) {
+            await db_1.default
+                .delete(messageSchema_1.default)
+                .where((0, drizzle_orm_1.inArray)(messageSchema_1.default.FileID, fileIds));
+        }
+        // Then delete all files for the user
         const deletedFiles = await db_1.default
             .delete(filesSchema_1.default)
             .where((0, drizzle_orm_1.eq)(filesSchema_1.default.UserID, UserID))
             .returning();
         return reply.status(200).send({
-            message: "All user files deleted successfully",
+            message: "All user files and associated messages deleted successfully",
             deletedFiles
         });
     }
