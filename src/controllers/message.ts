@@ -88,7 +88,8 @@ const createMessage = async (
             MessageID: uuidv4(),
             ChatID: result.data.ChatID,
             FileID: result.data.FileID,
-            contentFile: result.data.contentFile || pdfContent,
+            // Solo guardar contentFile si se proporciona explícitamente, no automáticamente
+            contentFile: result.data.contentFile,
             contentAsk: result.data.contentAsk,
             contentResponse: result.data.contentResponse,
             sendertype: result.data.sendertype,

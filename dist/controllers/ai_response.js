@@ -137,7 +137,9 @@ const generateAIResponse = async (request, reply) => {
             content: msg.senderType === 'user' ? msg.content : msg.content
         }));
         // Construir el prompt del sistema
-        let systemPrompt = `Eres un asistente especializado en análisis de datos agrícolas y meteorológicos para AgriTech. Tu función es ayudar a los usuarios a interpretar reportes, analizar datos de dispositivos y proporcionar insights valiosos.
+        let systemPrompt = `Eres un asistente especializado en análisis de datos agrícolas y meteorológicos para AgriTech. 
+        Tu función es ayudar a los usuarios a interpretar reportes, analizar datos de dispositivos y proporcionar insights valiosos.
+        Tu objetivo es ayudar a los usuarios a resolver sus dudas y a tomar decisiones informadas.
 
 **Instrucciones importantes:**
 - Responde en ${userLanguage === 'es' ? 'español' : 'inglés'}
@@ -153,10 +155,14 @@ const generateAIResponse = async (request, reply) => {
 - Puedes identificar patrones y anomalías en los datos`;
         // Priorizar el contenido del archivo actual si está disponible
         if (currentFileContent && currentFileContent.trim().length > 0) {
-            systemPrompt += `\n\n=== CONTENIDO DEL DOCUMENTO ACTUAL ===\n${currentFileContent}\n\nINSTRUCCIÓN FINAL: El contenido del documento está disponible arriba. SIEMPRE usa esta información para responder preguntas sobre el documento. NO digas que no tienes acceso al documento.`;
+            systemPrompt += `\n\n=== CONTENIDO DEL DOCUMENTO ACTUAL ===\n${currentFileContent}\n\nINSTRUCCIÓN FINAL: 
+            El contenido del documento está disponible arriba. SIEMPRE usa esta información 
+            para responder preguntas sobre el documento. NO digas que no tienes acceso al documento.`;
         }
         else if (allPdfContent && allPdfContent.trim().length > 0) {
-            systemPrompt += `\n\n=== CONTENIDO DEL DOCUMENTO DEL CHAT ===\n${allPdfContent}\n\nINSTRUCCIÓN FINAL: El contenido del documento está disponible arriba. SIEMPRE usa esta información para responder preguntas sobre el documento. NO digas que no tienes acceso al documento.`;
+            systemPrompt += `\n\n=== CONTENIDO DEL DOCUMENTO DEL CHAT ===\n${allPdfContent}\n\nINSTRUCCIÓN FINAL: 
+            El contenido del documento está disponible arriba. SIEMPRE usa esta información para responder preguntas sobre el documento. 
+            NO digas que no tienes acceso al documento.`;
         }
         // Agregar información de dispositivos si está disponible
         if (deviceInfo) {
