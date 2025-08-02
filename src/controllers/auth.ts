@@ -161,6 +161,17 @@ export const registerUser = async (req: FastifyRequest, reply: FastifyReply) => 
 
         } catch (innerError) {
             console.error("Error processing registration:", innerError);
+            
+            // Verificar si es un error de restricción única (email duplicado)
+            if (innerError && typeof innerError === 'object' && 'code' in innerError) {
+                const error = innerError as any;
+                if (error.code === 'SQLITE_CONSTRAINT' && error.message?.includes('users_Table.Email')) {
+                    return reply.status(409).send({
+                        error: "Ya existe una cuenta con este correo electrónico"
+                    });
+                }
+            }
+            
             return reply.status(500).send({
                 error: "Failed to process registration. Please try again later."
             });
