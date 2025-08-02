@@ -81,7 +81,20 @@ class DeviceController {
      */
     static async getAllDevices(request, reply) {
         try {
-            const { deviceType, userId } = request.query;
+            const { deviceType } = request.query;
+            // Extraer UserID del token JWT
+            const token = request.headers.authorization?.replace('Bearer ', '');
+            if (!token) {
+                return reply.code(401).send({ error: 'Authorization token required' });
+            }
+            let userId;
+            try {
+                const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+                userId = payload.UserID;
+            }
+            catch (error) {
+                return reply.code(401).send({ error: 'Invalid token format' });
+            }
             const devices = await ecowitt_1.EcowittService.getAllDevices(deviceType, userId);
             return reply.send(devices);
         }

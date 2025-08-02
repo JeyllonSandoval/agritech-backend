@@ -96,7 +96,22 @@ export class DeviceController {
    */
   static async getAllDevices(request: FastifyRequest, reply: FastifyReply) {
     try {
-      const { deviceType, userId } = request.query as { deviceType?: string; userId?: string };
+      const { deviceType } = request.query as { deviceType?: string };
+      
+      // Extraer UserID del token JWT
+      const token = request.headers.authorization?.replace('Bearer ', '');
+      if (!token) {
+        return reply.code(401).send({ error: 'Authorization token required' });
+      }
+
+      let userId: string;
+      try {
+        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+        userId = payload.UserID;
+      } catch (error) {
+        return reply.code(401).send({ error: 'Invalid token format' });
+      }
+
       const devices = await EcowittService.getAllDevices(deviceType, userId);
       return reply.send(devices);
     } catch (error) {

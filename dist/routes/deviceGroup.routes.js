@@ -7,7 +7,7 @@ async function deviceGroupRoutes(fastify) {
     // CRUD de grupos
     fastify.post('/groups', { preHandler: authToken_1.authenticateToken }, deviceGroup_1.DeviceGroupController.createGroup);
     fastify.get('/groups/:groupId', { preHandler: authToken_1.authenticateToken }, deviceGroup_1.DeviceGroupController.getGroupById);
-    fastify.get('/users/:userId/groups', { preHandler: authToken_1.authenticateToken }, deviceGroup_1.DeviceGroupController.getUserGroups);
+    fastify.get('/groups', { preHandler: authToken_1.authenticateToken }, deviceGroup_1.DeviceGroupController.getUserGroups);
     fastify.get('/groups/:groupId/devices', { preHandler: authToken_1.authenticateToken }, deviceGroup_1.DeviceGroupController.getGroupDevices);
     fastify.get('/groups/:groupId/device-count', { preHandler: authToken_1.authenticateToken }, deviceGroup_1.DeviceGroupController.getGroupDeviceCount);
     fastify.put('/groups/:groupId', { preHandler: authToken_1.authenticateToken }, deviceGroup_1.DeviceGroupController.updateGroup);
