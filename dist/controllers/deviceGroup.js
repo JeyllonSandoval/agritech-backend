@@ -52,8 +52,8 @@ class DeviceGroupController {
      */
     static async getGroupById(request, reply) {
         try {
-            const { id } = request.params;
-            const group = await deviceGroup_1.DeviceGroupService.getGroupById(id);
+            const { groupId } = request.params;
+            const group = await deviceGroup_1.DeviceGroupService.getGroupById(groupId);
             if (!group) {
                 return reply.status(404).send({
                     error: 'Group not found'
@@ -87,13 +87,30 @@ class DeviceGroupController {
      */
     static async getGroupDevices(request, reply) {
         try {
-            const { id } = request.params;
-            const devices = await deviceGroup_1.DeviceGroupService.getGroupDevices(id);
+            const { groupId } = request.params;
+            const devices = await deviceGroup_1.DeviceGroupService.getGroupDevices(groupId);
             return reply.send(devices);
         }
         catch (error) {
             return reply.status(500).send({
-                error: 'Error al obtener dispositivos del grupo'
+                error: 'Error al obtener dispositivos del grupo',
+                details: error instanceof Error ? error.message : error
+            });
+        }
+    }
+    /**
+     * Obtener el conteo de dispositivos de un grupo
+     */
+    static async getGroupDeviceCount(request, reply) {
+        try {
+            const { groupId } = request.params;
+            const deviceCount = await deviceGroup_1.DeviceGroupService.getGroupDeviceCount(groupId);
+            return reply.send({ deviceCount });
+        }
+        catch (error) {
+            return reply.status(500).send({
+                error: 'Error al obtener conteo de dispositivos del grupo',
+                details: error instanceof Error ? error.message : error
             });
         }
     }
@@ -102,9 +119,9 @@ class DeviceGroupController {
      */
     static async updateGroup(request, reply) {
         try {
-            const { id } = request.params;
+            const { groupId } = request.params;
             const { GroupName, Description, deviceIds } = request.body;
-            const group = await deviceGroup_1.DeviceGroupService.updateGroup(id, {
+            const group = await deviceGroup_1.DeviceGroupService.updateGroup(groupId, {
                 GroupName,
                 Description,
                 deviceIds: deviceIds?.map(deviceId => ({
@@ -129,8 +146,8 @@ class DeviceGroupController {
      */
     static async deleteGroup(request, reply) {
         try {
-            const { id } = request.params;
-            await deviceGroup_1.DeviceGroupService.deleteGroup(id);
+            const { groupId } = request.params;
+            await deviceGroup_1.DeviceGroupService.deleteGroup(groupId);
             return reply.status(204).send();
         }
         catch (error) {

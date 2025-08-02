@@ -21,8 +21,6 @@ const transporter = nodemailer_1.default.createTransport({
 // Función para enviar correo de verificación
 const sendVerificationEmail = async (email, token) => {
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
-    console.log(verificationUrl);
-    console.log(process.env.FRONTEND_URL);
     const mailOptions = {
         from: process.env.EMAIL_USER,
         to: email,
@@ -58,12 +56,10 @@ const sendVerificationEmail = async (email, token) => {
                 </div>
             `
     };
-    console.log(`[Email] Intentando enviar correo de verificación a: ${email}`);
     const startTime = Date.now();
     try {
         const info = await transporter.sendMail(mailOptions);
         const duration = Date.now() - startTime;
-        console.log(`[Email] Correo de verificación enviado a ${email} en ${duration}ms. Message ID: ${info.messageId}`);
     }
     catch (error) {
         const duration = Date.now() - startTime;
@@ -76,8 +72,6 @@ exports.sendVerificationEmail = sendVerificationEmail;
 // Función para enviar correo de restablecimiento de contraseña
 const sendPasswordResetEmail = async (email, token) => {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-    console.log(resetUrl);
-    console.log(process.env.FRONTEND_URL);
     const mailOptions = {
         from: process.env.EMAIL_USER,
         to: email,
@@ -116,12 +110,10 @@ const sendPasswordResetEmail = async (email, token) => {
                 </div>
             `
     };
-    console.log(`[Email] Intentando enviar correo de reseteo a: ${email}`);
     const startTime = Date.now();
     try {
         const info = await transporter.sendMail(mailOptions);
         const duration = Date.now() - startTime;
-        console.log(`[Email] Correo de reseteo enviado a ${email} en ${duration}ms. Message ID: ${info.messageId}`);
     }
     catch (error) {
         const duration = Date.now() - startTime;

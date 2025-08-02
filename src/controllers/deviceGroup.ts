@@ -71,14 +71,14 @@ export class DeviceGroupController {
   static async getGroupById(
     request: FastifyRequest<{
       Params: {
-        id: string;
+        groupId: string;
       };
     }>,
     reply: FastifyReply
   ) {
     try {
-      const { id } = request.params;
-      const group = await DeviceGroupService.getGroupById(id);
+      const { groupId } = request.params;
+      const group = await DeviceGroupService.getGroupById(groupId);
 
       if (!group) {
         return reply.status(404).send({
@@ -122,18 +122,42 @@ export class DeviceGroupController {
   static async getGroupDevices(
     request: FastifyRequest<{
       Params: {
-        id: string;
+        groupId: string;
       };
     }>,
     reply: FastifyReply
   ) {
     try {
-      const { id } = request.params;
-      const devices = await DeviceGroupService.getGroupDevices(id);
+      const { groupId } = request.params;
+      const devices = await DeviceGroupService.getGroupDevices(groupId);
       return reply.send(devices);
     } catch (error) {
       return reply.status(500).send({
-        error: 'Error al obtener dispositivos del grupo'
+        error: 'Error al obtener dispositivos del grupo',
+        details: error instanceof Error ? error.message : error
+      });
+    }
+  }
+
+  /**
+   * Obtener el conteo de dispositivos de un grupo
+   */
+  static async getGroupDeviceCount(
+    request: FastifyRequest<{
+      Params: {
+        groupId: string;
+      };
+    }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const { groupId } = request.params;
+      const deviceCount = await DeviceGroupService.getGroupDeviceCount(groupId);
+      return reply.send({ deviceCount });
+    } catch (error) {
+      return reply.status(500).send({
+        error: 'Error al obtener conteo de dispositivos del grupo',
+        details: error instanceof Error ? error.message : error
       });
     }
   }
@@ -144,7 +168,7 @@ export class DeviceGroupController {
   static async updateGroup(
     request: FastifyRequest<{
       Params: {
-        id: string;
+        groupId: string;
       };
       Body: {
         GroupName?: string;
@@ -155,10 +179,10 @@ export class DeviceGroupController {
     reply: FastifyReply
   ) {
     try {
-      const { id } = request.params;
+      const { groupId } = request.params;
       const { GroupName, Description, deviceIds } = request.body;
 
-      const group = await DeviceGroupService.updateGroup(id, {
+      const group = await DeviceGroupService.updateGroup(groupId, {
         GroupName,
         Description,
         deviceIds: deviceIds?.map(deviceId => ({
@@ -185,14 +209,16 @@ export class DeviceGroupController {
   static async deleteGroup(
     request: FastifyRequest<{
       Params: {
-        id: string;
+        groupId: string;
       };
     }>,
     reply: FastifyReply
   ) {
     try {
-      const { id } = request.params;
-      await DeviceGroupService.deleteGroup(id);
+      const { groupId } = request.params;
+      
+      await DeviceGroupService.deleteGroup(groupId);
+      
       return reply.status(204).send();
     } catch (error) {
       return reply.status(500).send({
@@ -245,11 +271,13 @@ export class DeviceGroupController {
       
       // Check if group exists
       const existingGroup = await DeviceGroupService.getGroupById(groupId);
+      
       if (!existingGroup) {
         return reply.code(404).send({ error: 'Group not found' });
       }
 
       const realtimeData = await DeviceGroupService.getGroupDevicesRealtime(groupId);
+      
       return reply.send(realtimeData);
     } catch (error) {
       return reply.code(500).send({ error: 'Error retrieving group real-time data' });

@@ -14,11 +14,10 @@ const generateToken = (user) => {
             RoleID: user.RoleID,
             emailVerified: user.emailVerified
         }, JWT_SECRET, {
-            expiresIn: '24h',
+            expiresIn: '180d' // Token expires in 6 months
         });
     }
     catch (error) {
-        console.log(error);
         throw new Error("Failed to generate token");
     }
 };
@@ -34,7 +33,6 @@ const verifyToken = (token) => {
         };
     }
     catch (error) {
-        console.log(error);
         throw new Error("Mision Failed: Token no created");
     }
 };

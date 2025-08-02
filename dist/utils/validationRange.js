@@ -7,17 +7,24 @@ function validateTimeRange(startTime, endTime, timeRange) {
     let end = now;
     if (timeRange) {
         switch (timeRange) {
+            case 'one_hour':
             case 'hourly':
                 start = new Date(now.getTime() - 60 * 60 * 1000);
                 break;
+            case 'one_day':
             case 'daily':
                 start = new Date(now.getTime() - 24 * 60 * 60 * 1000);
                 break;
+            case 'one_week':
             case 'weekly':
                 start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
                 break;
+            case 'one_month':
             case 'monthly':
                 start = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+                break;
+            case 'three_months':
+                start = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
                 break;
             case 'yearly':
                 start = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());

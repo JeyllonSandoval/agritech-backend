@@ -8,18 +8,16 @@ export class DeviceComparisonController {
    * Comparar datos históricos entre dispositivos
    */
   static async compareHistory(
-    request: FastifyRequest<{
-      Body: {
+    request: FastifyRequest,
+    reply: FastifyReply
+  ) {
+    try {
+      const { deviceIds, startTime, endTime, timeRange } = request.body as {
         deviceIds: string[];
         startTime?: string;
         endTime?: string;
         timeRange?: string;
       };
-    }>,
-    reply: FastifyReply
-  ) {
-    try {
-      const { deviceIds, startTime, endTime, timeRange } = request.body;
 
       // Validar que se proporcionen IDs de dispositivos
       if (!deviceIds || deviceIds.length === 0) {
@@ -50,15 +48,13 @@ export class DeviceComparisonController {
    * Comparar datos en tiempo real entre dispositivos
    */
   static async compareRealtime(
-    request: FastifyRequest<{
-      Body: {
-        deviceIds: string[];
-      };
-    }>,
+    request: FastifyRequest,
     reply: FastifyReply
   ) {
     try {
-      const { deviceIds } = request.body;
+      const { deviceIds } = request.body as {
+        deviceIds: string[];
+      };
 
       // Validar que se proporcionen IDs de dispositivos
       if (!deviceIds || deviceIds.length === 0) {

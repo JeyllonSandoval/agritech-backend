@@ -1,9 +1,11 @@
 import { FastifyInstance } from 'fastify';
 import { DeviceComparisonController } from '@/controllers/deviceComparison';
+import { authenticateToken } from '@/middlewares/authToken';
 
 const deviceComparisonRoutes = async (fastify: FastifyInstance) => {
   // Comparar datos históricos entre dispositivos
   fastify.post('/compare/history', {
+    preHandler: authenticateToken,
     schema: {
       body: {
         type: 'object',
@@ -25,6 +27,7 @@ const deviceComparisonRoutes = async (fastify: FastifyInstance) => {
 
   // Comparar datos en tiempo real entre dispositivos
   fastify.post('/compare/realtime', {
+    preHandler: authenticateToken,
     schema: {
       body: {
         type: 'object',

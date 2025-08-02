@@ -11,29 +11,24 @@ interface PDFData {
 
 export const parsePDF = async (req: FastifyRequest, reply: FastifyReply) => {
     try {
-        console.log('Processing PDF request...');
-
         const { fileURL } = req.body as { fileURL?: string };
 
         if (!fileURL) {
             return reply.status(400).send({ error: "File URL is required" });
         }
+        
         if (!isValidURL(fileURL)) {
             return reply.status(400).send({ error: "Invalid URL format" });
         }
 
-        console.log("Downloading file from Cloudinary...");
         const pdfBuffer = await downloadPDF(fileURL);
 
-        console.log("Validating PDF format...");
         if (!isPDFFormat(pdfBuffer)) {
             return reply.status(400).send({ error: "Invalid PDF format" });
         }
 
-        console.log("Extracting text from PDF...");
         const pdfData = await extractPDFText(pdfBuffer);
 
-        console.log("Processing extracted text...");
         const processedText = processPDFText(pdfData.text);
 
         return reply.status(200).send({ 
@@ -42,7 +37,6 @@ export const parsePDF = async (req: FastifyRequest, reply: FastifyReply) => {
         });
 
     } catch (error) {
-        console.error('General error:', error);
         return reply.status(500).send({ 
             error: "ReadPDF:Error processing PDF",
             details: error instanceof Error ? error.message : "Unknown error"
@@ -53,13 +47,25 @@ export const parsePDF = async (req: FastifyRequest, reply: FastifyReply) => {
 // Descargar el PDF de Cloudinary con control de errores
 async function downloadPDF(url: string): Promise<Buffer> {
     try {
-        const response = await axios.get(url, { responseType: "arraybuffer" });
+        const response = await axios.get(url, { 
+            responseType: "arraybuffer",
+            timeout: 30000, // 30 segundos timeout
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+        });
 
         if (response.data.length > 10 * 1024 * 1024) { // 10MB limit
             throw new Error("PDF file size exceeds 10MB limit");
         }
 
-        return Buffer.from(response.data);
+        if (response.data.length === 0) {
+            throw new Error("PDF file is empty");
+        }
+
+        const buffer = Buffer.from(response.data);
+        
+        return buffer;
     } catch (error) {
         throw new Error(`Failed to download PDF: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
@@ -72,7 +78,14 @@ async function extractPDFText(buffer: Buffer): Promise<PDFData> {
 
     try {
         const pdfData = await pdfParse(buffer);
+        
+        if (!pdfData.text || pdfData.text.trim().length === 0) {
+            // El PDF no contiene texto extraíble
+        }
+        
         return pdfData;
+    } catch (error) {
+        throw error;
     } finally {
         clearTimeout(timeout);
     }

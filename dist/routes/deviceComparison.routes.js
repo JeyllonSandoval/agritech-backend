@@ -1,9 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const deviceComparison_1 = require("../controllers/deviceComparison");
+const authToken_1 = require("../middlewares/authToken");
 const deviceComparisonRoutes = async (fastify) => {
     // Comparar datos históricos entre dispositivos
     fastify.post('/compare/history', {
+        preHandler: authToken_1.authenticateToken,
         schema: {
             body: {
                 type: 'object',
@@ -24,6 +26,7 @@ const deviceComparisonRoutes = async (fastify) => {
     }, deviceComparison_1.DeviceComparisonController.compareHistory);
     // Comparar datos en tiempo real entre dispositivos
     fastify.post('/compare/realtime', {
+        preHandler: authToken_1.authenticateToken,
         schema: {
             body: {
                 type: 'object',

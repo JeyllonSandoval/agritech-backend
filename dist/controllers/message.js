@@ -11,7 +11,8 @@ const messageSchema_1 = __importDefault(require("../db/schemas/messageSchema"));
 const zod_1 = require("zod");
 const ai_response_1 = __importDefault(require("../controllers/ai_response"));
 const filesSchema_1 = __importDefault(require("../db/schemas/filesSchema"));
-const readPdf_1 = require("../controllers/readPdf");
+const pdf_parse_1 = __importDefault(require("pdf-parse"));
+const axios_1 = __importDefault(require("axios"));
 const createMessageSchema = zod_1.z.object({
     ChatID: zod_1.z.string().uuid({ message: "Invalid chat ID" }),
     FileID: zod_1.z.string().uuid({ message: "Invalid file ID" }).optional(),
@@ -54,47 +55,42 @@ const createMessage = async (request, reply) => {
                 .from(filesSchema_1.default)
                 .where((0, drizzle_orm_1.eq)(filesSchema_1.default.FileID, result.data.FileID));
             fileContent = file[0]?.contentURL || null;
-            if (file.length) {
-                const pdfRequest = {
-                    body: { fileURL: fileContent }
-                };
-                const pdfReply = {
-                    status: () => ({
-                        send: (data) => {
-                            pdfContent = data.data.rawText;
-                            return data;
-                        }
-                    })
-                };
-                await (0, readPdf_1.parsePDF)(pdfRequest, pdfReply);
+            if (file.length && fileContent) {
+                try {
+                    // Llamar directamente a la función de procesamiento de PDF
+                    const pdfBuffer = await downloadPDF(fileContent);
+                    const pdfData = await extractPDFText(pdfBuffer);
+                    pdfContent = processPDFText(pdfData.text).rawText;
+                }
+                catch (error) {
+                    pdfContent = "Error procesando el PDF";
+                }
             }
         }
         const newMessage = await db_1.default.insert(messageSchema_1.default).values({
             MessageID: (0, uuid_1.v4)(),
             ChatID: result.data.ChatID,
             FileID: result.data.FileID,
-            contentFile: result.data.contentFile || pdfContent,
+            // Solo guardar contentFile si se proporciona explícitamente, no automáticamente
+            contentFile: result.data.contentFile,
             contentAsk: result.data.contentAsk,
             contentResponse: result.data.contentResponse,
             sendertype: result.data.sendertype,
             status: result.data.status
         }).returning();
         if (result.data.sendertype === "user" && result.data.contentAsk) {
+            // Obtener el idioma del usuario desde los headers
+            const userLanguage = request.headers['user-language'] || 'en';
             const aiRequest = {
                 body: {
                     ask: result.data.contentAsk,
                     ChatID: result.data.ChatID,
                     FileID: result.data.FileID,
-                    pdfContent: pdfContent
+                    pdfContent: pdfContent, // Asegurar que el contenido del PDF se pase a la AI
+                    userLanguage: userLanguage // Pasar el idioma del usuario
                 }
             };
             const aiResponse = await (0, ai_response_1.default)(aiRequest, reply);
-            console.log('AI Response sent:', {
-                messageId: aiResponse.message.MessageID,
-                chatId: aiResponse.message.ChatID,
-                content: aiResponse.content,
-                timestamp: new Date().toISOString()
-            });
             return reply.status(201).send({
                 success: true,
                 message: {
@@ -122,7 +118,6 @@ const createMessage = async (request, reply) => {
         });
     }
     catch (error) {
-        console.error(error);
         if (error instanceof zod_1.ZodError) {
             return reply.status(400).send({
                 error: "Message: Validation error",
@@ -165,7 +160,6 @@ const getChatMessages = async (request, reply) => {
         return reply.status(200).send(messages);
     }
     catch (error) {
-        console.error(error);
         if (error instanceof zod_1.z.ZodError) {
             return reply.status(400).send({
                 error: "Get Messages: Validation error",
@@ -188,7 +182,6 @@ const getAllMessages = async (_request, reply) => {
         return reply.status(200).send(messages);
     }
     catch (error) {
-        console.error(error);
         return reply.status(500).send({
             error: "Get All Messages: Failed to get all messages",
             details: error instanceof Error ? error.message : "Unknown error",
@@ -230,7 +223,6 @@ const updateMessage = async (request, reply) => {
         });
     }
     catch (error) {
-        console.error(error);
         return reply.status(500).send({
             error: "Update Message: Failed to update message",
             details: error instanceof Error ? error.message : "Unknown error"
@@ -264,7 +256,6 @@ const deleteMessage = async (request, reply) => {
         });
     }
     catch (error) {
-        console.error(error);
         return reply.status(500).send({
             error: "Delete Message: Failed to delete message",
             details: error instanceof Error ? error.message : "Unknown error"
@@ -272,4 +263,57 @@ const deleteMessage = async (request, reply) => {
     }
 };
 exports.deleteMessage = deleteMessage;
+// Funciones auxiliares para procesamiento de PDF
+async function downloadPDF(url) {
+    try {
+        const response = await axios_1.default.get(url, {
+            responseType: "arraybuffer",
+            timeout: 30000, // 30 segundos timeout
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+        });
+        if (response.data.length > 10 * 1024 * 1024) { // 10MB limit
+            throw new Error("PDF file size exceeds 10MB limit");
+        }
+        if (response.data.length === 0) {
+            throw new Error("PDF file is empty");
+        }
+        const buffer = Buffer.from(response.data);
+        return buffer;
+    }
+    catch (error) {
+        throw new Error(`Failed to download PDF: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+}
+async function extractPDFText(buffer) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    try {
+        const pdfData = await (0, pdf_parse_1.default)(buffer);
+        if (!pdfData.text || pdfData.text.trim().length === 0) {
+            // El PDF no contiene texto extraíble
+        }
+        return pdfData;
+    }
+    catch (error) {
+        throw error;
+    }
+    finally {
+        clearTimeout(timeout);
+    }
+}
+function processPDFText(text) {
+    const cleanedText = text.replace(/\s+/g, ' ').trim();
+    const lines = cleanedText.split('. ').filter(line => line.trim() !== '');
+    return {
+        rawText: cleanedText,
+        lines: lines,
+        totalLines: lines.length,
+        metadata: {
+            processedAt: new Date().toISOString(),
+            wordCount: cleanedText.split(/\s+/).length
+        }
+    };
+}
 //# sourceMappingURL=message.js.map

@@ -3,7 +3,7 @@
 Esta API permite registrar y gestionar dispositivos EcoWitt, obtener datos en tiempo real e históricos, y consultar características avanzadas del dispositivo.
 
 ## Registro de Dispositivos
-**POST** `/api/devices`
+**POST** `/devices`
 
 ```json
 {
@@ -16,14 +16,35 @@ Esta API permite registrar y gestionar dispositivos EcoWitt, obtener datos en ti
 }
 ```
 
+**Tipos de Dispositivos Permitidos:**
+- `Controlled environments` - Ambientes controlados
+- `Plants` - Plantas
+- `Soil` - Suelo
+- `Climate` - Clima
+- `Large-scale farming` - Agricultura a gran escala
+- `home gardens` - Jardines domésticos
+- `Manual` - Manual
+- `Automated` - Automatizado
+- `Delicate` - Delicado
+- `Tough` - Resistente
+- `Outdoor` - Exterior
+- `Indoor` - Interior
+
 ## Endpoints Principales
-- `GET /api/devices` - Lista todos los dispositivos
-- `GET /api/devices/:deviceId` - Información básica de un dispositivo
-- `GET /api/devices/:deviceId/realtime` - Datos en tiempo real
-- `GET /api/devices/:deviceId/history` - Datos históricos (con rango de fechas)
-- `GET /api/devices/:deviceId/characteristics` - Características avanzadas del dispositivo
-- `PUT /api/devices/:deviceId` - Actualiza un dispositivo
-- `DELETE /api/devices/:deviceId` - Elimina un dispositivo
+- `GET /devices` - Lista todos los dispositivos
+- `GET /devices/:deviceId` - Información básica de un dispositivo
+- `GET /devices/:deviceId/realtime` - Datos en tiempo real
+- `GET /devices/:deviceId/history` - Datos históricos (con rango de fechas)
+- `GET /devices/:deviceId/info` - Información completa del dispositivo
+- `GET /devices/:deviceId/characteristics` - Características avanzadas del dispositivo
+- `PUT /devices/:deviceId` - Actualiza un dispositivo
+- `DELETE /devices/:deviceId` - Elimina un dispositivo
+
+## Endpoints de Diagnóstico y Pruebas
+- `GET /devices/:deviceId/diagnose` - Diagnóstico de dispositivo (tiempo real)
+- `GET /devices/:deviceId/test` - Prueba de conectividad (tiempo real)
+- `GET /devices/:deviceId/diagnose-history` - Diagnóstico de datos históricos
+- `GET /devices/:deviceId/test-history` - Prueba de datos históricos
 
 ## Validaciones
 - Todos los IDs deben ser UUID válidos
@@ -67,7 +88,7 @@ Para interactuar con un dispositivo, necesitas dos claves que obtienes de tu cue
 
 ### ¿Cómo Registrar un Dispositivo?
 
-Para usar la API, primero debes registrar cada uno de tus dispositivos EcoWitt en este sistema usando el endpoint `POST /api/devices`. En esta petición, deberás proporcionar las credenciales mencionadas anteriormente.
+Para usar la API, primero debes registrar cada uno de tus dispositivos EcoWitt en este sistema usando el endpoint `POST /devices`. En esta petición, deberás proporcionar las credenciales mencionadas anteriormente.
 
 **Nota de Seguridad**: Una vez registrado, el sistema genera un `DeviceID` único que se usa para todas las operaciones posteriores. Las credenciales de EcoWitt se mantienen seguras en la base de datos y no se exponen en las URLs.
 
@@ -89,7 +110,7 @@ Gestiona el ciclo de vida de los dispositivos en el sistema.
 
 ### 1. Registrar un Nuevo Dispositivo
 
-**POST** `/api/devices`
+**POST** `/devices`
 
 Registra una nueva estación meteorológica en el sistema. Debes proporcionar un nombre, las credenciales de la API de EcoWitt y otros metadatos.
 
@@ -122,7 +143,7 @@ Registra una nueva estación meteorológica en el sistema. Debes proporcionar un
 
 ### 2. Obtener Lista de Dispositivos
 
-**GET** `/api/devices`
+**GET** `/devices`
 
 Recupera una lista de todos los dispositivos registrados. Se puede filtrar por tipo o por usuario.
 
@@ -135,13 +156,13 @@ Recupera una lista de todos los dispositivos registrados. Se puede filtrar por t
 
 ### 3. Obtener un Dispositivo Específico
 
-**GET** `/api/devices/:deviceId`
+**GET** `/devices/:deviceId`
 
 Recupera la información básica de un dispositivo registrado en el sistema, usando su `DeviceID` como identificador.
 
 ### 4. Obtener Información Completa del Dispositivo
 
-**GET** `/api/devices/:deviceId/info`
+**GET** `/devices/:deviceId/info`
 
 Recupera información completa del dispositivo incluyendo posición geográfica, sensores disponibles y datos actuales.
 
@@ -189,7 +210,7 @@ Recupera información completa del dispositivo incluyendo posición geográfica,
 
 ### 5. Obtener Características del Dispositivo
 
-**GET** `/api/devices/:deviceId/characteristics`
+**GET** `/devices/:deviceId/characteristics`
 
 Obtiene las características específicas del dispositivo desde la API de EcoWitt, incluyendo información como MAC, ID, coordenadas, zona horaria, región y otras características del dispositivo.
 
@@ -242,7 +263,7 @@ Obtiene las características específicas del dispositivo desde la API de EcoWit
 
 ### 6. Actualizar un Dispositivo
 
-**PUT** `/api/devices/:deviceId`
+**PUT** `/devices/:deviceId`
 
 Actualiza los datos de un dispositivo existente. Solo se deben enviar los campos que se desean modificar.
 
@@ -256,7 +277,7 @@ Actualiza los datos de un dispositivo existente. Solo se deben enviar los campos
 
 ### 7. Eliminar un Dispositivo
 
-**DELETE** `/api/devices/:deviceId`
+**DELETE** `/devices/:deviceId`
 
 Elimina un dispositivo del sistema.
 
@@ -268,13 +289,13 @@ Obtén datos directamente desde la API de EcoWitt para un dispositivo específic
 
 ### 1. Obtener Datos en Tiempo Real
 
-**GET** `/api/devices/:deviceId/realtime`
+**GET** `/devices/:deviceId/realtime`
 
 Recupera la última lectura de datos de todos los sensores del dispositivo.
 
 ### 2. Obtener Datos Históricos
 
-**GET** `/api/devices/:deviceId/history`
+**GET** `/devices/:deviceId/history`
 
 Consulta el historial de datos de un dispositivo para un rango de fechas específico.
 
@@ -301,7 +322,7 @@ Consulta el historial de datos de un dispositivo para un rango de fechas especí
 
 ### 1. Obtener Datos Históricos de Múltiples Dispositivos
 
-**GET** `/api/devices/history`
+**GET** `/devices/history`
 
 Obtiene datos históricos de múltiples dispositivos en paralelo.
 
@@ -314,7 +335,7 @@ Obtiene datos históricos de múltiples dispositivos en paralelo.
 
 ### 2. Obtener Datos en Tiempo Real de Múltiples Dispositivos
 
-**GET** `/api/devices/realtime`
+**GET** `/devices/realtime`
 
 Obtiene datos en tiempo real de múltiples dispositivos en paralelo.
 
@@ -349,7 +370,7 @@ Gestiona y consulta datos de grupos de dispositivos.
 
 ### 1. Crear un Nuevo Grupo
 
-**POST** `/api/groups`
+**POST** `/device-groups/groups`
 
 Crea un nuevo grupo y le asigna una lista de dispositivos existentes.
 
@@ -366,31 +387,31 @@ Crea un nuevo grupo y le asigna una lista de dispositivos existentes.
 
 ### 2. Obtener Grupos de un Usuario
 
-**GET** `/api/users/:userId/groups`
+**GET** `/device-groups/users/:userId/groups`
 
 Recupera todos los grupos creados por un usuario específico.
 
 ### 3. Obtener Detalles de un Grupo
 
-**GET** `/api/groups/:groupId`
+**GET** `/device-groups/groups/:groupId`
 
 Recupera el nombre, descripción y la lista de dispositivos que pertenecen a un grupo.
 
 ### 4. Actualizar un Grupo
 
-**PUT** `/api/groups/:groupId`
+**PUT** `/device-groups/groups/:groupId`
 
 Actualiza el nombre, la descripción o la lista de dispositivos de un grupo.
 
 ### 5. Eliminar un Grupo
 
-**DELETE** `/api/groups/:groupId`
+**DELETE** `/device-groups/groups/:groupId`
 
 Elimina un grupo de dispositivos. Los dispositivos en sí no son eliminados.
 
 ### 6. Obtener Datos Históricos de un Grupo
 
-**GET** `/api/groups/:groupId/history`
+**GET** `/device-groups/groups/:groupId/history`
 
 Recupera los datos históricos de todos los dispositivos dentro de un grupo para un rango de tiempo predefinido.
 
@@ -402,7 +423,7 @@ Recupera los datos históricos de todos los dispositivos dentro de un grupo para
 
 ### 7. Obtener Datos en Tiempo Real de un Grupo
 
-**GET** `/api/groups/:groupId/realtime`
+**GET** `/device-groups/groups/:groupId/realtime`
 
 Recupera los datos en tiempo real de todos los dispositivos que pertenecen a un grupo.
 
@@ -414,7 +435,7 @@ Compara datos entre múltiples dispositivos.
 
 ### 1. Comparar Datos Históricos
 
-**GET** `/api/devices/history`
+**GET** `/devices/history`
 
 Recupera y formatea los datos históricos de hasta 4 dispositivos para una fácil comparación.
 
@@ -427,7 +448,7 @@ Recupera y formatea los datos históricos de hasta 4 dispositivos para una fáci
 
 ### 2. Comparar Datos en Tiempo Real
 
-**GET** `/api/devices/realtime`
+**GET** `/devices/realtime`
 
 Recupera los datos en tiempo real de hasta 4 dispositivos para comparación.
 
@@ -436,6 +457,148 @@ Recupera los datos en tiempo real de hasta 4 dispositivos para comparación.
 | Parámetro   | Tipo   | Requerido | Descripción                                    |
 | ----------- | ------ | --------- | ---------------------------------------------- |
 | `deviceIds` | string | ✅        | Lista de DeviceIDs separados por comas (máximo 4). |
+
+---
+
+## Endpoints de Diagnóstico y Pruebas
+
+Estos endpoints permiten diagnosticar y probar la conectividad y calidad de datos de los dispositivos.
+
+### 1. Diagnóstico de Dispositivo (Tiempo Real)
+
+**GET** `/devices/:deviceId/diagnose`
+
+Realiza un diagnóstico completo del dispositivo en tiempo real, probando diferentes configuraciones y parámetros.
+
+#### Parámetros de Ruta
+
+| Parámetro | Tipo   | Requerido | Descripción                    |
+|-----------|--------|-----------|--------------------------------|
+| `deviceId` | string | ✅        | ID único del dispositivo (UUID) |
+
+#### Respuesta
+
+```json
+{
+  "deviceId": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "healthy|warning|error",
+  "diagnostics": {
+    "connection": "ok|error",
+    "data_quality": "good|poor",
+    "last_update": "2024-01-15T14:30:25.123Z",
+    "response_time": 150
+  },
+  "tests": [
+    {
+      "test": "Without call_back",
+      "hasData": true,
+      "responseTime": 120,
+      "dataPoints": 15
+    },
+    {
+      "test": "With call_back = outdoor",
+      "hasData": true,
+      "responseTime": 135,
+      "dataPoints": 12
+    }
+  ]
+}
+```
+
+### 2. Prueba de Dispositivo (Tiempo Real)
+
+**GET** `/devices/:deviceId/test`
+
+Prueba la conectividad y obtención de datos en tiempo real del dispositivo.
+
+#### Parámetros de Ruta
+
+| Parámetro | Tipo   | Requerido | Descripción                    |
+|-----------|--------|-----------|--------------------------------|
+| `deviceId` | string | ✅        | ID único del dispositivo (UUID) |
+
+#### Respuesta
+
+```json
+{
+  "test_passed": true,
+  "response_time": 150,
+  "data_received": true,
+  "last_data": "2024-01-15T14:30:25.123Z",
+  "data_quality": "excellent"
+}
+```
+
+### 3. Diagnóstico de Dispositivo (Historial)
+
+**GET** `/devices/:deviceId/diagnose-history`
+
+Diagnostica la calidad y completitud de datos históricos del dispositivo.
+
+#### Parámetros de Ruta
+
+| Parámetro | Tipo   | Requerido | Descripción                    |
+|-----------|--------|-----------|--------------------------------|
+| `deviceId` | string | ✅        | ID único del dispositivo (UUID) |
+
+#### Respuesta
+
+```json
+{
+  "deviceId": "550e8400-e29b-41d4-a716-446655440000",
+  "data_quality": "good",
+  "completeness": 95.5,
+  "total_records": 1000,
+  "date_range": {
+    "start": "2024-01-01",
+    "end": "2024-01-31"
+  },
+  "tests": [
+    {
+      "test": "call_back = outdoor (one_day)",
+      "hasData": true,
+      "records": 288
+    },
+    {
+      "test": "call_back = all (one_day)",
+      "hasData": true,
+      "records": 576
+    }
+  ],
+  "bestConfiguration": {
+    "call_back": "outdoor",
+    "cycle_type": "5min",
+    "units": "metric"
+  }
+}
+```
+
+### 4. Prueba de Dispositivo (Historial)
+
+**GET** `/devices/:deviceId/test-history`
+
+Prueba el acceso y calidad de datos históricos del dispositivo.
+
+#### Parámetros de Ruta
+
+| Parámetro | Tipo   | Requerido | Descripción                    |
+|-----------|--------|-----------|--------------------------------|
+| `deviceId` | string | ✅        | ID único del dispositivo (UUID) |
+
+#### Respuesta
+
+```json
+{
+  "test_passed": true,
+  "records_available": 1000,
+  "date_range": {
+    "start": "2024-01-01",
+    "end": "2024-01-31"
+  },
+  "data_quality": "excellent",
+  "response_time": 200
+}
+```
 
 ## Códigos de Error Comunes
 
@@ -460,20 +623,20 @@ Recupera los datos en tiempo real de hasta 4 dispositivos para comparación.
 
 ### Obtener información de un dispositivo
 ```bash
-GET /api/devices/550e8400-e29b-41d4-a716-446655440000/info
+GET /devices/550e8400-e29b-41d4-a716-446655440000/info
 ```
 
 ### Obtener datos históricos de la última semana
 ```bash
-GET /api/devices/550e8400-e29b-41d4-a716-446655440000/history?startTime=2024-01-08T00:00:00Z&endTime=2024-01-15T23:59:59Z
+GET /devices/550e8400-e29b-41d4-a716-446655440000/history?startTime=2024-01-08T00:00:00Z&endTime=2024-01-15T23:59:59Z
 ```
 
 ### Comparar datos de múltiples dispositivos (último mes)
 ```bash
-GET /api/devices/history?deviceIds=device1,device2,device3&rangeType=one_month
+GET /devices/history?deviceIds=device1,device2,device3&rangeType=one_month
 ```
 
 ### Obtener datos de un grupo (últimos 3 meses)
 ```bash
-GET /api/groups/group-id/history?rangeType=three_months
+GET /device-groups/groups/group-id/history?rangeType=three_months
 ``` 

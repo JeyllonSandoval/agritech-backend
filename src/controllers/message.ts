@@ -7,6 +7,8 @@ import { z, ZodError } from "zod";
 import generateAIResponse, { AIRequest } from "@/controllers/ai_response";
 import filesTable from "@/db/schemas/filesSchema";
 import { parsePDF } from "@/controllers/readPdf";
+import pdfParse from "pdf-parse";
+import axios from "axios";
 
 const createMessageSchema = z.object({
     ChatID: z.string().uuid({ message: "Invalid chat ID" }),
@@ -70,21 +72,15 @@ const createMessage = async (
                 .where(eq(filesTable.FileID, result.data.FileID));
             fileContent = file[0]?.contentURL || null;
             
-            if(file.length){
-                const pdfRequest = {
-                    body: { fileURL: fileContent }
-                } as FastifyRequest;
-                
-                const pdfReply = {
-                    status: () => ({
-                        send: (data: any) => {
-                            pdfContent = data.data.rawText;
-                            return data;
-                        }
-                    })
-                } as unknown as FastifyReply;
-                
-                await parsePDF(pdfRequest, pdfReply);
+            if(file.length && fileContent){
+                try {
+                    // Llamar directamente a la función de procesamiento de PDF
+                    const pdfBuffer = await downloadPDF(fileContent);
+                    const pdfData = await extractPDFText(pdfBuffer);
+                    pdfContent = processPDFText(pdfData.text).rawText;
+                } catch (error) {
+                    pdfContent = "Error procesando el PDF";
+                }
             }
         }
 
@@ -92,7 +88,8 @@ const createMessage = async (
             MessageID: uuidv4(),
             ChatID: result.data.ChatID,
             FileID: result.data.FileID,
-            contentFile: result.data.contentFile || pdfContent,
+            // Solo guardar contentFile si se proporciona explícitamente, no automáticamente
+            contentFile: result.data.contentFile,
             contentAsk: result.data.contentAsk,
             contentResponse: result.data.contentResponse,
             sendertype: result.data.sendertype,
@@ -100,23 +97,22 @@ const createMessage = async (
         }).returning();
 
         if (result.data.sendertype === "user" && result.data.contentAsk) {
+            // Obtener el idioma del usuario desde los headers
+            const userLanguage = request.headers['user-language'] as string || 'en';
+            
+
+            
             const aiRequest = {
                 body: {
                     ask: result.data.contentAsk,
                     ChatID: result.data.ChatID,
                     FileID: result.data.FileID,
-                    pdfContent: pdfContent
+                    pdfContent: pdfContent, // Asegurar que el contenido del PDF se pase a la AI
+                    userLanguage: userLanguage // Pasar el idioma del usuario
                 }
             } as FastifyRequest<{ Body: AIRequest }>;
 
             const aiResponse = await generateAIResponse(aiRequest, reply);
-            
-            console.log('AI Response sent:', {
-                messageId: aiResponse.message.MessageID,
-                chatId: aiResponse.message.ChatID,
-                content: aiResponse.content,
-                timestamp: new Date().toISOString()
-            });
             
             return reply.status(201).send({ 
                 success: true,
@@ -146,8 +142,6 @@ const createMessage = async (
         });
 
     } catch (error) {
-        console.error(error);
-
         if (error instanceof ZodError) {
             return reply.status(400).send({
                 error: "Message: Validation error",
@@ -199,7 +193,6 @@ const getChatMessages = async (
         return reply.status(200).send(messages);
 
     } catch (error) {
-        console.error(error);
         if (error instanceof z.ZodError) {
             return reply.status(400).send({
                 error: "Get Messages: Validation error",
@@ -226,7 +219,6 @@ const getAllMessages = async (
         return reply.status(200).send(messages);
 
     } catch (error) {
-        console.error(error);
         return reply.status(500).send({
             error: "Get All Messages: Failed to get all messages",
             details: error instanceof Error ? error.message : "Unknown error",
@@ -275,7 +267,6 @@ const updateMessage = async (
             updatedMessage
         });
     } catch (error) {
-        console.error(error);
         return reply.status(500).send({
             error: "Update Message: Failed to update message",
             details: error instanceof Error ? error.message : "Unknown error"
@@ -315,13 +306,73 @@ const deleteMessage = async (
             deletedMessage
         });
     } catch (error) {
-        console.error(error);
         return reply.status(500).send({
             error: "Delete Message: Failed to delete message",  
             details: error instanceof Error ? error.message : "Unknown error"
         });
     }
 };
+
+// Funciones auxiliares para procesamiento de PDF
+async function downloadPDF(url: string): Promise<Buffer> {
+    try {
+        const response = await axios.get(url, { 
+            responseType: "arraybuffer",
+            timeout: 30000, // 30 segundos timeout
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+        });
+
+        if (response.data.length > 10 * 1024 * 1024) { // 10MB limit
+            throw new Error("PDF file size exceeds 10MB limit");
+        }
+
+        if (response.data.length === 0) {
+            throw new Error("PDF file is empty");
+        }
+
+        const buffer = Buffer.from(response.data);
+        
+        return buffer;
+    } catch (error) {
+        throw new Error(`Failed to download PDF: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+}
+
+async function extractPDFText(buffer: Buffer): Promise<any> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
+    try {
+        const pdfData = await pdfParse(buffer);
+        
+        if (!pdfData.text || pdfData.text.trim().length === 0) {
+            // El PDF no contiene texto extraíble
+        }
+        
+        return pdfData;
+    } catch (error) {
+        throw error;
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+function processPDFText(text: string) {
+    const cleanedText = text.replace(/\s+/g, ' ').trim();
+    const lines = cleanedText.split('. ').filter(line => line.trim() !== '');
+
+    return {
+        rawText: cleanedText,
+        lines: lines,
+        totalLines: lines.length,
+        metadata: {
+            processedAt: new Date().toISOString(),
+            wordCount: cleanedText.split(/\s+/).length
+        }
+    };
+}
 
 export { createMessage, getChatMessages, getAllMessages, updateMessage, deleteMessage };
 

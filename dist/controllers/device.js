@@ -8,6 +8,7 @@ const ecowitt_1 = require("../db/services/ecowitt");
 const zod_1 = require("zod");
 const uuid_1 = require("uuid");
 const timeRanges_1 = require("../utils/timeRanges");
+const validationRange_1 = require("../utils/validationRange");
 const axios_1 = __importDefault(require("axios"));
 // Importar funciones helper de la documentación para validaciones adicionales
 const realtime_request_types_1 = require("../docs/ecowitt-parameters/realtime-request.types");
@@ -57,16 +58,6 @@ class DeviceController {
     static async createDevice(request, reply) {
         try {
             const deviceData = createDeviceSchema.parse(request.body);
-            // Check if device with same MAC already exists
-            const existingDevice = await ecowitt_1.EcowittService.getDeviceByMac(deviceData.DeviceMac);
-            if (existingDevice) {
-                return reply.code(409).send({ error: 'Device with this MAC address already exists' });
-            }
-            // Check if device with same Application Key already exists
-            const existingAppKey = await ecowitt_1.EcowittService.getDeviceByApplicationKey(deviceData.DeviceApplicationKey);
-            if (existingAppKey) {
-                return reply.code(409).send({ error: 'Device with this Application Key already exists' });
-            }
             // Generate UUID for the device
             const deviceWithId = {
                 ...deviceData,
@@ -125,20 +116,6 @@ class DeviceController {
             const existingDevice = await ecowitt_1.EcowittService.getDeviceByDeviceId(deviceId);
             if (!existingDevice) {
                 return reply.code(404).send({ error: 'Device not found' });
-            }
-            // If updating MAC, check if new MAC already exists
-            if (updateData.DeviceMac && updateData.DeviceMac !== existingDevice.DeviceMac) {
-                const existingMac = await ecowitt_1.EcowittService.getDeviceByMac(updateData.DeviceMac);
-                if (existingMac) {
-                    return reply.code(409).send({ error: 'Device with this MAC address already exists' });
-                }
-            }
-            // If updating Application Key, check if new key already exists
-            if (updateData.DeviceApplicationKey && updateData.DeviceApplicationKey !== existingDevice.DeviceApplicationKey) {
-                const existingAppKey = await ecowitt_1.EcowittService.getDeviceByApplicationKey(updateData.DeviceApplicationKey);
-                if (existingAppKey) {
-                    return reply.code(409).send({ error: 'Device with this Application Key already exists' });
-                }
             }
             const device = await ecowitt_1.EcowittService.updateDevice(deviceId, updateData);
             return reply.send(device);
@@ -253,10 +230,22 @@ class DeviceController {
             if (!device) {
                 return reply.code(404).send({ error: 'Device not found' });
             }
-            // Obtener información detallada del dispositivo desde EcoWitt
+            // Obtener información detallada del dispositivo desde EcoWitt (real_time, NO tiene lat/lon)
             const detailedInfo = await ecowitt_1.EcowittService.getDeviceDetailedInfo(device.DeviceApplicationKey, device.DeviceApiKey, device.DeviceMac);
             // Obtener datos en tiempo real para información adicional
             const realtimeData = await ecowitt_1.EcowittService.getDeviceRealtime(device.DeviceApplicationKey, device.DeviceApiKey, device.DeviceMac);
+            // Obtener información de EcoWitt API (sí tiene lat/lon)
+            let deviceInfoEcoWitt = null;
+            try {
+                deviceInfoEcoWitt = await ecowitt_1.EcowittService.getDeviceInfo(device.DeviceApplicationKey, device.DeviceApiKey, device.DeviceMac);
+            }
+            catch (e) {
+                // Si falla, continuar sin lat/lon extra
+            }
+            // Usar lat/lon de detailedInfo si existen, si no, usar los de EcoWitt API
+            const latitude = (detailedInfo.location?.latitude != null ? detailedInfo.location.latitude : (deviceInfoEcoWitt?.data?.latitude ?? null));
+            const longitude = (detailedInfo.location?.longitude != null ? detailedInfo.location.longitude : (deviceInfoEcoWitt?.data?.longitude ?? null));
+            const elevation = (detailedInfo.location?.elevation != null ? detailedInfo.location.elevation : (deviceInfoEcoWitt?.data?.elevation ?? null));
             // Construir respuesta con información completa
             const deviceInfo = {
                 deviceId: device.DeviceID,
@@ -265,9 +254,9 @@ class DeviceController {
                 deviceMac: device.DeviceMac,
                 status: device.status,
                 createdAt: device.createdAt,
-                latitude: detailedInfo.location?.latitude || null,
-                longitude: detailedInfo.location?.longitude || null,
-                elevation: detailedInfo.location?.elevation || null,
+                latitude,
+                longitude,
+                elevation,
                 model: detailedInfo.model || null,
                 sensors: detailedInfo.sensors || [],
                 lastUpdate: realtimeData?.dateutc || null,
@@ -961,6 +950,435 @@ class DeviceController {
         catch (error) {
             return reply.code(500).send({
                 error: 'Error testing device history',
+                details: error instanceof Error ? error.message : 'Unknown error'
+            });
+        }
+    }
+    /**
+     * Obtener información completa del dispositivo
+     * Incluye: datos de DB, tiempo real, históricos y características
+     */
+    static async getDeviceCompleteInfo(request, reply) {
+        try {
+            const { deviceId } = request.params;
+            const { rangeType } = request.query;
+            // 1. Obtener información del dispositivo de nuestra DB
+            const device = await ecowitt_1.EcowittService.getDeviceByDeviceId(deviceId);
+            if (!device) {
+                return reply.code(404).send({ error: 'Device not found' });
+            }
+            // 2. Obtener características del dispositivo de EcoWitt
+            let deviceInfo = null;
+            try {
+                deviceInfo = await ecowitt_1.EcowittService.getDeviceInfo(device.DeviceApplicationKey, device.DeviceApiKey, device.DeviceMac);
+            }
+            catch (infoError) {
+                console.warn('Error getting device info:', infoError);
+            }
+            // 3. Obtener datos en tiempo real
+            let realtimeData = null;
+            try {
+                realtimeData = await ecowitt_1.EcowittService.getDeviceRealtime(device.DeviceApplicationKey, device.DeviceApiKey, device.DeviceMac);
+            }
+            catch (realtimeError) {
+                console.warn('Error getting realtime data:', realtimeError);
+            }
+            // 4. Obtener datos históricos (si se especifica rangeType)
+            let historicalData = null;
+            let soilMoistureData = null;
+            let timeRange = null;
+            if (rangeType) {
+                try {
+                    // Usar validateTimeRange para obtener el rango de tiempo
+                    const { start, end } = (0, validationRange_1.validateTimeRange)(undefined, undefined, rangeType);
+                    timeRange = {
+                        type: rangeType,
+                        startTime: start,
+                        endTime: end,
+                        description: (0, timeRanges_1.getTimeRangeDescription)(rangeType)
+                    };
+                    // Obtener datos históricos generales
+                    historicalData = await ecowitt_1.EcowittService.getDeviceHistoryComplete(device.DeviceApplicationKey, device.DeviceApiKey, device.DeviceMac, start, end);
+                    // Obtener datos específicos de humedad del suelo
+                    try {
+                        soilMoistureData = await ecowitt_1.EcowittService.getSoilMoistureHistory(device.DeviceApplicationKey, device.DeviceApiKey, device.DeviceMac, start, end);
+                    }
+                    catch (soilError) {
+                        console.warn('Error getting soil moisture data:', soilError);
+                    }
+                }
+                catch (historyError) {
+                    console.warn('Error getting historical data:', historyError);
+                }
+            }
+            // 5. Preparar características del dispositivo
+            const deviceCharacteristics = deviceInfo?.data ? {
+                id: deviceInfo.data.id,
+                name: deviceInfo.data.name,
+                mac: deviceInfo.data.mac,
+                type: deviceInfo.data.type,
+                stationType: deviceInfo.data.stationtype,
+                timezone: deviceInfo.data.date_zone_id,
+                createdAt: new Date(deviceInfo.data.createtime * 1000).toISOString(),
+                location: {
+                    latitude: deviceInfo.data.latitude,
+                    longitude: deviceInfo.data.longitude,
+                    elevation: 0
+                },
+                lastUpdate: deviceInfo.data.last_update
+            } : {
+                id: device.DeviceID,
+                name: device.DeviceName,
+                mac: device.DeviceMac,
+                type: device.DeviceType,
+                stationType: 'N/A',
+                timezone: 'N/A',
+                createdAt: device.createdAt,
+                location: {
+                    latitude: 0,
+                    longitude: 0,
+                    elevation: 0
+                },
+                lastUpdate: null
+            };
+            // 6. Procesar datos históricos para extraer información específica
+            let processedHistoricalData = null;
+            if (historicalData && historicalData.data) {
+                const data = historicalData.data;
+                // Los datos de suelo se procesarán más adelante en el código
+                // Extraer datos de temperatura (nueva estructura directa)
+                let temperatureData = null;
+                if (data.temperature) {
+                    temperatureData = data.temperature;
+                }
+                else if (data.indoor?.indoor?.temperature?.list) {
+                    temperatureData = {
+                        unit: data.indoor.indoor.temperature.unit || '°F',
+                        data: data.indoor.indoor.temperature.list
+                    };
+                }
+                else if (data.indoor?.list?.indoor?.temperature?.list) {
+                    temperatureData = {
+                        unit: data.indoor.list.indoor.temperature.unit || '°F',
+                        data: data.indoor.list.indoor.temperature.list
+                    };
+                }
+                else if (data.indoor?.list?.temperature?.list) {
+                    temperatureData = {
+                        unit: data.indoor.list.temperature.unit || '°F',
+                        data: data.indoor.list.temperature.list
+                    };
+                }
+                // Extraer datos de humedad (nueva estructura directa)
+                let humidityData = null;
+                if (data.humidity) {
+                    humidityData = data.humidity;
+                }
+                else if (data.indoor?.indoor?.humidity?.list) {
+                    humidityData = {
+                        unit: data.indoor.indoor.humidity.unit || '%',
+                        data: data.indoor.indoor.humidity.list
+                    };
+                }
+                else if (data.indoor?.list?.indoor?.humidity?.list) {
+                    humidityData = {
+                        unit: data.indoor.list.indoor.humidity.unit || '%',
+                        data: data.indoor.list.indoor.humidity.list
+                    };
+                }
+                else if (data.indoor?.list?.humidity?.list) {
+                    humidityData = {
+                        unit: data.indoor.list.humidity.unit || '%',
+                        data: data.indoor.list.humidity.list
+                    };
+                }
+                // Extraer datos de presión (nueva estructura directa)
+                let pressureData = null;
+                // Debug: Ver qué estructura tienen los datos de presión
+                console.log('🔍 Debug Pressure - data.pressure:', data.pressure);
+                console.log('🔍 Debug Pressure - data.keys:', Object.keys(data));
+                if (data.pressure) {
+                    pressureData = data.pressure;
+                }
+                else if (data.pressure?.pressure?.relative?.list) {
+                    pressureData = {
+                        unit: data.pressure.pressure.relative.unit || 'inHg',
+                        data: data.pressure.pressure.relative.list
+                    };
+                }
+                else if (data.pressure?.pressure?.absolute?.list) {
+                    pressureData = {
+                        unit: data.pressure.pressure.absolute.unit || 'inHg',
+                        data: data.pressure.pressure.absolute.list
+                    };
+                }
+                else if (data.pressure?.list?.relative?.list) {
+                    pressureData = {
+                        unit: data.pressure.list.relative.unit || 'inHg',
+                        data: data.pressure.list.relative.list
+                    };
+                }
+                else if (data.pressure?.list?.absolute?.list) {
+                    pressureData = {
+                        unit: data.pressure.list.absolute.unit || 'inHg',
+                        data: data.pressure.list.absolute.list
+                    };
+                }
+                else if (data.pressure?.list?.pressure?.list) {
+                    pressureData = {
+                        unit: data.pressure.list.pressure.unit || 'inHg',
+                        data: data.pressure.list.pressure.list
+                    };
+                }
+                // Debug: Verificar si se encontraron datos de presión
+                console.log('🔍 Debug Pressure - pressureData found:', !!pressureData);
+                // Extraer datos de humedad del suelo (nueva estructura directa)
+                let processedSoilMoistureData = null;
+                // Usar la nueva estructura directa
+                if (data.soilMoisture) {
+                    processedSoilMoistureData = data.soilMoisture;
+                }
+                else {
+                    // Fallback a la estructura antigua
+                    const soilMoistureChannels = [];
+                    // Primero intentar usar los datos obtenidos por separado
+                    if (soilMoistureData && soilMoistureData.data && soilMoistureData.data.soil_ch1) {
+                        const soilData = soilMoistureData.data.soil_ch1;
+                        // Verificar estructura directa (soilData.soilmoisture)
+                        if (soilData.soilmoisture?.list) {
+                            soilMoistureChannels.push({
+                                channel: 1,
+                                unit: soilData.soilmoisture.unit || '%',
+                                data: soilData.soilmoisture.list,
+                                ad: soilData.ad?.list || null
+                            });
+                        }
+                        // Verificar estructura anidada (soilData.list.soilmoisture)
+                        else if (soilData.list?.soilmoisture?.list) {
+                            soilMoistureChannels.push({
+                                channel: 1,
+                                unit: soilData.list.soilmoisture.unit || '%',
+                                data: soilData.list.soilmoisture.list,
+                                ad: soilData.list?.ad?.list || null
+                            });
+                        }
+                    }
+                    // Si no hay datos de suelo obtenidos por separado, buscar en los datos combinados
+                    if (soilMoistureChannels.length === 0) {
+                        for (let i = 1; i <= 16; i++) {
+                            const channelKey = `soil_ch${i}`;
+                            // Verificar estructura directa
+                            if (data[channelKey]?.soilmoisture?.list) {
+                                soilMoistureChannels.push({
+                                    channel: i,
+                                    unit: data[channelKey].soilmoisture.unit || '%',
+                                    data: data[channelKey].soilmoisture.list,
+                                    ad: data[channelKey].ad?.list || null
+                                });
+                            }
+                            // Verificar estructura anidada
+                            else if (data[channelKey]?.list?.soilmoisture?.list) {
+                                soilMoistureChannels.push({
+                                    channel: i,
+                                    unit: data[channelKey].list.soilmoisture.unit || '%',
+                                    data: data[channelKey].list.soilmoisture.list,
+                                    ad: data[channelKey].list?.ad?.list || null
+                                });
+                            }
+                        }
+                    }
+                    // Si hay canales de suelo con datos, usar el primero como principal
+                    if (soilMoistureChannels.length > 0) {
+                        processedSoilMoistureData = {
+                            primary: soilMoistureChannels[0],
+                            channelCount: soilMoistureChannels.length,
+                            summary: {
+                                totalReadings: Object.keys(soilMoistureChannels[0].data).length,
+                                averageMoisture: Object.values(soilMoistureChannels[0].data).reduce((sum, val) => sum + parseFloat(val), 0) / Object.keys(soilMoistureChannels[0].data).length,
+                                minMoisture: Math.min(...Object.values(soilMoistureChannels[0].data).map((val) => parseFloat(val))),
+                                maxMoisture: Math.max(...Object.values(soilMoistureChannels[0].data).map((val) => parseFloat(val)))
+                            }
+                        };
+                    }
+                }
+                processedHistoricalData = {
+                    temperature: temperatureData,
+                    humidity: humidityData,
+                    pressure: pressureData,
+                    soilMoisture: processedSoilMoistureData
+                };
+            }
+            // 7. Preparar respuesta completa
+            const response = {
+                success: true,
+                device: {
+                    // Información de nuestra DB
+                    dbInfo: {
+                        id: device.DeviceID,
+                        name: device.DeviceName,
+                        mac: device.DeviceMac,
+                        type: device.DeviceType,
+                        applicationKey: device.DeviceApplicationKey,
+                        apiKey: device.DeviceApiKey,
+                        userId: device.UserID,
+                        status: device.status,
+                        createdAt: device.createdAt
+                    },
+                    // Características del dispositivo de EcoWitt
+                    characteristics: deviceCharacteristics,
+                    // Datos en tiempo real
+                    realtime: realtimeData,
+                    // Datos históricos procesados
+                    historical: processedHistoricalData,
+                    // Información de tiempo (si se solicitó)
+                    timeRange: timeRange
+                },
+                metadata: {
+                    hasDeviceInfo: !!deviceInfo,
+                    hasRealtimeData: !!realtimeData,
+                    hasHistoricalData: !!processedHistoricalData,
+                    hasSoilMoistureData: !!soilMoistureData,
+                    deviceOnline: realtimeData?.code === 0,
+                    historicalDataKeys: historicalData?.data ? Object.keys(historicalData.data) : [],
+                    soilMoistureDataKeys: soilMoistureData?.data ? Object.keys(soilMoistureData.data) : [],
+                    timestamp: new Date().toISOString()
+                }
+            };
+            return reply.send(response);
+        }
+        catch (error) {
+            console.error('Error in getDeviceCompleteInfo:', error);
+            return reply.code(500).send({
+                error: 'Error getting complete device information',
+                details: error instanceof Error ? error.message : 'Unknown error'
+            });
+        }
+    }
+    /**
+     * Diagnosticar sensores de suelo específicamente
+     */
+    static async diagnoseSoilSensors(request, reply) {
+        try {
+            const { deviceId } = request.params;
+            const { rangeType } = request.query;
+            const device = await ecowitt_1.EcowittService.getDeviceByDeviceId(deviceId);
+            if (!device) {
+                return reply.code(404).send({ error: 'Device not found' });
+            }
+            const { startTime, endTime } = (0, timeRanges_1.getTimeRange)(rangeType || timeRanges_1.TimeRangeType.ONE_DAY);
+            // Probar diferentes configuraciones para sensores de suelo
+            const soilConfigurations = [
+                { callBack: 'soil', cycleType: 'auto' },
+                { callBack: 'soil', cycleType: '5min' },
+                { callBack: 'soil', cycleType: '10min' },
+                { callBack: 'soil_ch1', cycleType: 'auto' },
+                { callBack: 'soil_ch1', cycleType: '5min' },
+                { callBack: 'soil_ch1', cycleType: '10min' },
+                { callBack: 'soil_ch2', cycleType: 'auto' },
+                { callBack: 'soil_ch2', cycleType: '5min' },
+                { callBack: 'soil_ch2', cycleType: '10min' }
+            ];
+            const results = [];
+            for (const config of soilConfigurations) {
+                try {
+                    const params = {
+                        application_key: device.DeviceApplicationKey,
+                        api_key: device.DeviceApiKey,
+                        mac: device.DeviceMac,
+                        start_date: startTime,
+                        end_date: endTime,
+                        call_back: config.callBack,
+                        cycle_type: config.cycleType
+                    };
+                    const response = await axios_1.default.get('https://api.ecowitt.net/api/v3/device/history', {
+                        params
+                    });
+                    const hasData = response.data.data && Object.keys(response.data.data).length > 0;
+                    const dataKeys = response.data.data ? Object.keys(response.data.data) : [];
+                    results.push({
+                        test: `${config.callBack} (${config.cycleType})`,
+                        params: config,
+                        response: response.data,
+                        hasData,
+                        dataKeys,
+                        dataCount: dataKeys.length
+                    });
+                }
+                catch (error) {
+                    results.push({
+                        test: `${config.callBack} (${config.cycleType})`,
+                        params: config,
+                        error: error instanceof Error ? error.message : 'Unknown error',
+                        hasData: false,
+                        dataKeys: [],
+                        dataCount: 0
+                    });
+                }
+            }
+            const summary = {
+                totalTests: results.length,
+                successfulTests: results.filter(r => r.hasData).length,
+                failedTests: results.filter(r => !r.hasData).length,
+                bestConfiguration: results
+                    .filter(r => r.hasData)
+                    .sort((a, b) => (b.dataCount || 0) - (a.dataCount || 0))[0] || null
+            };
+            return reply.send({
+                device: {
+                    id: device.DeviceID,
+                    name: device.DeviceName,
+                    mac: device.DeviceMac
+                },
+                timeRange: {
+                    type: rangeType || timeRanges_1.TimeRangeType.ONE_DAY,
+                    startTime,
+                    endTime,
+                    description: (0, timeRanges_1.getTimeRangeDescription)(rangeType || timeRanges_1.TimeRangeType.ONE_DAY)
+                },
+                results,
+                summary
+            });
+        }
+        catch (error) {
+            return reply.code(500).send({
+                error: 'Error diagnosing soil sensors',
+                details: error instanceof Error ? error.message : 'Unknown error'
+            });
+        }
+    }
+    /**
+     * Probar específicamente la obtención de datos de humedad del suelo
+     */
+    static async testSoilMoisture(request, reply) {
+        try {
+            const { deviceId } = request.params;
+            const { rangeType } = request.query;
+            const device = await ecowitt_1.EcowittService.getDeviceByDeviceId(deviceId);
+            if (!device) {
+                return reply.code(404).send({ error: 'Device not found' });
+            }
+            const { startTime, endTime } = (0, timeRanges_1.getTimeRange)(rangeType || timeRanges_1.TimeRangeType.ONE_DAY);
+            const soilData = await ecowitt_1.EcowittService.getSoilMoistureHistory(device.DeviceApplicationKey, device.DeviceApiKey, device.DeviceMac, startTime, endTime);
+            return reply.send({
+                device: {
+                    id: device.DeviceID,
+                    name: device.DeviceName,
+                    mac: device.DeviceMac
+                },
+                timeRange: {
+                    type: rangeType || timeRanges_1.TimeRangeType.ONE_DAY,
+                    startTime,
+                    endTime,
+                    description: (0, timeRanges_1.getTimeRangeDescription)(rangeType || timeRanges_1.TimeRangeType.ONE_DAY)
+                },
+                soilData,
+                hasData: soilData.data && Object.keys(soilData.data).length > 0,
+                dataKeys: soilData.data ? Object.keys(soilData.data) : []
+            });
+        }
+        catch (error) {
+            return reply.code(500).send({
+                error: 'Error testing soil moisture',
                 details: error instanceof Error ? error.message : 'Unknown error'
             });
         }

@@ -4,6 +4,8 @@ import cloudinary from '@/db/services/cloudinary';
 import { PDFGenerator } from '@/utils/pdfGenerator';
 import db from '@/db/db';
 import filesTable from '@/db/schemas/filesSchema';
+import chatsTable from '@/db/schemas/chatSchema';
+import messageTable from '@/db/schemas/messageSchema';
 import { z } from 'zod';
 import { eq, and, like } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
@@ -17,7 +19,8 @@ const deviceReportSchema = z.object({
   historyRange: z.object({
     type: z.enum(['hour', 'day', 'week', 'month', '3months']).describe('Rango de tiempo para datos históricos')
   }).optional().describe('Configuración del rango de tiempo histórico'),
-  format: z.enum(['pdf', 'json']).optional().default('pdf').describe('Formato del reporte')
+  format: z.enum(['pdf', 'json']).optional().default('pdf').describe('Formato del reporte'),
+  createChat: z.boolean().optional().default(true).describe('Crear un chat automático con el reporte')
 });
 
 const groupReportSchema = z.object({
@@ -27,7 +30,8 @@ const groupReportSchema = z.object({
   historyRange: z.object({
     type: z.enum(['hour', 'day', 'week', 'month', '3months']).describe('Rango de tiempo para datos históricos')
   }).optional().describe('Configuración del rango de tiempo histórico'),
-  format: z.enum(['pdf', 'json']).optional().default('pdf').describe('Formato del reporte')
+  format: z.enum(['pdf', 'json']).optional().default('pdf').describe('Formato del reporte'),
+  createChat: z.boolean().optional().default(true).describe('Crear un chat automático con el reporte')
 });
 
 function mapTypeToTimeRange(type: string): TimeRangeType {
@@ -45,12 +49,13 @@ export class DeviceWeatherReportController {
   /**
    * Generar reporte de dispositivo individual
    * Incluye mejoras para el historial de EcoWitt con diagnóstico automático
+   * Y crea un chat automático con el reporte adjunto
    */
   static async generateDeviceReport(request: FastifyRequest, reply: FastifyReply) {
     try {
       // Validar datos de entrada
       const validatedData = deviceReportSchema.parse(request.body);
-      const { deviceId, userId, includeHistory, historyRange, format } = validatedData;
+      const { deviceId, userId, includeHistory, historyRange, format, createChat = true } = validatedData;
 
       let computedHistoryRange = undefined;
       if (includeHistory && historyRange && historyRange.type) {
@@ -75,7 +80,7 @@ export class DeviceWeatherReportController {
       );
 
       // Preparar el contenido del archivo
-      let fileContent: Buffer | string;
+      let fileContent: Buffer;
       let fileName: string;
       let folder: string;
 
@@ -85,10 +90,10 @@ export class DeviceWeatherReportController {
         fileName = DeviceWeatherReportService.generateFileName(result.device.DeviceName, 'pdf');
         folder = 'WeatherReports_PDF_AgriTech';
       } else {
-        // Generar JSON
-        fileContent = JSON.stringify(result.report, null, 2);
-        fileName = DeviceWeatherReportService.generateFileName(result.device.DeviceName, 'json');
-        folder = 'WeatherReports_JSON_AgriTech';
+        // Generar PDF con contenido JSON
+        fileContent = await PDFGenerator.generateDeviceJSONPDF(result.report.data);
+        fileName = DeviceWeatherReportService.generateFileName(result.device.DeviceName, 'pdf');
+        folder = 'WeatherReports_PDF_AgriTech';
       }
 
       // Subir archivo a Cloudinary
@@ -107,11 +112,7 @@ export class DeviceWeatherReportController {
           }
         );
         
-        if (fileContent instanceof Buffer) {
-          uploadStream.end(fileContent);
-        } else {
-          uploadStream.end(Buffer.from(fileContent as string, 'utf-8'));
-        }
+        uploadStream.end(fileContent);
       });
 
       // Guardar registro en la base de datos
@@ -123,6 +124,65 @@ export class DeviceWeatherReportController {
         contentURL: uploadResult.secure_url,
         status: 'active'
       });
+
+      // Crear chat automático si se solicita
+      let chatData = null;
+      if (createChat) {
+        try {
+          // Crear el chat
+          const chatID = uuidv4();
+          const chatName = `Análisis: ${result.device.DeviceName} - ${new Date().toLocaleDateString('es-ES')}`;
+          
+          await db.insert(chatsTable).values({
+            ChatID: chatID,
+            UserID: userId,
+            chatname: chatName,
+            status: 'active'
+          });
+
+          // Crear mensaje inicial de la IA con el reporte adjunto
+          const initialMessage = `He generado un reporte completo del dispositivo **${result.device.DeviceName}**. 
+
+**📊 Información del reporte:**
+- **Dispositivo:** ${result.device.DeviceName}
+- **Tipo:** ${result.device.DeviceType}
+- **Ubicación:** ${result.report.data.device.characteristics?.location?.latitude || 'N/A'}°, ${result.report.data.device.characteristics?.location?.longitude || 'N/A'}°
+- **Estado:** ${result.report.data.metadata.deviceOnline ? '🟢 En línea' : '🔴 Desconectado'}
+- **Datos históricos:** ${result.report.data.metadata.hasHistoricalData ? '✅ Incluidos' : '❌ No disponibles'}
+- **Formato:** ${format.toUpperCase()}
+
+**🔍 Puedes preguntarme sobre:**
+- Análisis de los datos del dispositivo
+- Interpretación de las condiciones meteorológicas
+- Recomendaciones basadas en los datos históricos
+- Comparaciones con otros períodos
+- Alertas o anomalías detectadas
+
+¿Qué te gustaría saber sobre este dispositivo?`;
+
+          await db.insert(messageTable).values({
+            MessageID: uuidv4(),
+            ChatID: chatID,
+            FileID: fileID,
+            contentFile: "NULL",
+            contentAsk: "NULL",
+            contentResponse: initialMessage,
+            sendertype: "ai",
+            status: "active"
+          });
+
+          chatData = {
+            chatID,
+            chatName,
+            fileID,
+            fileName,
+            fileURL: uploadResult.secure_url
+          };
+        } catch (chatError) {
+          console.error('Error creating automatic chat:', chatError);
+          // Continuar sin crear el chat si hay error
+        }
+      }
 
       // Preparar respuesta con información mejorada
       const responseData = {
@@ -140,8 +200,15 @@ export class DeviceWeatherReportController {
           hasHistoricalData: result.report.data.metadata.hasHistoricalData,
           historicalDataKeys: result.report.data.metadata.historicalDataKeys,
           diagnosticPerformed: result.report.data.metadata.diagnosticPerformed,
-          timeRange: result.report.data.timeRange
-        }
+          timeRange: result.report.data.timeRange,
+          // Incluir datos completos del dispositivo para el PDF
+          device: result.report.data.device,
+          weather: result.report.data.weather,
+          deviceData: result.report.data.deviceData,
+          metadata: result.report.data.metadata
+        },
+        // Información del chat automático si se creó
+        chat: chatData
       };
 
       // Mensaje personalizado basado en los resultados
@@ -157,6 +224,10 @@ export class DeviceWeatherReportController {
         if (result.report.data.metadata.diagnosticPerformed) {
           message += `. Se realizó diagnóstico automático para optimizar la recuperación de datos`;
         }
+      }
+
+      if (chatData) {
+        message += `. Se ha creado un chat automático para analizar el reporte`;
       }
 
       return reply.send({
@@ -188,12 +259,13 @@ export class DeviceWeatherReportController {
   /**
    * Generar reporte de grupo de dispositivos
    * Incluye mejoras para el historial de EcoWitt con diagnóstico automático
+   * Y crea un chat automático con el reporte adjunto
    */
   static async generateGroupReport(request: FastifyRequest, reply: FastifyReply) {
     try {
       // Validar datos de entrada
       const validatedData = groupReportSchema.parse(request.body);
-      const { groupId, userId, includeHistory, historyRange, format } = validatedData;
+      const { groupId, userId, includeHistory, historyRange, format, createChat = true } = validatedData;
 
       let computedHistoryRange = undefined;
       if (includeHistory && historyRange && historyRange.type) {
@@ -218,7 +290,7 @@ export class DeviceWeatherReportController {
       );
 
       // Preparar el contenido del archivo
-      let fileContent: Buffer | string;
+      let fileContent: Buffer;
       let fileName: string;
       let folder: string;
 
@@ -228,19 +300,20 @@ export class DeviceWeatherReportController {
         fileName = DeviceWeatherReportService.generateGroupFileName(result.group.GroupName, 'pdf');
         folder = 'WeatherReports_PDF_AgriTech';
       } else {
-        // Generar JSON
-        fileContent = JSON.stringify(result.report, null, 2);
-        fileName = DeviceWeatherReportService.generateGroupFileName(result.group.GroupName, 'json');
-        folder = 'WeatherReports_JSON_AgriTech';
+        // Generar PDF con contenido JSON
+        fileContent = await PDFGenerator.generateGroupJSONPDF(result.report.data);
+        fileName = DeviceWeatherReportService.generateGroupFileName(result.group.GroupName, 'pdf');
+        folder = 'WeatherReports_PDF_AgriTech';
       }
 
       // Subir archivo a Cloudinary
       const uploadResult = await new Promise<any>((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
           {
-            resource_type: 'auto',
-            folder,
-            timeout: format === 'pdf' ? 20000 : 15000
+            resource_type: "auto",
+            folder: "PDFs_Group_AgriTech",
+            allowed_formats: ['pdf'],
+            format: 'pdf'
           },
           (error, result) => {
             if (error) return reject(error);
@@ -249,11 +322,7 @@ export class DeviceWeatherReportController {
           }
         );
         
-        if (fileContent instanceof Buffer) {
-          uploadStream.end(fileContent);
-        } else {
-          uploadStream.end(Buffer.from(fileContent as string, 'utf-8'));
-        }
+        uploadStream.end(fileContent);
       });
 
       // Guardar registro en la base de datos
@@ -266,7 +335,66 @@ export class DeviceWeatherReportController {
         status: 'active'
       });
 
-      // Preparar respuesta con información mejorada del grupo
+      // Crear chat automático si se solicita
+      let chatData = null;
+      if (createChat) {
+        try {
+          // Crear el chat
+          const chatID = uuidv4();
+          const chatName = `Análisis Grupo: ${result.group.GroupName} - ${new Date().toLocaleDateString('es-ES')}`;
+          
+          await db.insert(chatsTable).values({
+            ChatID: chatID,
+            UserID: userId,
+            chatname: chatName,
+            status: 'active'
+          });
+
+          // Crear mensaje inicial de la IA con el reporte adjunto
+          const initialMessage = `He generado un reporte completo del grupo **${result.group.GroupName}**. 
+
+**📊 Información del reporte:**
+- **Grupo:** ${result.group.GroupName}
+- **Dispositivos:** ${result.report.data.metadata.totalDevices} dispositivos
+- **Reportes exitosos:** ${result.report.data.metadata.successfulReports}
+- **Datos históricos:** ${result.report.data.metadata.devicesWithHistoricalData} dispositivos con datos históricos
+- **Dispositivos con humedad del suelo:** ${result.report.data.metadata.devicesWithSoilMoisture}
+- **Formato:** ${format.toUpperCase()}
+
+**🔍 Puedes preguntarme sobre:**
+- Análisis comparativo entre dispositivos
+- Patrones climáticos en diferentes ubicaciones
+- Dispositivos con mejor rendimiento
+- Alertas o anomalías detectadas
+- Recomendaciones de optimización
+
+¿Qué te gustaría analizar sobre este grupo de dispositivos?`;
+
+          await db.insert(messageTable).values({
+            MessageID: uuidv4(),
+            ChatID: chatID,
+            FileID: fileID,
+            contentFile: "NULL",
+            contentAsk: "NULL",
+            contentResponse: initialMessage,
+            sendertype: "ai",
+            status: "active"
+          });
+
+          chatData = {
+            chatID,
+            chatName,
+            fileID,
+            fileName,
+            fileURL: uploadResult.secure_url
+          };
+        } catch (chatError) {
+          console.error('Error creating automatic chat:', chatError);
+          // Continuar sin crear el chat si hay error
+        }
+      }
+
+      // Preparar respuesta con información mejorada
       const responseData = {
         fileID,
         fileName,
@@ -276,27 +404,44 @@ export class DeviceWeatherReportController {
           groupId: result.group.DeviceGroupID,
           groupName: result.group.GroupName,
           timestamp: result.report.data.generatedAt,
-          // Información adicional sobre el historial del grupo
+          // Información adicional sobre el historial
           includeHistory,
           totalDevices: result.report.data.metadata.totalDevices,
+          successfulReports: result.report.data.metadata.successfulReports,
+          failedReports: result.report.data.metadata.failedReports,
           devicesWithHistoricalData: result.report.data.metadata.devicesWithHistoricalData,
-          devicesWithDiagnostic: result.report.data.metadata.devicesWithDiagnostic,
-          historicalDataSuccessRate: result.report.data.metadata.historicalDataSuccessRate,
-          diagnosticSuccessRate: result.report.data.metadata.diagnosticSuccessRate,
-          timeRange: result.report.data.timeRange
-        }
+          timeRange: result.report.data.timeRange,
+          // Incluir datos completos del grupo para el PDF
+          group: result.report.data.group,
+          devices: result.report.data.devices,
+          errors: result.report.data.errors,
+          metadata: result.report.data.metadata
+        },
+        // Información del chat automático si se creó
+        chat: chatData
       };
 
-      // Mensaje personalizado basado en los resultados del grupo
-      let message = `Reporte de grupo de dispositivos generado exitosamente en formato ${format.toUpperCase()}`;
+      // Mensaje personalizado basado en los resultados
+      let message = `Reporte de grupo generado exitosamente en formato ${format.toUpperCase()}`;
       
       if (includeHistory) {
-        message += `. ${result.report.data.metadata.devicesWithHistoricalData}/${result.report.data.metadata.totalDevices} dispositivos con datos históricos`;
-        message += ` (${result.report.data.metadata.historicalDataSuccessRate}% de éxito)`;
-        
-        if (result.report.data.metadata.devicesWithDiagnostic > 0) {
-          message += `. Se realizó diagnóstico automático en ${result.report.data.metadata.devicesWithDiagnostic} dispositivos`;
+        if (result.report.data.metadata.devicesWithHistoricalData > 0) {
+          message += `. Datos históricos incluidos para ${result.report.data.metadata.devicesWithHistoricalData} dispositivos`;
+        } else {
+          message += `. No se encontraron datos históricos para el período especificado`;
         }
+        
+        if (result.report.data.metadata.devicesWithSoilMoisture > 0) {
+          message += `. Se encontraron datos de humedad del suelo para ${result.report.data.metadata.devicesWithSoilMoisture} dispositivos`;
+        }
+      }
+
+      if (result.report.data.metadata.failedReports > 0) {
+        message += `. ${result.report.data.metadata.failedReports} dispositivos no pudieron ser procesados`;
+      }
+
+      if (chatData) {
+        message += `. Se ha creado un chat automático para analizar el reporte`;
       }
 
       return reply.send({
@@ -451,15 +596,9 @@ export class DeviceWeatherReportController {
             historicalDataKeys: result.report.data.metadata.historicalDataKeys,
             diagnosticPerformed: result.report.data.metadata.diagnosticPerformed,
             timeRange: result.report.data.timeRange,
-            // Información de diagnóstico si está disponible
-            diagnostic: result.report.data.deviceData.diagnostic ? {
-              performed: result.report.data.deviceData.diagnostic.performed,
-              bestConfiguration: result.report.data.deviceData.diagnostic.bestConfiguration ? {
-                test: result.report.data.deviceData.diagnostic.bestConfiguration.test,
-                dataKeys: result.report.data.deviceData.diagnostic.bestConfiguration.dataKeys,
-                hasData: result.report.data.deviceData.diagnostic.bestConfiguration.hasData
-              } : null
-            } : null
+            // Información de humedad del suelo si está disponible
+            hasSoilMoistureData: result.report.data.metadata.hasSoilMoistureData,
+            soilMoistureSensors: result.report.data.metadata.soilMoistureSensors
           }
         }
       };
@@ -527,4 +666,31 @@ export class DeviceWeatherReportController {
       });
     }
   }
+
+  /**
+   * Test: Verificar generación de gráficos con datos de ejemplo
+   */
+  static async testChartGeneration(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const testHtml = await PDFGenerator.testChartGeneration();
+      
+      return reply.send({
+        success: true,
+        message: 'Test de gráficos generado exitosamente',
+        html: testHtml,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error en test de gráficos:', error);
+      return reply.code(500).send({
+        success: false,
+        message: 'Error al generar test de gráficos',
+        error: error instanceof Error ? error.message : 'Error desconocido'
+      });
+    }
+  }
+
+  /**
+   * Test: Generar reporte de prueba para verificar funcionamiento
+   */
 } 

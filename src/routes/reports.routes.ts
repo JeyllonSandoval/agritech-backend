@@ -9,4 +9,7 @@ export default async function reportsRoutes(fastify: FastifyInstance) {
   
   // Ruta de prueba para verificar la generación de reportes
   fastify.get('/reports/test', DeviceWeatherReportController.testReportGeneration);
+  
+  // Ruta de prueba para verificar la generación de gráficos
+  fastify.get('/reports/test-charts', DeviceWeatherReportController.testChartGeneration);
 } 
