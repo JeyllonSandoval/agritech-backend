@@ -481,6 +481,39 @@ class EcowittService {
         }
     }
     /**
+     * Obtener datos históricos COMPLETOS de múltiples dispositivos
+     * Utiliza getDeviceHistoryComplete para obtener todos los datos (presión, humedad del suelo, etc.)
+     */
+    static async getMultipleDevicesHistoryComplete(devices, startTime, endTime) {
+        try {
+            // Realizar llamadas en paralelo para cada dispositivo usando el método completo
+            const promises = devices.map(async (device) => {
+                try {
+                    const data = await this.getDeviceHistoryComplete(device.applicationKey, device.apiKey, device.mac, startTime, endTime);
+                    return { mac: device.mac, data };
+                }
+                catch (error) {
+                    return {
+                        mac: device.mac,
+                        error: error instanceof Error ? error.message : 'Unknown error'
+                    };
+                }
+            });
+            const results = await Promise.all(promises);
+            // Agrupar resultados por MAC address
+            return results.reduce((acc, result) => {
+                acc[result.mac] = result.data || { error: result.error };
+                return acc;
+            }, {});
+        }
+        catch (error) {
+            if (axios_1.default.isAxiosError(error)) {
+                throw new Error(`Ecowitt API Error: ${error.response?.data?.message || error.message}`);
+            }
+            throw error;
+        }
+    }
+    /**
      * Obtener datos en tiempo real de múltiples dispositivos
      * Nota: La API de EcoWitt requiere una llamada individual por dispositivo
      */
