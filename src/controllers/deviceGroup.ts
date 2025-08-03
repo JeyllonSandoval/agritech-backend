@@ -98,15 +98,24 @@ export class DeviceGroupController {
    * Obtener todos los grupos de un usuario
    */
   static async getUserGroups(
-    request: FastifyRequest<{
-      Params: {
-        userId: string;
-      };
-    }>,
+    request: FastifyRequest,
     reply: FastifyReply
   ) {
     try {
-      const { userId } = request.params;
+      // Extraer UserID del token JWT
+      const token = request.headers.authorization?.replace('Bearer ', '');
+      if (!token) {
+        return reply.code(401).send({ error: 'Authorization token required' });
+      }
+
+      let userId: string;
+      try {
+        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+        userId = payload.UserID;
+      } catch (error) {
+        return reply.code(401).send({ error: 'Invalid token format' });
+      }
+
       const groups = await DeviceGroupService.getUserGroups(userId);
       return reply.send(groups);
     } catch (error) {
