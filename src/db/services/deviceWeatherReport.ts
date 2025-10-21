@@ -12,6 +12,125 @@ import { validateTimeRange } from '@/utils/validationRange';
 export class DeviceWeatherReportService {
   private static weatherService = new WeatherService();
 
+  /**
+   * Convierte diferentes estructuras (data | list | objeto plano) a un mapa { timestamp: number }
+   */
+  private static toTimestampValueMap(input: any): Record<string, number> | null {
+    if (!input) return null;
+
+    const candidate = (obj: any): Record<string, number> | null => {
+      if (!obj) return null;
+      // Caso 1: { data: { ts: val } }
+      if (obj.data && typeof obj.data === 'object') {
+        return Object.fromEntries(
+          Object.entries(obj.data).map(([ts, v]) => [String(ts), Number((v as any).value ?? v)])
+        );
+      }
+      // Caso 2: { list: { ts: val } }
+      if (obj.list && typeof obj.list === 'object') {
+        return Object.fromEntries(
+          Object.entries(obj.list).map(([ts, v]) => [String(ts), Number((v as any).value ?? v)])
+        );
+      }
+      // Caso 3: Objeto plano { ts: val }
+      if (typeof obj === 'object') {
+        const keys = Object.keys(obj);
+        if (keys.length > 0 && keys.every(k => /^(\d+)$/.test(k))) {
+          return Object.fromEntries(keys.map(k => [k, Number((obj as any)[k])]));
+        }
+      }
+      return null;
+    };
+
+    let map = candidate(input);
+    if (map) return map;
+    // Algunos casos vienen anidados un nivel más
+    map = candidate((input as any).relative) || candidate((input as any).absolute) || candidate((input as any).primary);
+    return map;
+  }
+
+  /**
+   * Normaliza el bloque histórico para los gráficos del PDF: { temperature, humidity, pressure, soilMoisture }
+   */
+  private static normalizeHistoricalForCharts(processed: any, original: any) {
+    if (!processed) return null;
+
+    const normalized: any = {};
+
+    // Temperatura
+    const tempSource = processed.temperature ?? original?.temperature ?? original?.indoor?.indoor?.temperature ?? original?.indoor?.temperature ?? original?.temp1c ?? original?.tempf;
+    const tempMap = this.toTimestampValueMap(tempSource);
+    if (tempMap) normalized.temperature = { unit: processed.temperature?.unit || '°C', data: tempMap };
+
+    // Humedad del aire
+    const humSource = processed.humidity ?? original?.humidity ?? original?.indoor?.indoor?.humidity ?? original?.indoor?.humidity ?? original?.humidity1 ?? original?.humidity;
+    const humMap = this.toTimestampValueMap(humSource);
+    if (humMap) normalized.humidity = { unit: processed.humidity?.unit || '%', data: humMap };
+
+    // Presión (preferir relativa si existe)
+    const pressureSource = processed.pressure ?? original?.pressure?.pressure?.relative ?? original?.pressure?.relative ?? original?.baromrelin ?? original?.pressure;
+    const pressureMap = this.toTimestampValueMap(pressureSource);
+    if (pressureMap) normalized.pressure = { unit: 'hPa', data: pressureMap };
+
+    // Humedad del suelo: probar varias rutas
+    const soilSource = processed.soilMoisture ?? original?.soilMoisture ?? original?.soil_ch1?.soilmoisture ?? original?.soil_ch1?.list?.soilmoisture ?? original?.soilmoisture1;
+    const soilMap = this.toTimestampValueMap(soilSource);
+    if (soilMap) normalized.soilMoisture = { unit: '%', data: soilMap };
+
+    // Si no encontramos nada, devolver processed tal cual
+    const hasAny = Object.keys(normalized).length > 0;
+    return hasAny ? normalized : processed;
+  }
+
+  /**
+   * Determina si una respuesta de tiempo real contiene datos útiles
+   */
+  private static hasRealtimePayload(realtimeData: any): { hasData: boolean; keys: string[] } {
+    if (!realtimeData) return { hasData: false, keys: [] };
+
+    // Caso estándar de EcoWitt
+    if (typeof realtimeData === 'object' && 'code' in realtimeData) {
+      const payload = realtimeData.data;
+      if (Array.isArray(payload)) {
+        return { hasData: payload.length > 0, keys: [] };
+      }
+      if (payload && typeof payload === 'object') {
+        const keys = Object.keys(payload);
+        return { hasData: keys.length > 0, keys };
+      }
+    }
+
+    // Fallback: datos a nivel raíz (cuando la API devuelve claves directas)
+    const excluded = new Set(['code', 'msg', 'time', 'data', '_diagnostic']);
+    const keys = Object.keys(realtimeData).filter((k) => !excluded.has(k));
+    return { hasData: keys.length > 0, keys };
+  }
+
+  /**
+   * Determina si el paquete histórico procesado realmente trae puntos
+   */
+  private static hasHistoricalPayload(processedHistoricalData: any): { hasData: boolean; keys: string[] } {
+    if (!processedHistoricalData || typeof processedHistoricalData !== 'object') {
+      return { hasData: false, keys: [] };
+    }
+
+    const keys = Object.keys(processedHistoricalData).filter(Boolean);
+    const hasAnySeries = keys.some((k) => {
+      const serie = processedHistoricalData[k];
+      if (!serie) return false;
+      // formatos aceptados: { unit, data: {...} } o directamente objeto con timestamps
+      if (serie.data && typeof serie.data === 'object') {
+        return Object.keys(serie.data).length > 0;
+      }
+      if (typeof serie === 'object') {
+        return Object.keys(serie).length > 0;
+      }
+      return false;
+    });
+
+    return { hasData: hasAnySeries, keys };
+  }
+
     /**
    * Generar reporte combinado para un dispositivo individual
    * Usa el nuevo endpoint getDeviceCompleteInfo que incluye todos los datos necesarios
@@ -76,6 +195,7 @@ export class DeviceWeatherReportService {
 
       // 5. Obtener datos históricos procesados (INCLUYENDO HUMEDAD DEL SUELO)
       let processedHistoricalData = null;
+      let originalHistoricalDataForNormalization: any = null;
       let timeRange = null;
       
       if (includeHistory && historyRange) {
@@ -130,6 +250,7 @@ export class DeviceWeatherReportService {
           // Procesar datos históricos usando la nueva estructura de getDeviceCompleteInfo
           if (historicalData && historicalData.code === 0 && historicalData.msg === 'success') {
             const data = historicalData.data;
+            originalHistoricalDataForNormalization = data;
             
             // Extraer datos de temperatura (nueva estructura directa)
             let temperatureData = null;
@@ -290,6 +411,11 @@ export class DeviceWeatherReportService {
         }
       }
 
+      // Normalizar garantizando { temperature.data, humidity.data, pressure.data, soilMoisture.data }
+      if (processedHistoricalData) {
+        processedHistoricalData = this.normalizeHistoricalForCharts(processedHistoricalData, originalHistoricalDataForNormalization);
+      }
+
       // 6. Preparar características del dispositivo (CORREGIDO para EcoWitt)
       const deviceCharacteristics = deviceInfo?.data ? {
         id: deviceInfo.data.id,
@@ -353,6 +479,9 @@ export class DeviceWeatherReportService {
       };
 
       // 9. Crear estructura del reporte (CORREGIDA para EcoWitt)
+      const realtimeCheck = this.hasRealtimePayload(realtimeData);
+      const historyCheck = this.hasHistoricalPayload(processedHistoricalData);
+
       const report = {
         device: {
           id: device.DeviceID,
@@ -372,10 +501,12 @@ export class DeviceWeatherReportService {
         metadata: {
           includeHistory,
           hasWeatherData: !!weatherData,
-          hasHistoricalData: !!processedHistoricalData,
-          deviceOnline: realtimeData?.code === 0,
+          hasHistoricalData: historyCheck.hasData,
+          deviceOnline: realtimeData?.code === 0 || realtimeCheck.hasData,
           diagnosticPerformed: false, // Ya no usamos diagnóstico automático
-          historicalDataKeys: processedHistoricalData ? Object.keys(processedHistoricalData) : [],
+          historicalDataKeys: historyCheck.keys,
+          hasRealtimeData: realtimeCheck.hasData,
+          realtimeDataKeys: realtimeCheck.keys,
           // Información de humedad del suelo si está disponible
           hasSoilMoistureData: !!processedHistoricalData?.soilMoisture,
           soilMoistureSensors: processedHistoricalData?.soilMoisture?.summary?.availableSensors || []
@@ -610,8 +741,21 @@ export class DeviceWeatherReportService {
       const groupDiagnostic = {
         totalDevices: groupDevices.length,
         devicesWithHistoricalData: 0,
+        devicesWithRealtimeData: 0,
         devicesWithDiagnostic: 0,
-        diagnosticResults: [] as any[]
+        diagnosticResults: [] as any[],
+        // nuevas listas para análisis fino
+        devicesRealtimeOnly: [] as Array<{ deviceId: string; deviceName: string }>,
+        devicesHistoryOnly: [] as Array<{ deviceId: string; deviceName: string }>,
+        devicesBoth: [] as Array<{ deviceId: string; deviceName: string }>,
+        devicesNoData: [] as Array<{ deviceId: string; deviceName: string }>,
+        perDeviceStatus: [] as Array<{
+          deviceId: string;
+          deviceName: string;
+          online: boolean;
+          hasRealtime: boolean;
+          hasHistory: boolean;
+        }>
       };
 
       for (const device of groupDevices) {
@@ -623,11 +767,29 @@ export class DeviceWeatherReportService {
             historyRange
           );
           
-          // Contar dispositivos con datos históricos
-          if (deviceReport.report.data.metadata.hasHistoricalData) {
-            groupDiagnostic.devicesWithHistoricalData++;
-          }
-          
+          // Contar dispositivos con datos históricos y en tiempo real
+          const hasHistory = !!deviceReport.report.data.metadata.hasHistoricalData;
+          const hasRealtime = !!deviceReport.report.data.metadata.hasRealtimeData || !!deviceReport.report.data.metadata.deviceOnline;
+
+          if (hasHistory) groupDiagnostic.devicesWithHistoricalData++;
+          if (hasRealtime) groupDiagnostic.devicesWithRealtimeData++;
+
+          // Clasificar
+          const summaryItem = { deviceId: device.DeviceID, deviceName: device.DeviceName };
+          if (hasHistory && hasRealtime) groupDiagnostic.devicesBoth.push(summaryItem);
+          else if (hasRealtime && !hasHistory) groupDiagnostic.devicesRealtimeOnly.push(summaryItem);
+          else if (!hasRealtime && hasHistory) groupDiagnostic.devicesHistoryOnly.push(summaryItem);
+          else groupDiagnostic.devicesNoData.push(summaryItem);
+
+          // Guardar estado por dispositivo
+          groupDiagnostic.perDeviceStatus.push({
+            deviceId: device.DeviceID,
+            deviceName: device.DeviceName,
+            online: !!deviceReport.report.data.metadata.deviceOnline,
+            hasRealtime: hasRealtime,
+            hasHistory: hasHistory
+          });
+
           // Contar dispositivos con datos de humedad del suelo
           if (deviceReport.report.data.metadata.hasSoilMoistureData) {
             groupDiagnostic.devicesWithDiagnostic++;
@@ -707,13 +869,23 @@ export class DeviceWeatherReportService {
           hasErrors: errors.length > 0,
           // Información mejorada sobre datos históricos
           devicesWithHistoricalData: groupDiagnostic.devicesWithHistoricalData,
+          devicesWithRealtimeData: groupDiagnostic.devicesWithRealtimeData,
           devicesWithSoilMoisture: groupDiagnostic.devicesWithDiagnostic,
           historicalDataSuccessRate: groupDevices.length > 0 
             ? Math.round((groupDiagnostic.devicesWithHistoricalData / groupDevices.length) * 100)
             : 0,
+          realtimeDataSuccessRate: groupDevices.length > 0
+            ? Math.round((groupDiagnostic.devicesWithRealtimeData / groupDevices.length) * 100)
+            : 0,
           soilMoistureSuccessRate: groupDiagnostic.devicesWithDiagnostic > 0 
             ? Math.round((groupDiagnostic.devicesWithDiagnostic / groupDevices.length) * 100)
-            : 0
+            : 0,
+          // Resumenes de clasificación
+          devicesRealtimeOnly: groupDiagnostic.devicesRealtimeOnly,
+          devicesHistoryOnly: groupDiagnostic.devicesHistoryOnly,
+          devicesBoth: groupDiagnostic.devicesBoth,
+          devicesNoData: groupDiagnostic.devicesNoData,
+          perDeviceStatus: groupDiagnostic.perDeviceStatus
         },
         // Información de humedad del suelo del grupo
         groupDiagnostic: includeHistory ? groupDiagnostic : null
