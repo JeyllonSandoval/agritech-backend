@@ -382,7 +382,7 @@ class DeviceWeatherReportController {
                 // Información del chat automático si se creó
                 chat: chatData
             };
-            // Mensaje personalizado basado en los resultados
+            // Mensaje personalizado basado en los resultados con desglose
             let message = `Reporte de grupo generado exitosamente en formato ${format.toUpperCase()}`;
             if (includeHistory) {
                 if (result.report.data.metadata.devicesWithHistoricalData > 0) {
@@ -394,6 +394,13 @@ class DeviceWeatherReportController {
                 if (result.report.data.metadata.devicesWithSoilMoisture > 0) {
                     message += `. Se encontraron datos de humedad del suelo para ${result.report.data.metadata.devicesWithSoilMoisture} dispositivos`;
                 }
+            }
+            // Agregar resumen de tiempo real
+            if (typeof result.report.data.metadata.devicesWithRealtimeData === 'number') {
+                const rt = result.report.data.metadata.devicesWithRealtimeData;
+                const total = result.report.data.metadata.totalDevices;
+                const rtRate = result.report.data.metadata.realtimeDataSuccessRate ?? Math.round((rt / Math.max(total, 1)) * 100);
+                message += `. Datos en tiempo real disponibles en ${rt}/${total} dispositivos (${rtRate}%)`;
             }
             if (result.report.data.metadata.failedReports > 0) {
                 message += `. ${result.report.data.metadata.failedReports} dispositivos no pudieron ser procesados`;

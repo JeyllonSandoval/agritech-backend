@@ -1409,6 +1409,10 @@ export class PDFGenerator {
    * CORREGIDO para manejar la estructura EcoWitt {timestamp: value}
    */
   private static generateChartScripts(historicalData: any, deviceIndex: number = 0): string {
+    // Guardias: si no hay datos históricos, no generar scripts
+    if (!historicalData || typeof historicalData !== 'object') {
+      return '';
+    }
     console.log('🔍 Debug generateChartScripts - Input historicalData keys:', Object.keys(historicalData || {}));
     
     // Procesar datos según la estructura EcoWitt
@@ -1573,6 +1577,11 @@ export class PDFGenerator {
       console.log('🔍 Debug Soil Scripts - Available keys in historicalData:', Object.keys(historicalData));
     }
     
+    // Si no hay ninguna serie, evitar errores y no generar gráficos
+    if (tempSeries.length === 0 && humSeries.length === 0 && pressureSeries.length === 0 && soilSeries.length === 0) {
+      return '';
+    }
+
     // Generar etiquetas y valores
     const tempLabels = tempSeries.map(p => new Date(p.time).toLocaleString('es-ES', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }));
     const tempValues = tempSeries.map(p => p.value);
@@ -2257,11 +2266,15 @@ export class PDFGenerator {
               let { realtime } = deviceDataInfo;
               const sensorCards: string[] = [];
 
-              // Robustez: si recibimos el objeto completo, extraer 'data'
+              // Robustez: si recibimos el objeto completo, extraer 'data' con Fallback cuando 'data' esté vacío
               if (realtime && typeof realtime === 'object' && 'data' in realtime && 'code' in realtime) {
-                // Si es la respuesta completa de EcoWitt, extraer solo los datos
-                if (realtime.code === 0 && realtime.msg === 'success') {
-                  realtime = realtime.data;
+                // Mantener copia original por si 'data' viene vacío
+                const rawRealtime = realtime;
+                if (rawRealtime.code === 0 && rawRealtime.msg === 'success') {
+                  const d = rawRealtime.data;
+                  const isEmpty = Array.isArray(d) ? d.length === 0 : (d && typeof d === 'object') ? Object.keys(d).length === 0 : !d;
+                  // Si 'data' está vacío, usar el objeto raíz (que a veces trae claves planas)
+                  realtime = isEmpty ? rawRealtime : d;
                 }
               }
 
@@ -2344,17 +2357,58 @@ export class PDFGenerator {
                   }
                 }
 
-                // Suelo (soil_ch1, soil_ch9, etc.)
+                // Suelo (soil_ch1, soil_ch9, etc.) dentro de objetos anidados
                 Object.keys(data).forEach(key => {
                   if (key.startsWith('soil_ch')) {
                     const soilData = data[key];
-                    if (soilData.soilmoisture?.value) {
+                    if (soilData?.soilmoisture?.value !== undefined) {
                       const unit = soilData.soilmoisture.unit || '%';
                       sensorCards.push(`<div class="weather-card"><div class="label">Humedad del Suelo ${key.toUpperCase()}</div><div class="value">${soilData.soilmoisture.value}${unit}</div></div>`);
                     }
-                    if (soilData.ad?.value) {
+                    if (soilData?.ad?.value !== undefined) {
                       sensorCards.push(`<div class="weather-card"><div class="label">AD ${key.toUpperCase()}</div><div class="value">${soilData.ad.value}</div></div>`);
                     }
+                  }
+                });
+
+                // Detección de claves a nivel raíz (p.ej. ad_soil_ch1, soilmoisture1)
+                Object.keys(data).forEach(key => {
+                  const lowerKey = key.toLowerCase();
+                  const value: any = (data as any)[key];
+
+                  // ad_soil_chX → valor numérico
+                  if (/^ad_soil_ch\d+$/i.test(lowerKey)) {
+                    const channel = lowerKey.match(/\d+/)?.[0] || '';
+                    sensorCards.push(`<div class="weather-card"><div class="label">AD SOIL_CH${channel}</div><div class="value">${value?.value ?? value}</div></div>`);
+                  }
+
+                  // soilmoisture o soilmoisture_chX o soilmoistureX (legacy)
+                  if (/^soilmoisture(_ch)?\d+$/i.test(lowerKey) || /^soilmoisture$/i.test(lowerKey)) {
+                    const unit = (value && value.unit) ? value.unit : '%';
+                    const channel = lowerKey.match(/\d+/)?.[0];
+                    const label = channel ? `Humedad del Suelo CH${channel}` : 'Humedad del Suelo';
+                    const val = value?.value ?? value;
+                    if (val !== undefined && val !== null && val !== '') {
+                      sensorCards.push(`<div class="weather-card"><div class="label">${label}</div><div class="value">${val}${unit}</div></div>`);
+                    }
+                  }
+
+                  // indoor/outdoor temperatura/humedad en claves compactas comunes
+                  if (lowerKey === 'intemp' || lowerKey === 'tempin' || lowerKey === 'temperature_in') {
+                    const v = value?.value ?? value;
+                    if (v !== undefined) sensorCards.push(`<div class="weather-card"><div class="label">Temperatura Interior</div><div class="value">${v}${value?.unit || '°F'}</div></div>`);
+                  }
+                  if (lowerKey === 'inhumidity' || lowerKey === 'humidityin' || lowerKey === 'humidity_in') {
+                    const v = value?.value ?? value;
+                    if (v !== undefined) sensorCards.push(`<div class="weather-card"><div class="label">Humedad Interior</div><div class="value">${v}${value?.unit || '%'}</div></div>`);
+                  }
+                  if (lowerKey === 'outtemp' || lowerKey === 'tempout' || lowerKey === 'temperature_out') {
+                    const v = value?.value ?? value;
+                    if (v !== undefined) sensorCards.push(`<div class="weather-card"><div class="label">Temperatura Exterior</div><div class="value">${v}${value?.unit || '°F'}</div></div>`);
+                  }
+                  if (lowerKey === 'outhumidity' || lowerKey === 'humidityout' || lowerKey === 'humidity_out') {
+                    const v = value?.value ?? value;
+                    if (v !== undefined) sensorCards.push(`<div class="weather-card"><div class="label">Humedad Exterior</div><div class="value">${v}${value?.unit || '%'}</div></div>`);
                   }
                 });
 
@@ -2533,7 +2587,7 @@ export class PDFGenerator {
               ${report.errors.map(error => `
                 <div class="error-card">
                   <h4>Error en dispositivo</h4>
-                  <div class="error-message">${error.message || 'Error desconocido'}</div>
+                  <div class="error-message">${error.error || error.message || 'Error desconocido'}</div>
                 </div>
               `).join('')}
             </div>
