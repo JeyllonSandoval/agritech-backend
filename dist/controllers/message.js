@@ -90,19 +90,27 @@ const createMessage = async (request, reply) => {
                     userLanguage: userLanguage // Pasar el idioma del usuario
                 }
             };
-            const aiResponse = await (0, ai_response_1.default)(aiRequest, reply);
-            return reply.status(201).send({
-                success: true,
-                message: {
-                    id: aiResponse.message.MessageID,
-                    chatId: aiResponse.message.ChatID,
-                    fileId: aiResponse.message.FileID,
-                    senderType: aiResponse.message.sendertype,
-                    content: aiResponse.content,
-                    createdAt: aiResponse.message.createdAt,
-                    status: aiResponse.message.status
-                }
-            });
+            try {
+                const aiResponse = await (0, ai_response_1.default)(aiRequest, reply);
+                return reply.status(201).send({
+                    success: true,
+                    message: {
+                        id: aiResponse.message.MessageID,
+                        chatId: aiResponse.message.ChatID,
+                        fileId: aiResponse.message.FileID,
+                        senderType: aiResponse.message.sendertype,
+                        content: aiResponse.content,
+                        createdAt: aiResponse.message.createdAt,
+                        status: aiResponse.message.status
+                    }
+                });
+            }
+            catch (aiError) {
+                return reply.status(500).send({
+                    error: "AI Response: Failed to generate response",
+                    details: aiError instanceof Error ? aiError.message : "Unknown error"
+                });
+            }
         }
         return reply.status(201).send({
             success: true,
